@@ -1,0 +1,69 @@
+/**
+ * Daftar permission string (Guide §3.1 — constants/permissions.ts).
+ *
+ * CATATAN PENYESUAIAN DOMAIN:
+ * Guide menyebut `requirePermissions(...)` dengan bypass untuk user SSO
+ * internal (tipe ais/SuperAdmin). Project ini belum punya SSO maupun tabel
+ * permission — yang ada hanya `user_business_roles.role`. Jadi permission
+ * di sini diturunkan dari role lewat ROLE_PERMISSIONS di bawah, dan
+ * TIDAK ADA jalur bypass. Begitu tabel permission/SSO masuk, cukup ganti
+ * sumber ROLE_PERMISSIONS tanpa mengubah pemanggilan di route.
+ */
+import type { BusinessRole } from "../db/schema.js";
+
+export const Permission = {
+  // Users & keanggotaan bisnis
+  USER_READ: "user:read",
+  USER_CREATE: "user:create",
+  USER_ASSIGN: "user:assign",
+  USER_UPDATE_ROLE: "user:update_role",
+  USER_REMOVE: "user:remove",
+
+  // Chart of accounts
+  ACCOUNT_READ: "account:read",
+  ACCOUNT_WRITE: "account:write",
+
+  // Kontak (customer/supplier)
+  CONTACT_READ: "contact:read",
+  CONTACT_WRITE: "contact:write",
+
+  // Jurnal
+  JOURNAL_READ: "journal:read",
+  JOURNAL_WRITE: "journal:write",
+
+  // Rekening bank
+  BANK_ACCOUNT_READ: "bank_account:read",
+  BANK_ACCOUNT_WRITE: "bank_account:write",
+
+  // Audit
+  AUDIT_READ: "audit:read",
+} as const;
+
+export type PermissionValue = (typeof Permission)[keyof typeof Permission];
+
+const READ_ONLY: PermissionValue[] = [
+  Permission.USER_READ,
+  Permission.ACCOUNT_READ,
+  Permission.CONTACT_READ,
+  Permission.JOURNAL_READ,
+  Permission.BANK_ACCOUNT_READ,
+];
+
+export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> =
+  {
+    admin: Object.values(Permission),
+    accountant: [
+      ...READ_ONLY,
+      Permission.ACCOUNT_WRITE,
+      Permission.CONTACT_WRITE,
+      Permission.JOURNAL_WRITE,
+      Permission.BANK_ACCOUNT_WRITE,
+    ],
+    viewer: READ_ONLY,
+  };
+
+export function permissionsForRole(
+  role: BusinessRole,
+): readonly PermissionValue[] {
+  return ROLE_PERMISSIONS[role] ?? [];
+}
