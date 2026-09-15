@@ -13,21 +13,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { useChangePassword } from "@/hooks/use-auth";
 import { getApiErrorMessage } from "@/lib/errors";
+import { zodFieldValidator } from "@/lib/form-validators";
 
 export interface ChangePasswordDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-const oldPasswordSchema = z.string().min(1, "Password lama wajib diisi.");
-const newPasswordSchema = z.string().min(8, "Password baru minimal 8 karakter.");
-
-function zodFieldValidator(schema: z.ZodTypeAny) {
-  return ({ value }: { value: unknown }) => {
-    const result = schema.safeParse(value);
-    return result.success ? undefined : result.error.issues[0]?.message;
-  };
-}
+// Diekspor supaya halaman /user (form ganti password non-dialog) pakai aturan yang sama.
+export const oldPasswordSchema = z.string().min(1, "Password lama wajib diisi.");
+export const newPasswordSchema = z.string().min(8, "Password baru minimal 8 karakter.");
 
 // Guide §9: aksi cepat ganti password dari dropdown header, tanpa pindah halaman.
 export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialogProps) {
