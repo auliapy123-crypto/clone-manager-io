@@ -4,12 +4,12 @@
  */
 const env = {
   // --- App ---------------------------------------------------------
-  PORT: Number(process.env.PORT) || 8014,
+  PORT: Number(process.env.PORT) || 4000,
   NODE_ENV: process.env.NODE_ENV || "development",
   LOG_LEVEL:
     process.env.LOG_LEVEL ||
     (process.env.NODE_ENV === "development" ? "debug" : "info"),
-  APP_PUBLIC_URL: process.env.APP_PUBLIC_URL || "http://localhost:8014",
+  APP_PUBLIC_URL: process.env.APP_PUBLIC_URL || "http://localhost:4000",
 
   // --- Database ----------------------------------------------------
   DATABASE_URL: process.env.DATABASE_URL,

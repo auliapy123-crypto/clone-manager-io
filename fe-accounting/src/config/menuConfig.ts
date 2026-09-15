@@ -1,0 +1,46 @@
+import type { LucideIcon } from "lucide-react";
+import { Building2, LayoutDashboard, User, Users } from "lucide-react";
+
+/** Role bisnis (Guide §7 RBAC) -- harus sinkron dgn BusinessRoleSchema backend. */
+export type BusinessRole = "admin" | "accountant" | "viewer";
+
+export interface MenuItem {
+  label: string;
+  to: string;
+  icon: LucideIcon;
+  /** Kosong = tampil untuk semua role. */
+  allowedRoles?: BusinessRole[];
+}
+
+/**
+ * Nav Header Global (Guide §7, §9). Selalu tampil untuk user yang login,
+ * tidak terikat konteks/role bisnis tertentu -- jadi tanpa allowedRoles.
+ */
+export const headerMenuItems: MenuItem[] = [
+  { label: "Businesses", to: "/businesses", icon: Building2 },
+  { label: "Users", to: "/user", icon: User },
+];
+
+/**
+ * Nav BusinessSidebar & MobileNavDrawer (Guide §7, §10.2) -- single source
+ * of truth supaya kedua komponen tidak duplikasi daftar menu. `to` relatif
+ * terhadap "/businesses/$businessId".
+ */
+export const businessMenuItems: MenuItem[] = [
+  { label: "Overview", to: "/businesses/$businessId", icon: LayoutDashboard },
+  {
+    label: "Members",
+    to: "/businesses/$businessId/members",
+    icon: Users,
+    allowedRoles: ["admin", "accountant"],
+  },
+];
+
+/** Guide §7 RBAC: item tanpa allowedRoles tampil untuk semua role. */
+export function canAccessMenuItem(
+  item: MenuItem,
+  role: BusinessRole | null | undefined,
+): boolean {
+  if (!item.allowedRoles) return true;
+  return role != null && item.allowedRoles.includes(role);
+}

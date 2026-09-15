@@ -1,0 +1,12 @@
+node_modules/
+dist/
+dist-ssr/
+.env
+*.local
+*.tsbuildinfo
+
+# TanStack Router codegen
+src/routeTree.gen.ts
+
+# Hasil generator OpenAPI — jangan pernah commit manual
+src/integrations/generated-clients/
