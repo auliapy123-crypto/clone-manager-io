@@ -1,0 +1,26 @@
+# =====================================================================
+# .gitignore ROOT — clone-manager-io
+# Catatan: backend/ dan fe-accounting/ masing-masing SUDAH punya
+# .gitignore sendiri untuk kebutuhan spesifiknya. File ini cuma
+# menutup kebutuhan di folder yang belum punya .gitignore sendiri
+# (backend-legacy-express) + jaring pengaman umum.
+# =====================================================================
+
+# backend-legacy-express (arsip lama, tidak pernah punya .gitignore sendiri)
+backend-legacy-express/node_modules/
+backend-legacy-express/.env
+
+# Cache sementara TanStack Router di fe-accounting
+fe-accounting/.tanstack/
+
+# Jaring pengaman umum — node_modules di folder mana pun, kalau sampai
+# ada folder baru lain nanti yang lupa dikasih .gitignore sendiri
+**/node_modules/
+
+# File sampah sistem operasi
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
