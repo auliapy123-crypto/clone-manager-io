@@ -15,7 +15,7 @@ const ROLE_LABEL: Record<BusinessRole, string> = {
   viewer: "Viewer",
 };
 
-// Guide §3, §6, §7: daftar bisnis milik user aktif (GET /auth/me/businesses).
+// Guide §3, §6, §7: daftar bisnis milik user aktif (GET /businesses).
 function BusinessesListPage() {
   const { data: businesses, isPending, isError, error } = useBusinesses();
 

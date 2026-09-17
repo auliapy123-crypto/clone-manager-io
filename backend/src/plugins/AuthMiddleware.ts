@@ -56,6 +56,8 @@ declare module "fastify" {
   interface FastifyInstance {
     requireAuth: preHandlerHookHandler;
     requireBusinessScope: preHandlerHookHandler;
+    /** Sama seperti requireBusinessScope, tapi businessId dari `:businessId` di path, bukan header. */
+    requireBusinessScopeParam: preHandlerHookHandler;
     requireRole: (...roles: BusinessRole[]) => preHandlerHookHandler;
     requirePermissions: (
       ...permissions: PermissionValue[]
@@ -199,6 +201,51 @@ async function authMiddleware(fastify: FastifyInstance) {
     request.businessRole = membership.role;
   };
 
+  /**
+   * Dipakai route Business (`/businesses/:businessId/...`) — businessId
+   * datang dari path, bukan header `x-business-id`. Skema `params` route
+   * sudah memvalidasi bentuk UUID-nya sebelum preHandler ini jalan, jadi
+   * tidak perlu regex check manual seperti requireBusinessScope di atas.
+   */
+  const requireBusinessScopeParam: preHandlerHookHandler = async (
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ) => {
+    if (!request.user) {
+      return sendError(
+        reply,
+        401,
+        ErrorCode.UNAUTHORIZED,
+        ErrorMessage[ErrorCode.UNAUTHORIZED],
+      );
+    }
+
+    const { businessId } = request.params as { businessId?: string };
+
+    if (!businessId) {
+      return sendError(
+        reply,
+        400,
+        ErrorCode.BAD_REQUEST,
+        "Parameter businessId wajib diisi.",
+      );
+    }
+
+    const membership = await getMembership(request.user.id, businessId);
+
+    if (!membership) {
+      return sendError(
+        reply,
+        403,
+        ErrorCode.FORBIDDEN,
+        "Anda tidak memiliki akses ke bisnis ini.",
+      );
+    }
+
+    request.businessId = membership.businessId;
+    request.businessRole = membership.role;
+  };
+
   const requireRole = (...roles: BusinessRole[]): preHandlerHookHandler => {
     return async (request: FastifyRequest, reply: FastifyReply) => {
       if (!request.businessRole) {
@@ -250,6 +297,7 @@ async function authMiddleware(fastify: FastifyInstance) {
 
   fastify.decorate("requireAuth", requireAuth);
   fastify.decorate("requireBusinessScope", requireBusinessScope);
+  fastify.decorate("requireBusinessScopeParam", requireBusinessScopeParam);
   fastify.decorate("requireRole", requireRole);
   fastify.decorate("requirePermissions", requirePermissions);
 }

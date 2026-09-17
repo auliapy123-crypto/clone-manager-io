@@ -12,6 +12,10 @@
 import type { BusinessRole } from "../db/schema.js";
 
 export const Permission = {
+  // Bisnis itu sendiri (profil, bukan keanggotaan)
+  BUSINESS_READ: "business:read",
+  BUSINESS_UPDATE: "business:update",
+
   // Users & keanggotaan bisnis
   USER_READ: "user:read",
   USER_CREATE: "user:create",
@@ -42,6 +46,7 @@ export const Permission = {
 export type PermissionValue = (typeof Permission)[keyof typeof Permission];
 
 const READ_ONLY: PermissionValue[] = [
+  Permission.BUSINESS_READ,
   Permission.USER_READ,
   Permission.ACCOUNT_READ,
   Permission.CONTACT_READ,

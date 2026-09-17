@@ -21,9 +21,20 @@ interface PgLikeError {
   message?: unknown;
 }
 
+/**
+ * drizzle-orm >=0.45 membungkus error driver asli dalam `DrizzleQueryError`,
+ * dengan pg error sesungguhnya (yang punya `.code` SQLSTATE) di `.cause` —
+ * bukan lagi di root object. Tanpa unwrap ini, setiap
+ * `isPgUniqueViolation`/dst selalu false untuk error dari query manapun,
+ * dan berakhir sebagai 500 alih-alih 409/dsb.
+ */
 function asPgError(error: unknown): PgLikeError | null {
   if (typeof error !== "object" || error === null) return null;
-  return error as PgLikeError;
+
+  const candidate = error as PgLikeError & { cause?: unknown };
+  if (typeof candidate.code === "string") return candidate;
+
+  return "cause" in candidate ? asPgError(candidate.cause) : null;
 }
 
 function hasPgCode(error: unknown, code: string): boolean {

@@ -36,17 +36,11 @@ import {
   NotFound,
   Unauthorized,
 } from "../schemas/globals.js";
+import { createUser, listUsersByBusiness } from "../repositories/UserRepository.js";
 import {
-  createUser,
-  getUserById,
-  listUsersByBusiness,
-} from "../repositories/UserRepository.js";
-import {
-  assignUserToBusiness,
-  countMembersByRole,
-  getMembership,
-  removeMembership,
-  updateMembershipRole,
+  addMemberToBusiness,
+  changeMemberRole,
+  removeMemberFromBusiness,
 } from "../repositories/UserBusinessRoleRepository.js";
 
 const BUSINESS_HEADER_NOTE =
@@ -190,8 +184,9 @@ export async function userRoutesPlugin(fastify: FastifyInstance) {
       const { userId, role } = request.body;
       const businessId = request.businessId!;
 
-      const user = await getUserById(userId);
-      if (!user) {
+      const result = await addMemberToBusiness(businessId, userId, role);
+
+      if (result.status === "user_not_found") {
         return sendError(
           reply,
           404,
@@ -200,29 +195,23 @@ export async function userRoutesPlugin(fastify: FastifyInstance) {
         );
       }
 
-      let membership;
-      try {
-        membership = await assignUserToBusiness(userId, businessId, role);
-      } catch (error) {
-        if (isPgUniqueViolation(error)) {
-          return sendError(
-            reply,
-            409,
-            ErrorCode.CONFLICT,
-            "User sudah terhubung ke bisnis ini.",
-          );
-        }
-        throw error;
+      if (result.status === "already_member") {
+        return sendError(
+          reply,
+          409,
+          ErrorCode.CONFLICT,
+          "User sudah terhubung ke bisnis ini.",
+        );
       }
 
       request.audit = {
         action: "CREATE",
         entityType: "user_business_roles",
-        entityId: membership.id,
+        entityId: result.membership.id,
         newValues: { userId, role },
       };
 
-      return sendData(reply, membership, 201);
+      return sendData(reply, result.membership, 201);
     },
   );
 
@@ -259,8 +248,9 @@ export async function userRoutesPlugin(fastify: FastifyInstance) {
       const { role } = request.body;
       const businessId = request.businessId!;
 
-      const membership = await getMembership(userId, businessId);
-      if (!membership) {
+      const result = await changeMemberRole(businessId, userId, role);
+
+      if (result.status === "not_member") {
         return sendError(
           reply,
           404,
@@ -269,42 +259,28 @@ export async function userRoutesPlugin(fastify: FastifyInstance) {
         );
       }
 
-      if (membership.role === role) {
-        return sendData(reply, membership);
-      }
-
-      // Jangan sampai bisnis kehilangan admin terakhirnya.
-      if (membership.role === "admin") {
-        const adminCount = await countMembersByRole(businessId, "admin");
-        if (adminCount <= 1) {
-          return sendError(
-            reply,
-            409,
-            ErrorCode.CONFLICT,
-            "Bisnis harus memiliki minimal satu admin.",
-          );
-        }
-      }
-
-      const updated = await updateMembershipRole(userId, businessId, role);
-      if (!updated) {
+      if (result.status === "last_admin") {
         return sendError(
           reply,
-          404,
-          ErrorCode.NOT_FOUND,
-          "User tidak terdaftar di bisnis ini.",
+          409,
+          ErrorCode.CONFLICT,
+          "Bisnis harus memiliki minimal satu admin.",
         );
+      }
+
+      if (result.status === "unchanged") {
+        return sendData(reply, result.membership);
       }
 
       request.audit = {
         action: "UPDATE",
         entityType: "user_business_roles",
-        entityId: updated.id,
-        oldValues: { role: membership.role },
-        newValues: { role: updated.role },
+        entityId: result.membership.id,
+        oldValues: { role: result.previousRole },
+        newValues: { role: result.membership.role },
       };
 
-      return sendData(reply, updated);
+      return sendData(reply, result.membership);
     },
   );
 
@@ -342,7 +318,13 @@ export async function userRoutesPlugin(fastify: FastifyInstance) {
       const { userId } = request.params;
       const businessId = request.businessId!;
 
-      if (userId === request.user!.id) {
+      const result = await removeMemberFromBusiness(
+        businessId,
+        userId,
+        request.user!.id,
+      );
+
+      if (result.status === "self_removal") {
         return sendError(
           reply,
           400,
@@ -351,8 +333,7 @@ export async function userRoutesPlugin(fastify: FastifyInstance) {
         );
       }
 
-      const membership = await getMembership(userId, businessId);
-      if (!membership) {
+      if (result.status === "not_member") {
         return sendError(
           reply,
           404,
@@ -361,25 +342,20 @@ export async function userRoutesPlugin(fastify: FastifyInstance) {
         );
       }
 
-      if (membership.role === "admin") {
-        const adminCount = await countMembersByRole(businessId, "admin");
-        if (adminCount <= 1) {
-          return sendError(
-            reply,
-            409,
-            ErrorCode.CONFLICT,
-            "Bisnis harus memiliki minimal satu admin.",
-          );
-        }
+      if (result.status === "last_admin") {
+        return sendError(
+          reply,
+          409,
+          ErrorCode.CONFLICT,
+          "Bisnis harus memiliki minimal satu admin.",
+        );
       }
-
-      await removeMembership(userId, businessId);
 
       request.audit = {
         action: "DELETE",
         entityType: "user_business_roles",
-        entityId: membership.id,
-        oldValues: { userId, role: membership.role },
+        entityId: result.membership.id,
+        oldValues: { userId, role: result.membership.role },
       };
 
       return sendData(reply, {

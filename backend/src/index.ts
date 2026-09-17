@@ -36,6 +36,8 @@ import { attachLogger } from "./libs/logger.js";
 import { toHttpError } from "./libs/safe-error.js";
 import authMiddlewarePlugin from "./plugins/AuthMiddleware.js";
 import authRoutesPlugin from "./plugins/AuthRoutes.js";
+import businessRoutesPlugin from "./plugins/BusinessRoutes.js";
+import chartOfAccountRoutesPlugin from "./plugins/ChartOfAccountRoutes.js";
 import healthPlugin from "./plugins/HealthPlugin.js";
 import userRoutesPlugin from "./plugins/UserRoutes.js";
 
@@ -266,7 +268,19 @@ export async function buildApp() {
         tags: [
           { name: "Health", description: "Status service" },
           { name: "Auth", description: "Login, token, profil sendiri" },
-          { name: "Users", description: "Pengelolaan user di bisnis aktif" },
+          {
+            name: "Business",
+            description: "CRUD bisnis dan pengelolaan anggotanya",
+          },
+          {
+            name: "Users",
+            description:
+              "Pengelolaan user di bisnis aktif (legacy — lihat tag Business)",
+          },
+          {
+            name: "ChartOfAccounts",
+            description: "CRUD chart of accounts per bisnis",
+          },
         ],
       },
       transform: jsonSchemaTransform,
@@ -282,7 +296,9 @@ export async function buildApp() {
   // 9. Route bisnis — satu per satu, di root path
   // -------------------------------------------------------------------
   await app.register(authRoutesPlugin);
+  await app.register(businessRoutesPlugin);
   await app.register(userRoutesPlugin);
+  await app.register(chartOfAccountRoutesPlugin);
 
   return app;
 }

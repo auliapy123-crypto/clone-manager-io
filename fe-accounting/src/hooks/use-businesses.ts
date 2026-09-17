@@ -11,13 +11,13 @@ export interface Business {
   role: BusinessRole;
 }
 
-/** Guide §3, §7: daftar bisnis yang bisa diakses user aktif (GET /auth/me/businesses). */
+/** Guide §3, §7: daftar bisnis yang bisa diakses user aktif (GET /businesses). */
 export function useBusinesses() {
   return useQuery({
     queryKey: ["businesses"],
     queryFn: async () => {
       const { data, error } = await apiClient.get<{ data: Business[] }, ApiErrorBody>({
-        url: "/auth/me/businesses",
+        url: "/businesses",
       });
 
       if (error) throw new ApiError(error);
