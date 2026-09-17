@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Building2, LayoutDashboard, User, Users } from "lucide-react";
+import { BookOpen, Building2, LayoutDashboard, User, Users } from "lucide-react";
 
 /** Role bisnis (Guide §7 RBAC) -- harus sinkron dgn BusinessRoleSchema backend. */
 export type BusinessRole = "admin" | "accountant" | "viewer";
@@ -32,6 +32,12 @@ export const businessMenuItems: MenuItem[] = [
     label: "Members",
     to: "/businesses/$businessId/members",
     icon: Users,
+    allowedRoles: ["admin", "accountant"],
+  },
+  {
+    label: "Chart of Accounts",
+    to: "/businesses/$businessId/accounts",
+    icon: BookOpen,
     allowedRoles: ["admin", "accountant"],
   },
 ];
