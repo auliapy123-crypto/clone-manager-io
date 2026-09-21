@@ -38,6 +38,7 @@ import authMiddlewarePlugin from "./plugins/AuthMiddleware.js";
 import authRoutesPlugin from "./plugins/AuthRoutes.js";
 import businessRoutesPlugin from "./plugins/BusinessRoutes.js";
 import chartOfAccountRoutesPlugin from "./plugins/ChartOfAccountRoutes.js";
+import customerRoutesPlugin from "./plugins/CustomerRoutes.js";
 import healthPlugin from "./plugins/HealthPlugin.js";
 import userRoutesPlugin from "./plugins/UserRoutes.js";
 
@@ -281,6 +282,7 @@ export async function buildApp() {
             name: "ChartOfAccounts",
             description: "CRUD chart of accounts per bisnis",
           },
+          { name: "Customers", description: "CRUD pelanggan per bisnis" },
         ],
       },
       transform: jsonSchemaTransform,
@@ -299,6 +301,7 @@ export async function buildApp() {
   await app.register(businessRoutesPlugin);
   await app.register(userRoutesPlugin);
   await app.register(chartOfAccountRoutesPlugin);
+  await app.register(customerRoutesPlugin);
 
   return app;
 }

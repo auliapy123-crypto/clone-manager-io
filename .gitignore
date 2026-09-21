@@ -24,3 +24,5 @@ Thumbs.db
 # Editor
 .vscode/*
 !.vscode/extensions.json
+.aider*
+start-ai-grid.bat
