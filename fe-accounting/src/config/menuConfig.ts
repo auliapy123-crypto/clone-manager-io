@@ -40,6 +40,12 @@ export const businessMenuItems: MenuItem[] = [
     icon: BookOpen,
     allowedRoles: ["admin", "accountant"],
   },
+  {
+    label: "Customers",
+    to: "/businesses/$businessId/customers",
+    icon: User,
+    allowedRoles: ["admin", "accountant"],
+  },
 ];
 
 /** Guide §7 RBAC: item tanpa allowedRoles tampil untuk semua role. */
