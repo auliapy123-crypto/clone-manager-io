@@ -36,6 +36,7 @@ import { attachLogger } from "./libs/logger.js";
 import { toHttpError } from "./libs/safe-error.js";
 import authMiddlewarePlugin from "./plugins/AuthMiddleware.js";
 import authRoutesPlugin from "./plugins/AuthRoutes.js";
+import bankAccountRoutesPlugin from "./plugins/BankAccountRoutes.js";
 import businessRoutesPlugin from "./plugins/BusinessRoutes.js";
 import chartOfAccountRoutesPlugin from "./plugins/ChartOfAccountRoutes.js";
 import customerRoutesPlugin from "./plugins/CustomerRoutes.js";
@@ -279,12 +280,13 @@ export async function buildApp() {
             description:
               "Pengelolaan user di bisnis aktif (legacy — lihat tag Business)",
           },
-          {
-            name: "ChartOfAccounts",
-            description: "CRUD chart of accounts per bisnis",
-          },
-          { name: "Customers", description: "CRUD pelanggan per bisnis" },
-          { name: "Suppliers", description: "CRUD supplier per bisnis" },
+           {
+             name: "ChartOfAccounts",
+             description: "CRUD chart of accounts per bisnis",
+           },
+           { name: "Customers", description: "CRUD pelanggan per bisnis" },
+           { name: "Suppliers", description: "CRUD supplier per bisnis" },
+           { name: "BankAccounts", description: "CRUD rekening kas & bank per bisnis" },
         ],
       },
       transform: jsonSchemaTransform,
@@ -305,6 +307,7 @@ export async function buildApp() {
   await app.register(chartOfAccountRoutesPlugin);
   await app.register(customerRoutesPlugin);
   await app.register(supplierRoutesPlugin);
+  await app.register(bankAccountRoutesPlugin);
 
   return app;
 }

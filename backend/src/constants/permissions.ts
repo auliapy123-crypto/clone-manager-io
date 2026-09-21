@@ -35,12 +35,13 @@ export const Permission = {
   JOURNAL_READ: "journal:read",
   JOURNAL_WRITE: "journal:write",
 
-  // Rekening bank
-  BANK_ACCOUNT_READ: "bank_account:read",
-  BANK_ACCOUNT_WRITE: "bank_account:write",
+   // Rekening bank
+   BANK_ACCOUNT_READ: "bank_account:read",
+   BANK_ACCOUNT_WRITE: "bank_account:write",
+   BANK_ACCOUNT_DELETE: "bank_account:delete",
 
-  // Audit
-  AUDIT_READ: "audit:read",
+   // Audit
+   AUDIT_READ: "audit:read",
 } as const;
 
 export type PermissionValue = (typeof Permission)[keyof typeof Permission];

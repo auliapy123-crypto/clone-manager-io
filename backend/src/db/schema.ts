@@ -234,20 +234,33 @@ export const bankAccounts = pgTable(
     businessId: uuid()
       .notNull()
       .references(() => businesses.id, { onDelete: "cascade" }),
-    controlAccountId: uuid()
+    accountId: uuid()
       .notNull()
-      .references(() => chartOfAccounts.id),
-    name: varchar({ length: 255 }).notNull(),
+      .references(() => chartOfAccounts.id, { onDelete: "restrict" }),
+    name: varchar({ length: 100 }).notNull(),
+    accountType: varchar({ length: 20 }).notNull().default("bank"),
+    bankName: varchar({ length: 100 }),
     accountNumber: varchar({ length: 50 }),
-    openingBalance: numeric({ precision: 18, scale: 2 })
-      .notNull()
-      .default("0.00"),
-    openingBalanceDate: date(),
-    canHavePendingTransactions: boolean().notNull().default(true),
-    creditLimit: numeric({ precision: 18, scale: 2 }).notNull().default("0.00"),
+    currencyCode: varchar({ length: 3 }).notNull().default("IDR"),
+    description: text(),
+    status: varchar({ length: 20 }).notNull().default("active"),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
     deletedAt: timestamp(),
   },
-  (t) => [index("idx_bank_accounts_business").on(t.businessId)],
+  (t) => [
+    unique("bank_accounts_business_id_account_id_key").on(t.businessId, t.accountId),
+    index("idx_bank_accounts_business_status").on(t.businessId, t.status),
+    index("idx_bank_accounts_business_name").on(t.businessId, t.name),
+    check(
+      "bank_accounts_type_check",
+      sql`${t.accountType} IN ('bank', 'cash')`,
+    ),
+    check(
+      "bank_accounts_status_check",
+      sql`${t.status} IN ('active', 'archived')`,
+    ),
+  ],
 );
 
 // =====================================================================
@@ -363,8 +376,8 @@ export const bankAccountsRelations = relations(bankAccounts, ({ one }) => ({
     fields: [bankAccounts.businessId],
     references: [businesses.id],
   }),
-  controlAccount: one(chartOfAccounts, {
-    fields: [bankAccounts.controlAccountId],
+  account: one(chartOfAccounts, {
+    fields: [bankAccounts.accountId],
     references: [chartOfAccounts.id],
   }),
 }));
