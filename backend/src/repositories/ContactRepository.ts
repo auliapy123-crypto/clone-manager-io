@@ -1,14 +1,16 @@
 /**
- * ContactRepository — proyeksi Customers dari tabel contacts bersama.
+ * ContactRepository — proyeksi Customers dan Suppliers dari tabel contacts.
  *
- * Setiap query Customers wajib dibatasi business_id, is_customer = true,
- * dan deleted_at IS NULL. is_supplier sengaja tidak pernah diubah di sini.
+ * Seluruh query dibatasi business_id, role contact yang diminta, dan
+ * deleted_at IS NULL. Mengubah satu peran tidak pernah mengubah peran lain.
  */
 import { and, asc, count, eq, ilike, isNull, ne, or, sql } from "drizzle-orm";
 import db from "../db/index.js";
 import { contacts } from "../db/schema.js";
 
-export interface CustomerRecord {
+type ContactRole = "customer" | "supplier";
+
+interface ContactRecordBase {
   id: string;
   businessId: string;
   name: string;
@@ -16,19 +18,33 @@ export interface CustomerRecord {
   email: string | null;
   billingAddress: string | null;
   deliveryAddress: string | null;
-  creditLimit: number;
   salesInvoiceDueDateDays: number | null;
-  isCustomer: true;
+  purchaseInvoiceDueDateDays: number | null;
+  isCustomer: boolean;
   isSupplier: boolean;
+}
+
+export interface CustomerRecord extends ContactRecordBase {
+  creditLimit: number;
+  isCustomer: true;
   accountsReceivable: number;
   unallocatedReceipts: number;
 }
 
-export interface CustomerListOptions {
+export interface SupplierRecord extends ContactRecordBase {
+  isSupplier: true;
+  accountsPayable: number;
+  unallocatedPayments: number;
+}
+
+export interface ContactListOptions {
   page: number;
   pageSize: number;
   q?: string;
 }
+
+export type CustomerListOptions = ContactListOptions;
+export type SupplierListOptions = ContactListOptions;
 
 export interface CustomerCreateInput {
   name: string;
@@ -50,8 +66,25 @@ export interface CustomerUpdateInput {
   salesInvoiceDueDateDays?: number | null;
 }
 
-/* Saldo tetap dihitung di SQL; sampai modul transaksi tersedia nilainya 0.00. */
-const customerColumns = {
+export interface SupplierCreateInput {
+  name: string;
+  code?: string;
+  email?: string;
+  billingAddress?: string;
+  deliveryAddress?: string;
+  purchaseInvoiceDueDateDays?: number;
+}
+
+export interface SupplierUpdateInput {
+  name?: string;
+  code?: string | null;
+  email?: string | null;
+  billingAddress?: string | null;
+  deliveryAddress?: string | null;
+  purchaseInvoiceDueDateDays?: number | null;
+}
+
+const contactColumns = {
   id: contacts.id,
   businessId: contacts.businessId,
   name: contacts.name,
@@ -61,23 +94,29 @@ const customerColumns = {
   deliveryAddress: contacts.deliveryAddress,
   creditLimit: contacts.creditLimit,
   salesInvoiceDueDateDays: contacts.salesInvoiceDueDateDays,
+  purchaseInvoiceDueDateDays: contacts.purchaseInvoiceDueDateDays,
   isCustomer: contacts.isCustomer,
   isSupplier: contacts.isSupplier,
   accountsReceivable: sql<string>`0.00`.as("accounts_receivable"),
   unallocatedReceipts: sql<string>`0.00`.as("unallocated_receipts"),
+  accountsPayable: sql<string>`0.00`.as("accounts_payable"),
+  unallocatedPayments: sql<string>`0.00`.as("unallocated_payments"),
 };
 
-type CustomerQueryRow = Omit<
-  CustomerRecord,
-  "creditLimit" | "isCustomer" | "accountsReceivable" | "unallocatedReceipts"
+type ContactQueryRow = Omit<
+  ContactRecordBase,
+  "isCustomer" | "isSupplier"
 > & {
   creditLimit: string;
   isCustomer: boolean;
+  isSupplier: boolean;
   accountsReceivable: string;
   unallocatedReceipts: string;
+  accountsPayable: string;
+  unallocatedPayments: string;
 };
 
-function toCustomerRecord(row: CustomerQueryRow): CustomerRecord {
+function toCustomerRecord(row: ContactQueryRow): CustomerRecord {
   return {
     ...row,
     creditLimit: Number(row.creditLimit),
@@ -87,20 +126,31 @@ function toCustomerRecord(row: CustomerQueryRow): CustomerRecord {
   };
 }
 
-function customerConditions(businessId: string) {
+function toSupplierRecord(row: ContactQueryRow): SupplierRecord {
+  return {
+    ...row,
+    isSupplier: true,
+    accountsPayable: Number(row.accountsPayable),
+    unallocatedPayments: Number(row.unallocatedPayments),
+  };
+}
+
+function contactConditions(businessId: string, role: ContactRole) {
   return [
     eq(contacts.businessId, businessId),
-    eq(contacts.isCustomer, true),
+    role === "customer"
+      ? eq(contacts.isCustomer, true)
+      : eq(contacts.isSupplier, true),
     isNull(contacts.deletedAt),
   ];
 }
 
-export async function listCustomersByBusiness(
+async function listContactsByRole(
   businessId: string,
-  opts: CustomerListOptions,
-): Promise<{ data: CustomerRecord[]; total: number }> {
-  const conditions = customerConditions(businessId);
-
+  opts: ContactListOptions,
+  role: ContactRole,
+): Promise<{ data: ContactQueryRow[]; total: number }> {
+  const conditions = contactConditions(businessId, role);
   if (opts.q) {
     const pattern = `%${opts.q}%`;
     conditions.push(
@@ -115,7 +165,7 @@ export async function listCustomersByBusiness(
   const where = and(...conditions);
   const [rows, [totalRow]] = await Promise.all([
     db
-      .select(customerColumns)
+      .select(contactColumns)
       .from(contacts)
       .where(where)
       .orderBy(asc(contacts.name))
@@ -124,44 +174,75 @@ export async function listCustomersByBusiness(
     db.select({ total: count() }).from(contacts).where(where),
   ]);
 
-  return { data: rows.map(toCustomerRecord), total: totalRow?.total ?? 0 };
+  return { data: rows, total: totalRow?.total ?? 0 };
 }
 
-export async function getCustomerById(
+async function getContactByRole(
   businessId: string,
-  customerId: string,
-): Promise<CustomerRecord | null> {
+  contactId: string,
+  role: ContactRole,
+): Promise<ContactQueryRow | null> {
   const [row] = await db
-    .select(customerColumns)
+    .select(contactColumns)
     .from(contacts)
-    .where(and(...customerConditions(businessId), eq(contacts.id, customerId)))
+    .where(and(...contactConditions(businessId, role), eq(contacts.id, contactId)))
     .limit(1);
-
-  return row ? toCustomerRecord(row) : null;
+  return row ?? null;
 }
 
-/** Dipakai route untuk mengembalikan 409 bila kode customer sudah digunakan. */
-export async function isCustomerCodeInUse(
+async function isContactCodeInUse(
   businessId: string,
   code: string,
-  excludingCustomerId?: string,
+  role: ContactRole,
+  excludingContactId?: string,
 ): Promise<boolean> {
   const conditions = [
-    ...customerConditions(businessId),
+    ...contactConditions(businessId, role),
     eq(contacts.code, code),
   ];
-
-  if (excludingCustomerId) {
-    conditions.push(ne(contacts.id, excludingCustomerId));
-  }
+  if (excludingContactId) conditions.push(ne(contacts.id, excludingContactId));
 
   const [row] = await db
     .select({ id: contacts.id })
     .from(contacts)
     .where(and(...conditions))
     .limit(1);
-
   return row !== undefined;
+}
+
+async function softDeleteContactByRole(
+  businessId: string,
+  contactId: string,
+  role: ContactRole,
+): Promise<boolean> {
+  const rows = await db
+    .update(contacts)
+    .set({ deletedAt: new Date() })
+    .where(and(...contactConditions(businessId, role), eq(contacts.id, contactId)))
+    .returning({ id: contacts.id });
+  return rows.length > 0;
+}
+
+// --- Customers -------------------------------------------------------
+export async function listCustomersByBusiness(
+  businessId: string,
+  opts: CustomerListOptions,
+): Promise<{ data: CustomerRecord[]; total: number }> {
+  const { data, total } = await listContactsByRole(businessId, opts, "customer");
+  return { data: data.map(toCustomerRecord), total };
+}
+
+export async function getCustomerById(businessId: string, customerId: string) {
+  const row = await getContactByRole(businessId, customerId, "customer");
+  return row ? toCustomerRecord(row) : null;
+}
+
+export function isCustomerCodeInUse(
+  businessId: string,
+  code: string,
+  excludingCustomerId?: string,
+) {
+  return isContactCodeInUse(businessId, code, "customer", excludingCustomerId);
 }
 
 export async function createCustomer(
@@ -176,8 +257,7 @@ export async function createCustomer(
       isCustomer: true,
       creditLimit: input.creditLimit.toFixed(2),
     })
-    .returning(customerColumns);
-
+    .returning(contactColumns);
   return toCustomerRecord(row);
 }
 
@@ -190,26 +270,63 @@ export async function updateCustomer(
     .update(contacts)
     .set({
       ...input,
-      creditLimit:
-        input.creditLimit === undefined
-          ? undefined
-          : input.creditLimit.toFixed(2),
+      creditLimit: input.creditLimit === undefined ? undefined : input.creditLimit.toFixed(2),
     })
-    .where(and(...customerConditions(businessId), eq(contacts.id, customerId)))
-    .returning(customerColumns);
-
+    .where(and(...contactConditions(businessId, "customer"), eq(contacts.id, customerId)))
+    .returning(contactColumns);
   return row ? toCustomerRecord(row) : null;
 }
 
-export async function softDeleteCustomer(
-  businessId: string,
-  customerId: string,
-): Promise<boolean> {
-  const rows = await db
-    .update(contacts)
-    .set({ deletedAt: new Date() })
-    .where(and(...customerConditions(businessId), eq(contacts.id, customerId)))
-    .returning({ id: contacts.id });
+export function softDeleteCustomer(businessId: string, customerId: string) {
+  return softDeleteContactByRole(businessId, customerId, "customer");
+}
 
-  return rows.length > 0;
+// --- Suppliers -------------------------------------------------------
+export async function listSuppliersByBusiness(
+  businessId: string,
+  opts: SupplierListOptions,
+): Promise<{ data: SupplierRecord[]; total: number }> {
+  const { data, total } = await listContactsByRole(businessId, opts, "supplier");
+  return { data: data.map(toSupplierRecord), total };
+}
+
+export async function getSupplierById(businessId: string, supplierId: string) {
+  const row = await getContactByRole(businessId, supplierId, "supplier");
+  return row ? toSupplierRecord(row) : null;
+}
+
+export function isSupplierCodeInUse(
+  businessId: string,
+  code: string,
+  excludingSupplierId?: string,
+) {
+  return isContactCodeInUse(businessId, code, "supplier", excludingSupplierId);
+}
+
+export async function createSupplier(
+  businessId: string,
+  input: SupplierCreateInput,
+): Promise<SupplierRecord> {
+  const [row] = await db
+    .insert(contacts)
+    .values({ ...input, businessId, isSupplier: true })
+    .returning(contactColumns);
+  return toSupplierRecord(row);
+}
+
+export async function updateSupplier(
+  businessId: string,
+  supplierId: string,
+  input: SupplierUpdateInput,
+): Promise<SupplierRecord | null> {
+  const [row] = await db
+    .update(contacts)
+    .set(input)
+    .where(and(...contactConditions(businessId, "supplier"), eq(contacts.id, supplierId)))
+    .returning(contactColumns);
+  return row ? toSupplierRecord(row) : null;
+}
+
+export function softDeleteSupplier(businessId: string, supplierId: string) {
+  return softDeleteContactByRole(businessId, supplierId, "supplier");
 }

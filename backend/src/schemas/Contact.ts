@@ -50,3 +50,47 @@ export const CustomerResponseSchema = z.object({
   accountsReceivable: z.number(),
   unallocatedReceipts: z.number(),
 });
+
+// --- Supplier request/response --------------------------------------
+export const SupplierCreateSchema = z.object({
+  name: z.string().trim().min(1).max(225),
+  code: z.string().trim().min(1).max(50).optional(),
+  email: z.string().email().max(225).optional(),
+  billingAddress: z.string().max(10_000).optional(),
+  deliveryAddress: z.string().max(10_000).optional(),
+  purchaseInvoiceDueDateDays: z.coerce.number().int().min(0).optional(),
+});
+
+export const SupplierUpdateSchema = z
+  .object({
+    name: z.string().trim().min(1).max(225).optional(),
+    code: z.string().trim().min(1).max(50).nullable().optional(),
+    email: z.string().email().max(225).nullable().optional(),
+    billingAddress: z.string().max(10_000).nullable().optional(),
+    deliveryAddress: z.string().max(10_000).nullable().optional(),
+    purchaseInvoiceDueDateDays: z.coerce.number().int().min(0).nullable().optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "Minimal satu field harus diisi.",
+  });
+
+export const SupplierListQuerySchema = SearchQuerySchema;
+
+export const SupplierIdParamsSchema = BusinessIdParamsSchema.extend({
+  supplierId: z.string().uuid(),
+});
+
+export const SupplierResponseSchema = z.object({
+  id: z.string(),
+  businessId: z.string(),
+  name: z.string(),
+  code: z.string().nullable(),
+  email: z.string().nullable(),
+  billingAddress: z.string().nullable(),
+  deliveryAddress: z.string().nullable(),
+  purchaseInvoiceDueDateDays: z.number().int().nullable(),
+  isCustomer: z.boolean(),
+  isSupplier: z.literal(true),
+  accountsPayable: z.number(),
+  unallocatedPayments: z.number(),
+});

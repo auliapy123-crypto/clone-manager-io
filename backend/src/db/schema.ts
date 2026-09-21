@@ -150,6 +150,7 @@ export const contacts = pgTable(
     isSupplier: boolean().notNull().default(false),
     creditLimit: numeric({ precision: 18, scale: 2 }).notNull().default("0.00"),
     salesInvoiceDueDateDays: integer(),
+    purchaseInvoiceDueDateDays: integer(),
     deletedAt: timestamp(),
   },
   (t) => [

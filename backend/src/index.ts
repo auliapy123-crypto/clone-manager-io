@@ -40,6 +40,7 @@ import businessRoutesPlugin from "./plugins/BusinessRoutes.js";
 import chartOfAccountRoutesPlugin from "./plugins/ChartOfAccountRoutes.js";
 import customerRoutesPlugin from "./plugins/CustomerRoutes.js";
 import healthPlugin from "./plugins/HealthPlugin.js";
+import supplierRoutesPlugin from "./plugins/SupplierRoutes.js";
 import userRoutesPlugin from "./plugins/UserRoutes.js";
 
 /** Nilai query `token` tidak boleh ikut tercatat di log (Guide §8.3). */
@@ -283,6 +284,7 @@ export async function buildApp() {
             description: "CRUD chart of accounts per bisnis",
           },
           { name: "Customers", description: "CRUD pelanggan per bisnis" },
+          { name: "Suppliers", description: "CRUD supplier per bisnis" },
         ],
       },
       transform: jsonSchemaTransform,
@@ -302,6 +304,7 @@ export async function buildApp() {
   await app.register(userRoutesPlugin);
   await app.register(chartOfAccountRoutesPlugin);
   await app.register(customerRoutesPlugin);
+  await app.register(supplierRoutesPlugin);
 
   return app;
 }
