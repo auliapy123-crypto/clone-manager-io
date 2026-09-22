@@ -8,12 +8,14 @@
  *
  * SOFT-DELETE (Guide §5.2): kolom `deletedAt` ada di entitas tenant —
  * businesses, users, chart_of_accounts, contacts, journal_entries,
- * bank_accounts. SETIAP query list WAJIB memfilter `isNull(x.deletedAt)`.
+ * bank_accounts, sales_invoices. SETIAP query list WAJIB memfilter
+ * `isNull(x.deletedAt)`.
  *
- * Tiga tabel sengaja TIDAK punya deletedAt:
+ * Empat tabel sengaja TIDAK punya deletedAt:
  * - user_business_roles : pivot keanggotaan; mencabut akses harus benar-benar
  *                         menghapus baris, bukan menyembunyikannya.
  * - journal_entry_lines : anak dari journal_entries, ikut lewat header-nya.
+ * - sales_invoice_lines : anak dari sales_invoices, ikut lewat header-nya.
  * - audit_logs          : append-only; jejak audit tidak boleh dihapus.
  */
 import { relations, sql } from "drizzle-orm";
@@ -264,7 +266,66 @@ export const bankAccounts = pgTable(
 );
 
 // =====================================================================
-// 9. AUDIT_LOGS
+// 9. SALES_INVOICES  (header faktur penjualan — revisi dokumen §3.1)
+//
+// - TANPA kolom status dan TANPA kolom total: status (Paid/Unpaid/Overdue)
+//   dan balanceDue DIHITUNG real-time saat GET, bukan disimpan.
+// - Jurnal dilacak via journal_entries(source_module='sales_invoice',
+//   source_id=invoice id), BUKAN kolom journal_entry_id.
+// - reference/due_date/billing_address/description semuanya opsional.
+// =====================================================================
+export const salesInvoices = pgTable("sales_invoices", {
+  id: uuid().primaryKey().defaultRandom(),
+  businessId: uuid()
+    .notNull()
+    .references(() => businesses.id, { onDelete: "cascade" }),
+  customerId: uuid()
+    .notNull()
+    .references(() => contacts.id),
+  reference: varchar({ length: 50 }),
+  issueDate: date().notNull(),
+  dueDate: date(),
+  billingAddress: text(),
+  description: text(),
+  createdAt: timestamp().notNull().defaultNow(),
+  updatedAt: timestamp().notNull().defaultNow(),
+  deletedAt: timestamp(),
+}, (t) => [
+  index("idx_sales_invoices_business").on(t.businessId),
+  index("idx_sales_invoices_customer").on(t.customerId),
+]);
+
+// =====================================================================
+// 10. SALES_INVOICE_LINES  (baris item faktur — revisi dokumen §3.2)
+//
+// Anak dari sales_invoices (ON DELETE CASCADE), ikut lewat header-nya —
+// sengaja TANPA deletedAt seperti journal_entry_lines.
+// subtotal/tax_amount/line_total SEMUA dihitung backend, bukan input.
+// Pajak per baris via tax_rate_percent (bukan tabel kode pajak terpisah).
+// =====================================================================
+export const salesInvoiceLines = pgTable("sales_invoice_lines", {
+  id: uuid().primaryKey().defaultRandom(),
+  salesInvoiceId: uuid()
+    .notNull()
+    .references(() => salesInvoices.id, { onDelete: "cascade" }),
+  accountId: uuid()
+    .notNull()
+    .references(() => chartOfAccounts.id),
+  description: varchar({ length: 255 }),
+  quantity: numeric({ precision: 18, scale: 4 }).notNull().default("1.0000"),
+  unitPrice: numeric({ precision: 18, scale: 2 }).notNull(),
+  subtotal: numeric({ precision: 18, scale: 2 }).notNull(),
+  taxRatePercent: numeric({ precision: 5, scale: 2 }).notNull().default("0.00"),
+  taxAmount: numeric({ precision: 18, scale: 2 }).notNull().default("0.00"),
+  lineTotal: numeric({ precision: 18, scale: 2 }).notNull(),
+  sortOrder: integer().notNull().default(0),
+}, (t) => [
+  index("idx_sales_invoice_lines_invoice").on(t.salesInvoiceId),
+  index("idx_sales_invoice_lines_account").on(t.accountId),
+]);
+
+// =====================================================================
+// 11. AUDIT_LOGS
 // =====================================================================
 export const auditLogs = pgTable(
   "audit_logs",
@@ -300,6 +361,7 @@ export const businessesRelations = relations(businesses, ({ many }) => ({
   contacts: many(contacts),
   journalEntries: many(journalEntries),
   bankAccounts: many(bankAccounts),
+  salesInvoices: many(salesInvoices),
   auditLogs: many(auditLogs),
 }));
 
@@ -340,6 +402,7 @@ export const contactsRelations = relations(contacts, ({ one, many }) => ({
     references: [businesses.id],
   }),
   journalLines: many(journalEntryLines),
+  salesInvoices: many(salesInvoices),
 }));
 
 export const journalEntriesRelations = relations(
@@ -382,6 +445,35 @@ export const bankAccountsRelations = relations(bankAccounts, ({ one }) => ({
   }),
 }));
 
+export const salesInvoicesRelations = relations(
+  salesInvoices,
+  ({ one, many }) => ({
+    business: one(businesses, {
+      fields: [salesInvoices.businessId],
+      references: [businesses.id],
+    }),
+    customer: one(contacts, {
+      fields: [salesInvoices.customerId],
+      references: [contacts.id],
+    }),
+    lines: many(salesInvoiceLines),
+  }),
+);
+
+export const salesInvoiceLinesRelations = relations(
+  salesInvoiceLines,
+  ({ one }) => ({
+    invoice: one(salesInvoices, {
+      fields: [salesInvoiceLines.salesInvoiceId],
+      references: [salesInvoices.id],
+    }),
+    account: one(chartOfAccounts, {
+      fields: [salesInvoiceLines.accountId],
+      references: [chartOfAccounts.id],
+    }),
+  }),
+);
+
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   business: one(businesses, {
     fields: [auditLogs.businessId],
@@ -404,4 +496,6 @@ export type Contact = typeof contacts.$inferSelect;
 export type JournalEntry = typeof journalEntries.$inferSelect;
 export type JournalEntryLine = typeof journalEntryLines.$inferSelect;
 export type BankAccount = typeof bankAccounts.$inferSelect;
+export type SalesInvoice = typeof salesInvoices.$inferSelect;
+export type SalesInvoiceLine = typeof salesInvoiceLines.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;

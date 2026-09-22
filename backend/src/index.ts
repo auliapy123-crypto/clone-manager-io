@@ -41,6 +41,7 @@ import businessRoutesPlugin from "./plugins/BusinessRoutes.js";
 import chartOfAccountRoutesPlugin from "./plugins/ChartOfAccountRoutes.js";
 import customerRoutesPlugin from "./plugins/CustomerRoutes.js";
 import healthPlugin from "./plugins/HealthPlugin.js";
+import salesInvoiceRoutesPlugin from "./plugins/SalesInvoiceRoutes.js";
 import supplierRoutesPlugin from "./plugins/SupplierRoutes.js";
 import userRoutesPlugin from "./plugins/UserRoutes.js";
 
@@ -286,7 +287,8 @@ export async function buildApp() {
            },
            { name: "Customers", description: "CRUD pelanggan per bisnis" },
            { name: "Suppliers", description: "CRUD supplier per bisnis" },
-           { name: "BankAccounts", description: "CRUD rekening kas & bank per bisnis" },
+            { name: "BankAccounts", description: "CRUD rekening kas & bank per bisnis" },
+            { name: "SalesInvoices", description: "Faktur penjualan + posting jurnal per bisnis" },
         ],
       },
       transform: jsonSchemaTransform,
@@ -308,6 +310,7 @@ export async function buildApp() {
   await app.register(customerRoutesPlugin);
   await app.register(supplierRoutesPlugin);
   await app.register(bankAccountRoutesPlugin);
+  await app.register(salesInvoiceRoutesPlugin);
 
   return app;
 }

@@ -54,8 +54,19 @@ clone-manager-io/              <- root repo Git (git init di sini)
   0 sampai modul transaksi (Sales/Purchase Invoices) ada.
 - **BankAccounts** — `/businesses/:id/bank-accounts`, terikat ke
   `chartOfAccounts` (kategori Asset), `currentBalance` dihitung LIVE dari
-  `journal_entry_lines` (otomatis benar begitu modul Journal Entries ada,
-  bukan hardcode 0 kayak Customers/Suppliers).
+  `journal_entry_lines` aktif (bukan hardcode 0 kayak Customers/Suppliers
+  dulu — sejak modul Sales Invoices, baris jurnal yang di-soft-delete
+  dikecualikan dari semua perhitungan saldo).
+- **SalesInvoices (BACKEND SAJA, frontend belum)** —
+  `/businesses/:id/sales-invoices` (list/get/create/update/delete, TANPA
+  endpoint issue/void). Create langsung posting jurnal
+  (debit AR kontrol, kredit Income per akun + Tax Payable 2200 kalau ada
+  pajak) dalam 1 transaction; update menyusun ulang jurnal; delete
+  me-soft-delete faktur + jurnalnya. Status Paid/Unpaid/Overdue dan
+  balanceDue DIHITUNG real-time (balanceDue = invoiceAmount sampai modul
+  Receipts/Credit Notes ada). `accountsReceivable` Customers juga live
+  dari jurnal. Ikuti dokumen revisi `Dokumentasi Modul/SalesInvoices.md`
+  (draf pertama yang pakai draft/issued/void DIBATALKAN).
 
 ## Frontend (`fe-accounting/`)
 
@@ -87,9 +98,9 @@ clone-manager-io/              <- root repo Git (git init di sini)
 - Kredensial dev test: `admin@test.com`, password berubah-ubah seiring waktu
   testing — cek dengan owner project kalau perlu, jangan asumsi.
 - Ikuti urutan modul Fase 2 sesuai §3 dokumen analisis (volume data):
-  1. Customers ✅ 2. Suppliers ✅ 3. Bank and Cash Accounts ✅
-  4. Sales Invoices (berikutnya) → Purchase Invoices → Receipts → Payments
-  → dst.
+   1. Customers ✅ 2. Suppliers ✅ 3. Bank and Cash Accounts ✅
+   4. Sales Invoices (backend ✅, frontend berikut-nya) → Purchase Invoices → Receipts → Payments
+   → dst.
 - Tiap modul baru WAJIB: dokumen di `Dokumentasi Modul/` dulu → schema/
   migrasi manual → repository → routes → Zod validasi → frontend list/form/
   hapus → uji manual create→edit→delete.

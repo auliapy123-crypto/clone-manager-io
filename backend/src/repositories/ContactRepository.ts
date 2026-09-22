@@ -5,8 +5,14 @@
  * deleted_at IS NULL. Mengubah satu peran tidak pernah mengubah peran lain.
  */
 import { and, asc, count, eq, ilike, isNull, ne, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import db from "../db/index.js";
-import { contacts } from "../db/schema.js";
+import {
+  chartOfAccounts,
+  contacts,
+  journalEntries,
+  journalEntryLines,
+} from "../db/schema.js";
 
 type ContactRole = "customer" | "supplier";
 
@@ -45,6 +51,11 @@ export interface ContactListOptions {
 
 export type CustomerListOptions = ContactListOptions;
 export type SupplierListOptions = ContactListOptions;
+
+// Alias tabel untuk subquery SQL mentah (lihat catatan di contactColumns).
+const jelAr = alias(journalEntryLines, "jel_ar");
+const coaAr = alias(chartOfAccounts, "coa_ar");
+const jeAr = alias(journalEntries, "je_ar");
 
 export interface CustomerCreateInput {
   name: string;
@@ -97,7 +108,31 @@ const contactColumns = {
   purchaseInvoiceDueDateDays: contacts.purchaseInvoiceDueDateDays,
   isCustomer: contacts.isCustomer,
   isSupplier: contacts.isSupplier,
-  accountsReceivable: sql<string>`0.00`.as("accounts_receivable"),
+  // Piutang live: Σ(debit − kredit) baris jurnal milik kontak ini pada
+  // akun kontrol AR bisnisnya, hanya dari entri jurnal yang aktif
+  // (ikuti modul Sales Invoices — dulunya hardcode 0.00).
+  //
+  // CATATAN DRIZZLE: kolom yang diinterpolasi ke sql`` dirender TANPA
+  // nama tabel (mis. "contact_id" = "id" — salah!). Makanya tabel dalam
+  // di-alias (jel_ar/coa_ar/je_ar) supaya ter-qualify, dan tabel luar
+  // ditulis eksplisit "contacts". Tanpa ini hasilnya selalu 0.
+  accountsReceivable: sql<string>`COALESCE((
+    SELECT SUM(${jelAr.debit} - ${jelAr.credit})
+    FROM ${journalEntryLines} AS ${jelAr}
+    WHERE ${jelAr.contactId} = "contacts"."id"
+      AND ${jelAr.accountId} IN (
+        SELECT ${coaAr.id} FROM ${chartOfAccounts} AS ${coaAr}
+        WHERE ${coaAr.businessId} = "contacts"."business_id"
+          AND ${coaAr.category} = 'Asset'
+          AND ${coaAr.isControlAccount} = true
+          AND ${coaAr.deletedAt} IS NULL
+      )
+      AND EXISTS (
+        SELECT 1 FROM ${journalEntries} AS ${jeAr}
+        WHERE ${jeAr.id} = ${jelAr.journalEntryId}
+          AND ${jeAr.deletedAt} IS NULL
+      )
+  ), 0.00)`.as("accounts_receivable"),
   unallocatedReceipts: sql<string>`0.00`.as("unallocated_receipts"),
   accountsPayable: sql<string>`0.00`.as("accounts_payable"),
   unallocatedPayments: sql<string>`0.00`.as("unallocated_payments"),

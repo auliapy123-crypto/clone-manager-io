@@ -2,8 +2,14 @@
  * BankAccountRepository — Mengelola data rekening kas dan bank.
  */
 import { and, asc, count, eq, ilike, isNull, ne, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import db from "../db/index.js";
-import { bankAccounts, chartOfAccounts, journalEntryLines } from "../db/schema.js";
+import {
+  bankAccounts,
+  chartOfAccounts,
+  journalEntries,
+  journalEntryLines,
+} from "../db/schema.js";
 
 export interface BankAccountRecord {
   id: string;
@@ -49,6 +55,11 @@ export interface BankAccountUpdateInput {
   description?: string | null;
 }
 
+// Alias tabel untuk subquery saldo (kolom di sql`` harus ter-qualify
+// lewat alias — lihat catatan di ContactRepository).
+const jelBal = alias(journalEntryLines, "jel_bal");
+const jeBal = alias(journalEntries, "je_bal");
+
 const bankAccountColumns = {
   id: bankAccounts.id,
   businessId: bankAccounts.businessId,
@@ -64,11 +75,18 @@ const bankAccountColumns = {
   status: bankAccounts.status,
   createdAt: bankAccounts.createdAt,
   updatedAt: bankAccounts.updatedAt,
-  // Perhitungan saldo: sum(debit - credit)
+  // Perhitungan saldo: sum(debit - credit) dari entri jurnal AKTIF saja.
+  // Filter EXISTS ditambahkan saat modul Sales Invoices masuk — sebelumnya
+  // belum ada jurnal yang di-soft-delete sehingga hasilnya identik.
   currentBalance: sql<string>`COALESCE((
-    SELECT SUM(debit - credit)
-    FROM ${journalEntryLines}
-    WHERE ${journalEntryLines.accountId} = ${bankAccounts.accountId}
+    SELECT SUM(${jelBal.debit} - ${jelBal.credit})
+    FROM ${journalEntryLines} AS ${jelBal}
+    WHERE ${jelBal.accountId} = "bank_accounts"."account_id"
+      AND EXISTS (
+        SELECT 1 FROM ${journalEntries} AS ${jeBal}
+        WHERE ${jeBal.id} = ${jelBal.journalEntryId}
+          AND ${jeBal.deletedAt} IS NULL
+      )
   ), 0.00)`.as("current_balance"),
 };
 

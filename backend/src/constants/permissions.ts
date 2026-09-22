@@ -40,6 +40,11 @@ export const Permission = {
    BANK_ACCOUNT_WRITE: "bank_account:write",
    BANK_ACCOUNT_DELETE: "bank_account:delete",
 
+   // Faktur penjualan
+   SALES_INVOICE_READ: "sales_invoice:read",
+   SALES_INVOICE_WRITE: "sales_invoice:write",
+   SALES_INVOICE_DELETE: "sales_invoice:delete",
+
    // Audit
    AUDIT_READ: "audit:read",
 } as const;
@@ -53,6 +58,7 @@ const READ_ONLY: PermissionValue[] = [
   Permission.CONTACT_READ,
   Permission.JOURNAL_READ,
   Permission.BANK_ACCOUNT_READ,
+  Permission.SALES_INVOICE_READ,
 ];
 
 export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> =
@@ -64,6 +70,8 @@ export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> 
       Permission.CONTACT_WRITE,
       Permission.JOURNAL_WRITE,
       Permission.BANK_ACCOUNT_WRITE,
+      Permission.SALES_INVOICE_WRITE,
+      Permission.SALES_INVOICE_DELETE,
     ],
     viewer: READ_ONLY,
   };
