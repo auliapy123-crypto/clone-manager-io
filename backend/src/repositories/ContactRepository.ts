@@ -57,6 +57,10 @@ const jelAr = alias(journalEntryLines, "jel_ar");
 const coaAr = alias(chartOfAccounts, "coa_ar");
 const jeAr = alias(journalEntries, "je_ar");
 
+const jelAp = alias(journalEntryLines, "jel_ap");
+const coaAp = alias(chartOfAccounts, "coa_ap");
+const jeAp = alias(journalEntries, "je_ap");
+
 export interface CustomerCreateInput {
   name: string;
   code?: string;
@@ -134,7 +138,26 @@ const contactColumns = {
       )
   ), 0.00)`.as("accounts_receivable"),
   unallocatedReceipts: sql<string>`0.00`.as("unallocated_receipts"),
-  accountsPayable: sql<string>`0.00`.as("accounts_payable"),
+  // Utang live: Σ(kredit − debit) baris jurnal milik kontak ini pada
+  // akun kontrol AP bisnisnya, hanya dari entri jurnal yang aktif
+  // (dari modul Purchase Invoices — dulunya hardcode 0.00).
+  accountsPayable: sql<string>`COALESCE((
+    SELECT SUM(${jelAp.credit} - ${jelAp.debit})
+    FROM ${journalEntryLines} AS ${jelAp}
+    WHERE ${jelAp.contactId} = "contacts"."id"
+      AND ${jelAp.accountId} IN (
+        SELECT ${coaAp.id} FROM ${chartOfAccounts} AS ${coaAp}
+        WHERE ${coaAp.businessId} = "contacts"."business_id"
+          AND ${coaAp.category} = 'Liability'
+          AND ${coaAp.isControlAccount} = true
+          AND ${coaAp.deletedAt} IS NULL
+      )
+      AND EXISTS (
+        SELECT 1 FROM ${journalEntries} AS ${jeAp}
+        WHERE ${jeAp.id} = ${jelAp.journalEntryId}
+          AND ${jeAp.deletedAt} IS NULL
+      )
+  ), 0.00)`.as("accounts_payable"),
   unallocatedPayments: sql<string>`0.00`.as("unallocated_payments"),
 };
 

@@ -325,7 +325,64 @@ export const salesInvoiceLines = pgTable("sales_invoice_lines", {
 ]);
 
 // =====================================================================
-// 11. AUDIT_LOGS
+// 11. PURCHASE_INVOICES  (header faktur pembelian)
+//
+// - Cerminan Sales Invoices dengan arah jurnal berlawanan.
+// - TANPA kolom status dan total: status (Paid/Unpaid/Overdue) dan
+//   balanceDue DIHITUNG real-time saat GET.
+// - Terhubung ke Supplier (contacts.is_supplier=true).
+// - Jurnal dilacak via journal_entries(source_module='purchase_invoice',
+//   source_id=invoice id).
+// =====================================================================
+export const purchaseInvoices = pgTable("purchase_invoices", {
+  id: uuid().primaryKey().defaultRandom(),
+  businessId: uuid()
+    .notNull()
+    .references(() => businesses.id, { onDelete: "cascade" }),
+  supplierId: uuid()
+    .notNull()
+    .references(() => contacts.id),
+  reference: varchar({ length: 50 }),
+  issueDate: date().notNull(),
+  dueDate: date(),
+  description: text(),
+  quoteNumber: varchar({ length: 50 }),
+  orderNumber: varchar({ length: 50 }),
+  createdAt: timestamp().notNull().defaultNow(),
+  updatedAt: timestamp().notNull().defaultNow(),
+  deletedAt: timestamp(),
+}, (t) => [
+  index("idx_purchase_invoices_business").on(t.businessId),
+  index("idx_purchase_invoices_supplier").on(t.supplierId),
+]);
+
+// =====================================================================
+// 12. PURCHASE_INVOICE_LINES  (baris item faktur pembelian)
+//
+// Anak dari purchase_invoices (ON DELETE CASCADE), ikut lewat header-nya.
+// TANPA pajak per baris (MVP scope).
+// subtotal = quantity × unit_price, dihitung backend.
+// =====================================================================
+export const purchaseInvoiceLines = pgTable("purchase_invoice_lines", {
+  id: uuid().primaryKey().defaultRandom(),
+  purchaseInvoiceId: uuid()
+    .notNull()
+    .references(() => purchaseInvoices.id, { onDelete: "cascade" }),
+  accountId: uuid()
+    .notNull()
+    .references(() => chartOfAccounts.id),
+  description: varchar({ length: 255 }),
+  quantity: numeric({ precision: 18, scale: 4 }).notNull().default("1.0000"),
+  unitPrice: numeric({ precision: 18, scale: 2 }).notNull(),
+  subtotal: numeric({ precision: 18, scale: 2 }).notNull(),
+  sortOrder: integer().notNull().default(0),
+}, (t) => [
+  index("idx_purchase_invoice_lines_invoice").on(t.purchaseInvoiceId),
+  index("idx_purchase_invoice_lines_account").on(t.accountId),
+]);
+
+// =====================================================================
+// 12. AUDIT_LOGS
 // =====================================================================
 export const auditLogs = pgTable(
   "audit_logs",
@@ -362,6 +419,7 @@ export const businessesRelations = relations(businesses, ({ many }) => ({
   journalEntries: many(journalEntries),
   bankAccounts: many(bankAccounts),
   salesInvoices: many(salesInvoices),
+  purchaseInvoices: many(purchaseInvoices),
   auditLogs: many(auditLogs),
 }));
 
@@ -403,6 +461,7 @@ export const contactsRelations = relations(contacts, ({ one, many }) => ({
   }),
   journalLines: many(journalEntryLines),
   salesInvoices: many(salesInvoices),
+  purchaseInvoices: many(purchaseInvoices),
 }));
 
 export const journalEntriesRelations = relations(
@@ -474,6 +533,35 @@ export const salesInvoiceLinesRelations = relations(
   }),
 );
 
+export const purchaseInvoicesRelations = relations(
+  purchaseInvoices,
+  ({ one, many }) => ({
+    business: one(businesses, {
+      fields: [purchaseInvoices.businessId],
+      references: [businesses.id],
+    }),
+    supplier: one(contacts, {
+      fields: [purchaseInvoices.supplierId],
+      references: [contacts.id],
+    }),
+    lines: many(purchaseInvoiceLines),
+  }),
+);
+
+export const purchaseInvoiceLinesRelations = relations(
+  purchaseInvoiceLines,
+  ({ one }) => ({
+    invoice: one(purchaseInvoices, {
+      fields: [purchaseInvoiceLines.purchaseInvoiceId],
+      references: [purchaseInvoices.id],
+    }),
+    account: one(chartOfAccounts, {
+      fields: [purchaseInvoiceLines.accountId],
+      references: [chartOfAccounts.id],
+    }),
+  }),
+);
+
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   business: one(businesses, {
     fields: [auditLogs.businessId],
@@ -498,4 +586,6 @@ export type JournalEntryLine = typeof journalEntryLines.$inferSelect;
 export type BankAccount = typeof bankAccounts.$inferSelect;
 export type SalesInvoice = typeof salesInvoices.$inferSelect;
 export type SalesInvoiceLine = typeof salesInvoiceLines.$inferSelect;
+export type PurchaseInvoice = typeof purchaseInvoices.$inferSelect;
+export type PurchaseInvoiceLine = typeof purchaseInvoiceLines.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;

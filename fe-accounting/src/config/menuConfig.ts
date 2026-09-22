@@ -64,6 +64,12 @@ export const businessMenuItems: MenuItem[] = [
     icon: Receipt,
     allowedRoles: ["admin", "accountant"],
   },
+  {
+    label: "Purchase Invoices",
+    to: "/businesses/$businessId/purchase-invoices",
+    icon: Receipt,
+    allowedRoles: ["admin", "accountant"],
+  },
 ];
 
 /** Guide §7 RBAC: item tanpa allowedRoles tampil untuk semua role. */

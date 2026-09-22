@@ -40,13 +40,18 @@ export const Permission = {
    BANK_ACCOUNT_WRITE: "bank_account:write",
    BANK_ACCOUNT_DELETE: "bank_account:delete",
 
-   // Faktur penjualan
-   SALES_INVOICE_READ: "sales_invoice:read",
-   SALES_INVOICE_WRITE: "sales_invoice:write",
-   SALES_INVOICE_DELETE: "sales_invoice:delete",
+    // Faktur penjualan
+    SALES_INVOICE_READ: "sales_invoice:read",
+    SALES_INVOICE_WRITE: "sales_invoice:write",
+    SALES_INVOICE_DELETE: "sales_invoice:delete",
 
-   // Audit
-   AUDIT_READ: "audit:read",
+    // Faktur pembelian
+    PURCHASE_INVOICE_READ: "purchase_invoice:read",
+    PURCHASE_INVOICE_WRITE: "purchase_invoice:write",
+    PURCHASE_INVOICE_DELETE: "purchase_invoice:delete",
+
+    // Audit
+    AUDIT_READ: "audit:read",
 } as const;
 
 export type PermissionValue = (typeof Permission)[keyof typeof Permission];
@@ -59,6 +64,7 @@ const READ_ONLY: PermissionValue[] = [
   Permission.JOURNAL_READ,
   Permission.BANK_ACCOUNT_READ,
   Permission.SALES_INVOICE_READ,
+  Permission.PURCHASE_INVOICE_READ,
 ];
 
 export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> =
@@ -72,6 +78,8 @@ export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> 
       Permission.BANK_ACCOUNT_WRITE,
       Permission.SALES_INVOICE_WRITE,
       Permission.SALES_INVOICE_DELETE,
+      Permission.PURCHASE_INVOICE_WRITE,
+      Permission.PURCHASE_INVOICE_DELETE,
     ],
     viewer: READ_ONLY,
   };
