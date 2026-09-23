@@ -50,6 +50,11 @@ export const Permission = {
     PURCHASE_INVOICE_WRITE: "purchase_invoice:write",
     PURCHASE_INVOICE_DELETE: "purchase_invoice:delete",
 
+    // Penerimaan kas/bank
+    RECEIPT_READ: "receipt:read",
+    RECEIPT_WRITE: "receipt:write",
+    RECEIPT_DELETE: "receipt:delete",
+
     // Audit
     AUDIT_READ: "audit:read",
 } as const;
@@ -65,6 +70,7 @@ const READ_ONLY: PermissionValue[] = [
   Permission.BANK_ACCOUNT_READ,
   Permission.SALES_INVOICE_READ,
   Permission.PURCHASE_INVOICE_READ,
+  Permission.RECEIPT_READ,
 ];
 
 export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> =
@@ -80,6 +86,8 @@ export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> 
       Permission.SALES_INVOICE_DELETE,
       Permission.PURCHASE_INVOICE_WRITE,
       Permission.PURCHASE_INVOICE_DELETE,
+      Permission.RECEIPT_WRITE,
+      Permission.RECEIPT_DELETE,
     ],
     viewer: READ_ONLY,
   };

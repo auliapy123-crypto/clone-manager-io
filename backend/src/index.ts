@@ -42,6 +42,7 @@ import chartOfAccountRoutesPlugin from "./plugins/ChartOfAccountRoutes.js";
 import customerRoutesPlugin from "./plugins/CustomerRoutes.js";
 import healthPlugin from "./plugins/HealthPlugin.js";
 import purchaseInvoiceRoutesPlugin from "./plugins/PurchaseInvoiceRoutes.js";
+import receiptRoutesPlugin from "./plugins/ReceiptRoutes.js";
 import salesInvoiceRoutesPlugin from "./plugins/SalesInvoiceRoutes.js";
 import supplierRoutesPlugin from "./plugins/SupplierRoutes.js";
 import userRoutesPlugin from "./plugins/UserRoutes.js";
@@ -291,6 +292,7 @@ export async function buildApp() {
             { name: "BankAccounts", description: "CRUD rekening kas & bank per bisnis" },
             { name: "SalesInvoices", description: "Faktur penjualan + posting jurnal per bisnis" },
             { name: "PurchaseInvoices", description: "Faktur pembelian + posting jurnal per bisnis" },
+            { name: "Receipts", description: "Penerimaan kas/bank + posting jurnal per bisnis" },
          ],
       },
       transform: jsonSchemaTransform,
@@ -314,6 +316,7 @@ export async function buildApp() {
   await app.register(bankAccountRoutesPlugin);
   await app.register(salesInvoiceRoutesPlugin);
   await app.register(purchaseInvoiceRoutesPlugin);
+  await app.register(receiptRoutesPlugin);
 
   return app;
 }

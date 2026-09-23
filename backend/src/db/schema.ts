@@ -8,14 +8,15 @@
  *
  * SOFT-DELETE (Guide §5.2): kolom `deletedAt` ada di entitas tenant —
  * businesses, users, chart_of_accounts, contacts, journal_entries,
- * bank_accounts, sales_invoices. SETIAP query list WAJIB memfilter
- * `isNull(x.deletedAt)`.
+ * bank_accounts, sales_invoices, purchase_invoices, receipts.
+ * SETIAP query list WAJIB memfilter `isNull(x.deletedAt)`.
  *
- * Empat tabel sengaja TIDAK punya deletedAt:
+ * Beberapa tabel sengaja TIDAK punya deletedAt:
  * - user_business_roles : pivot keanggotaan; mencabut akses harus benar-benar
  *                         menghapus baris, bukan menyembunyikannya.
  * - journal_entry_lines : anak dari journal_entries, ikut lewat header-nya.
  * - sales_invoice_lines : anak dari sales_invoices, ikut lewat header-nya.
+ * - purchase_invoice_lines / receipt_lines : anak header, ikut lewat parent.
  * - audit_logs          : append-only; jejak audit tidak boleh dihapus.
  */
 import { relations, sql } from "drizzle-orm";
@@ -382,7 +383,65 @@ export const purchaseInvoiceLines = pgTable("purchase_invoice_lines", {
 ]);
 
 // =====================================================================
-// 12. AUDIT_LOGS
+// 13. RECEIPTS  (header penerimaan kas/bank)
+//
+// - TANPA status/balanceDue: receipt yang tersimpan langsung selesai.
+// - Jurnal: DEBIT COA rekening bank/kas, KREDIT tiap baris item.
+// - Dilacak via journal_entries(source_module='receipt', source_id=receipt id).
+// =====================================================================
+export const receipts = pgTable(
+  "receipts",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    date: date().notNull(),
+    reference: varchar({ length: 50 }),
+    bankAccountId: uuid()
+      .notNull()
+      .references(() => bankAccounts.id),
+    contactId: uuid().references(() => contacts.id),
+    description: text(),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+    deletedAt: timestamp(),
+  },
+  (t) => [
+    index("idx_receipts_business").on(t.businessId),
+    index("idx_receipts_bank_account").on(t.bankAccountId),
+    index("idx_receipts_contact").on(t.contactId),
+  ],
+);
+
+// =====================================================================
+// 14. RECEIPT_LINES  (baris item penerimaan)
+//
+// Anak dari receipts (ON DELETE CASCADE). amount > 0.
+// =====================================================================
+export const receiptLines = pgTable(
+  "receipt_lines",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    receiptId: uuid()
+      .notNull()
+      .references(() => receipts.id, { onDelete: "cascade" }),
+    accountId: uuid()
+      .notNull()
+      .references(() => chartOfAccounts.id),
+    description: varchar({ length: 255 }),
+    amount: numeric({ precision: 18, scale: 2 }).notNull(),
+    sortOrder: integer().notNull().default(0),
+  },
+  (t) => [
+    index("idx_receipt_lines_receipt").on(t.receiptId),
+    index("idx_receipt_lines_account").on(t.accountId),
+    check("chk_receipt_lines_amount_positive", sql`${t.amount} > 0`),
+  ],
+);
+
+// =====================================================================
+// 15. AUDIT_LOGS
 // =====================================================================
 export const auditLogs = pgTable(
   "audit_logs",
@@ -420,6 +479,7 @@ export const businessesRelations = relations(businesses, ({ many }) => ({
   bankAccounts: many(bankAccounts),
   salesInvoices: many(salesInvoices),
   purchaseInvoices: many(purchaseInvoices),
+  receipts: many(receipts),
   auditLogs: many(auditLogs),
 }));
 
@@ -451,6 +511,7 @@ export const chartOfAccountsRelations = relations(
     }),
     journalLines: many(journalEntryLines),
     bankAccounts: many(bankAccounts),
+    receiptLines: many(receiptLines),
   }),
 );
 
@@ -462,6 +523,7 @@ export const contactsRelations = relations(contacts, ({ one, many }) => ({
   journalLines: many(journalEntryLines),
   salesInvoices: many(salesInvoices),
   purchaseInvoices: many(purchaseInvoices),
+  receipts: many(receipts),
 }));
 
 export const journalEntriesRelations = relations(
@@ -493,7 +555,7 @@ export const journalEntryLinesRelations = relations(
   }),
 );
 
-export const bankAccountsRelations = relations(bankAccounts, ({ one }) => ({
+export const bankAccountsRelations = relations(bankAccounts, ({ one, many }) => ({
   business: one(businesses, {
     fields: [bankAccounts.businessId],
     references: [businesses.id],
@@ -502,6 +564,7 @@ export const bankAccountsRelations = relations(bankAccounts, ({ one }) => ({
     fields: [bankAccounts.accountId],
     references: [chartOfAccounts.id],
   }),
+  receipts: many(receipts),
 }));
 
 export const salesInvoicesRelations = relations(
@@ -562,6 +625,33 @@ export const purchaseInvoiceLinesRelations = relations(
   }),
 );
 
+export const receiptsRelations = relations(receipts, ({ one, many }) => ({
+  business: one(businesses, {
+    fields: [receipts.businessId],
+    references: [businesses.id],
+  }),
+  bankAccount: one(bankAccounts, {
+    fields: [receipts.bankAccountId],
+    references: [bankAccounts.id],
+  }),
+  contact: one(contacts, {
+    fields: [receipts.contactId],
+    references: [contacts.id],
+  }),
+  lines: many(receiptLines),
+}));
+
+export const receiptLinesRelations = relations(receiptLines, ({ one }) => ({
+  receipt: one(receipts, {
+    fields: [receiptLines.receiptId],
+    references: [receipts.id],
+  }),
+  account: one(chartOfAccounts, {
+    fields: [receiptLines.accountId],
+    references: [chartOfAccounts.id],
+  }),
+}));
+
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   business: one(businesses, {
     fields: [auditLogs.businessId],
@@ -588,4 +678,6 @@ export type SalesInvoice = typeof salesInvoices.$inferSelect;
 export type SalesInvoiceLine = typeof salesInvoiceLines.$inferSelect;
 export type PurchaseInvoice = typeof purchaseInvoices.$inferSelect;
 export type PurchaseInvoiceLine = typeof purchaseInvoiceLines.$inferSelect;
+export type Receipt = typeof receipts.$inferSelect;
+export type ReceiptLine = typeof receiptLines.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;

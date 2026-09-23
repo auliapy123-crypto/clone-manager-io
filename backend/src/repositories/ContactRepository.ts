@@ -388,3 +388,22 @@ export async function updateSupplier(
 export function softDeleteSupplier(businessId: string, supplierId: string) {
   return softDeleteContactByRole(businessId, supplierId, "supplier");
 }
+
+/** Kontak apa pun (customer, supplier, atau keduanya) — dipakai Receipts "Paid by". */
+export async function getContactById(
+  businessId: string,
+  contactId: string,
+): Promise<{ id: string; name: string } | null> {
+  const [row] = await db
+    .select({ id: contacts.id, name: contacts.name })
+    .from(contacts)
+    .where(
+      and(
+        eq(contacts.businessId, businessId),
+        eq(contacts.id, contactId),
+        isNull(contacts.deletedAt),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
+}
