@@ -1,10 +1,12 @@
-import { and, asc, count, eq, ilike, isNull, or, sql } from "drizzle-orm";
+import { and, asc, count, eq, ilike, isNull, ne, or, sql } from "drizzle-orm";
 import db, { type Database } from "../db/index.js";
 import {
   chartOfAccounts,
   contacts,
   journalEntries,
   journalEntryLines,
+  paymentLines,
+  payments,
   purchaseInvoiceLines,
   purchaseInvoices,
 } from "../db/schema.js";
@@ -289,13 +291,83 @@ function toRecord(
     updatedAt: Date;
   },
   invoiceAmount: number,
+  paidAmount: number,
 ): PurchaseInvoiceRecord {
-  const balanceDue = invoiceAmount;
+  const balanceDue = Math.round((invoiceAmount - paidAmount) * 100) / 100;
   return {
     ...header,
     invoiceAmount,
     balanceDue,
     status: computeInvoiceStatus(balanceDue, header.dueDate),
+  };
+}
+
+/**
+ * Total yang sudah dialokasikan Payment ke satu Purchase Invoice (baris
+ * payment_lines yang purchase_invoice_id-nya invoice ini, payment
+ * header-nya belum di-soft-delete). Dipakai buat balanceDue live.
+ */
+async function getPaidAmount(
+  tx: DbOrTx,
+  invoiceId: string,
+  excludePaymentId?: string,
+): Promise<number> {
+  const conditions = [
+    eq(paymentLines.purchaseInvoiceId, invoiceId),
+    isNull(payments.deletedAt),
+  ];
+  if (excludePaymentId) {
+    conditions.push(ne(payments.id, excludePaymentId));
+  }
+  const [row] = await tx
+    .select({
+      paidAmount: sql<string>`COALESCE(SUM(${paymentLines.amount}), 0)`,
+    })
+    .from(paymentLines)
+    .innerJoin(payments, eq(paymentLines.paymentId, payments.id))
+    .where(and(...conditions));
+  return Number(row?.paidAmount ?? 0);
+}
+
+/**
+ * Info yang dibutuhkan PaymentRepository buat memvalidasi alokasi baris
+ * Payment ke Purchase Invoice: pemilik (supplierId) dan balanceDue SAAT INI
+ * (opsional exclude satu payment tertentu — dipakai saat update payment itu
+ * sendiri, supaya alokasi lama payment ini tidak dihitung dobel).
+ */
+export async function getPurchaseInvoiceAllocationInfo(
+  businessId: string,
+  invoiceId: string,
+  opts: { tx?: DbOrTx; excludePaymentId?: string } = {},
+): Promise<{ supplierId: string; balanceDue: number } | null> {
+  const tx = opts.tx ?? db;
+  const [header] = await tx
+    .select({
+      supplierId: purchaseInvoices.supplierId,
+    })
+    .from(purchaseInvoices)
+    .where(
+      and(
+        eq(purchaseInvoices.businessId, businessId),
+        eq(purchaseInvoices.id, invoiceId),
+        isNull(purchaseInvoices.deletedAt),
+      ),
+    )
+    .limit(1);
+  if (!header) return null;
+
+  const [amountRow] = await tx
+    .select({
+      invoiceAmount: sql<string>`COALESCE(SUM(${purchaseInvoiceLines.subtotal}), 0)`,
+    })
+    .from(purchaseInvoiceLines)
+    .where(eq(purchaseInvoiceLines.purchaseInvoiceId, invoiceId));
+  const invoiceAmount = Number(amountRow?.invoiceAmount ?? 0);
+  const paidAmount = await getPaidAmount(tx, invoiceId, opts.excludePaymentId);
+
+  return {
+    supplierId: header.supplierId,
+    balanceDue: Math.round((invoiceAmount - paidAmount) * 100) / 100,
   };
 }
 
@@ -315,6 +387,21 @@ export async function listPurchaseInvoices(
     .groupBy(purchaseInvoiceLines.purchaseInvoiceId)
     .as("t");
 
+  const paidTotals = db
+    .select({
+      invoiceId: paymentLines.purchaseInvoiceId,
+      paidAmount: sql<string>`COALESCE(SUM(${paymentLines.amount}), 0)`.as(
+        "paid_amount",
+      ),
+    })
+    .from(paymentLines)
+    .innerJoin(payments, eq(paymentLines.paymentId, payments.id))
+    .where(isNull(payments.deletedAt))
+    .groupBy(paymentLines.purchaseInvoiceId)
+    .as("pt");
+
+  const balanceDueExpr = sql`(${totals.invoiceAmount} - COALESCE(${paidTotals.paidAmount}, 0))`;
+
   const conditions = [
     eq(purchaseInvoices.businessId, businessId),
     isNull(purchaseInvoices.deletedAt),
@@ -332,14 +419,14 @@ export async function listPurchaseInvoices(
   }
 
   if (opts.status === "Paid") {
-    conditions.push(sql`${totals.invoiceAmount} <= 0`);
+    conditions.push(sql`${balanceDueExpr} <= 0`);
   } else if (opts.status === "Overdue") {
     conditions.push(
-      sql`${totals.invoiceAmount} > 0 AND "purchase_invoices"."due_date" IS NOT NULL AND "purchase_invoices"."due_date" < ${todayString()}`,
+      sql`${balanceDueExpr} > 0 AND "purchase_invoices"."due_date" IS NOT NULL AND "purchase_invoices"."due_date" < ${todayString()}`,
     );
   } else if (opts.status === "Unpaid") {
     conditions.push(
-      sql`${totals.invoiceAmount} > 0 AND ("purchase_invoices"."due_date" IS NULL OR "purchase_invoices"."due_date" >= ${todayString()})`,
+      sql`${balanceDueExpr} > 0 AND ("purchase_invoices"."due_date" IS NULL OR "purchase_invoices"."due_date" >= ${todayString()})`,
     );
   }
 
@@ -357,12 +444,14 @@ export async function listPurchaseInvoices(
       quoteNumber: purchaseInvoices.quoteNumber,
       orderNumber: purchaseInvoices.orderNumber,
       invoiceAmount: totals.invoiceAmount,
+      paidAmount: paidTotals.paidAmount,
       createdAt: purchaseInvoices.createdAt,
       updatedAt: purchaseInvoices.updatedAt,
     })
     .from(purchaseInvoices)
     .innerJoin(contacts, eq(purchaseInvoices.supplierId, contacts.id))
     .leftJoin(totals, eq(totals.invoiceId, purchaseInvoices.id))
+    .leftJoin(paidTotals, eq(paidTotals.invoiceId, purchaseInvoices.id))
     .where(where);
 
   const [rows, [totalRow]] = await Promise.all([
@@ -375,13 +464,14 @@ export async function listPurchaseInvoices(
       .from(purchaseInvoices)
       .innerJoin(contacts, eq(purchaseInvoices.supplierId, contacts.id))
       .leftJoin(totals, eq(totals.invoiceId, purchaseInvoices.id))
+      .leftJoin(paidTotals, eq(paidTotals.invoiceId, purchaseInvoices.id))
       .where(where),
   ]);
 
   return {
     data: rows.map((r) => {
-      const { invoiceAmount, ...header } = r;
-      return toRecord(header, Number(invoiceAmount ?? 0));
+      const { invoiceAmount, paidAmount, ...header } = r;
+      return toRecord(header, Number(invoiceAmount ?? 0), Number(paidAmount ?? 0));
     }),
     total: totalRow?.total ?? 0,
   };
@@ -446,7 +536,8 @@ export async function getPurchaseInvoiceById(
   if (!header) return null;
   const lines = await getLinesWithAccounts(db, invoiceId);
   const invoiceAmount = lines.reduce((sum, l) => sum + l.subtotal, 0);
-  return { ...toRecord(header, invoiceAmount), lines };
+  const paidAmount = await getPaidAmount(db, invoiceId);
+  return { ...toRecord(header, invoiceAmount, paidAmount), lines };
 }
 
 export async function createPurchaseInvoice(

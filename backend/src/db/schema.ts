@@ -8,7 +8,7 @@
  *
  * SOFT-DELETE (Guide §5.2): kolom `deletedAt` ada di entitas tenant —
  * businesses, users, chart_of_accounts, contacts, journal_entries,
- * bank_accounts, sales_invoices, purchase_invoices, receipts.
+ * bank_accounts, sales_invoices, purchase_invoices, receipts, payments.
  * SETIAP query list WAJIB memfilter `isNull(x.deletedAt)`.
  *
  * Beberapa tabel sengaja TIDAK punya deletedAt:
@@ -16,7 +16,8 @@
  *                         menghapus baris, bukan menyembunyikannya.
  * - journal_entry_lines : anak dari journal_entries, ikut lewat header-nya.
  * - sales_invoice_lines : anak dari sales_invoices, ikut lewat header-nya.
- * - purchase_invoice_lines / receipt_lines : anak header, ikut lewat parent.
+ * - purchase_invoice_lines / receipt_lines / payment_lines : anak header,
+ *                         ikut lewat parent.
  * - audit_logs          : append-only; jejak audit tidak boleh dihapus.
  */
 import { relations, sql } from "drizzle-orm";
@@ -441,7 +442,71 @@ export const receiptLines = pgTable(
 );
 
 // =====================================================================
-// 15. AUDIT_LOGS
+// 15. PAYMENTS  (header pengeluaran kas/bank)
+//
+// - TANPA status: payment yang tersimpan langsung final ("Cleared").
+// - Jurnal: DEBIT tiap baris item, KREDIT COA rekening bank/kas.
+// - Dilacak via journal_entries(source_module='payment', source_id=payment id).
+// =====================================================================
+export const payments = pgTable(
+  "payments",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    date: date().notNull(),
+    reference: varchar({ length: 50 }),
+    bankAccountId: uuid()
+      .notNull()
+      .references(() => bankAccounts.id),
+    contactId: uuid()
+      .notNull()
+      .references(() => contacts.id),
+    description: text(),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+    deletedAt: timestamp(),
+  },
+  (t) => [
+    index("idx_payments_business").on(t.businessId),
+    index("idx_payments_bank_account").on(t.bankAccountId),
+    index("idx_payments_contact").on(t.contactId),
+  ],
+);
+
+// =====================================================================
+// 16. PAYMENT_LINES  (baris item pembayaran)
+//
+// Anak dari payments (ON DELETE CASCADE). amount > 0.
+// purchaseInvoiceId nullable — diisi kalau baris ini mengalokasikan
+// pelunasan ke Purchase Invoice tertentu (mengurangi balanceDue-nya).
+// =====================================================================
+export const paymentLines = pgTable(
+  "payment_lines",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    paymentId: uuid()
+      .notNull()
+      .references(() => payments.id, { onDelete: "cascade" }),
+    accountId: uuid()
+      .notNull()
+      .references(() => chartOfAccounts.id),
+    purchaseInvoiceId: uuid().references(() => purchaseInvoices.id),
+    description: varchar({ length: 255 }),
+    amount: numeric({ precision: 18, scale: 2 }).notNull(),
+    sortOrder: integer().notNull().default(0),
+  },
+  (t) => [
+    index("idx_payment_lines_payment").on(t.paymentId),
+    index("idx_payment_lines_account").on(t.accountId),
+    index("idx_payment_lines_purchase_invoice").on(t.purchaseInvoiceId),
+    check("chk_payment_lines_amount_positive", sql`${t.amount} > 0`),
+  ],
+);
+
+// =====================================================================
+// 17. AUDIT_LOGS
 // =====================================================================
 export const auditLogs = pgTable(
   "audit_logs",
@@ -480,6 +545,7 @@ export const businessesRelations = relations(businesses, ({ many }) => ({
   salesInvoices: many(salesInvoices),
   purchaseInvoices: many(purchaseInvoices),
   receipts: many(receipts),
+  payments: many(payments),
   auditLogs: many(auditLogs),
 }));
 
@@ -524,6 +590,7 @@ export const contactsRelations = relations(contacts, ({ one, many }) => ({
   salesInvoices: many(salesInvoices),
   purchaseInvoices: many(purchaseInvoices),
   receipts: many(receipts),
+  payments: many(payments),
 }));
 
 export const journalEntriesRelations = relations(
@@ -565,6 +632,7 @@ export const bankAccountsRelations = relations(bankAccounts, ({ one, many }) => 
     references: [chartOfAccounts.id],
   }),
   receipts: many(receipts),
+  payments: many(payments),
 }));
 
 export const salesInvoicesRelations = relations(
@@ -608,6 +676,7 @@ export const purchaseInvoicesRelations = relations(
       references: [contacts.id],
     }),
     lines: many(purchaseInvoiceLines),
+    paymentLines: many(paymentLines),
   }),
 );
 
@@ -652,6 +721,37 @@ export const receiptLinesRelations = relations(receiptLines, ({ one }) => ({
   }),
 }));
 
+export const paymentsRelations = relations(payments, ({ one, many }) => ({
+  business: one(businesses, {
+    fields: [payments.businessId],
+    references: [businesses.id],
+  }),
+  bankAccount: one(bankAccounts, {
+    fields: [payments.bankAccountId],
+    references: [bankAccounts.id],
+  }),
+  contact: one(contacts, {
+    fields: [payments.contactId],
+    references: [contacts.id],
+  }),
+  lines: many(paymentLines),
+}));
+
+export const paymentLinesRelations = relations(paymentLines, ({ one }) => ({
+  payment: one(payments, {
+    fields: [paymentLines.paymentId],
+    references: [payments.id],
+  }),
+  account: one(chartOfAccounts, {
+    fields: [paymentLines.accountId],
+    references: [chartOfAccounts.id],
+  }),
+  purchaseInvoice: one(purchaseInvoices, {
+    fields: [paymentLines.purchaseInvoiceId],
+    references: [purchaseInvoices.id],
+  }),
+}));
+
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   business: one(businesses, {
     fields: [auditLogs.businessId],
@@ -680,4 +780,6 @@ export type PurchaseInvoice = typeof purchaseInvoices.$inferSelect;
 export type PurchaseInvoiceLine = typeof purchaseInvoiceLines.$inferSelect;
 export type Receipt = typeof receipts.$inferSelect;
 export type ReceiptLine = typeof receiptLines.$inferSelect;
+export type Payment = typeof payments.$inferSelect;
+export type PaymentLine = typeof paymentLines.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
