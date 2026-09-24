@@ -60,6 +60,11 @@ export const Permission = {
     PAYMENT_WRITE: "payment:write",
     PAYMENT_DELETE: "payment:delete",
 
+    // Transfer antar akun bank/kas
+    INTER_ACCOUNT_TRANSFER_READ: "inter_account_transfer:read",
+    INTER_ACCOUNT_TRANSFER_WRITE: "inter_account_transfer:write",
+    INTER_ACCOUNT_TRANSFER_DELETE: "inter_account_transfer:delete",
+
     // Audit
     AUDIT_READ: "audit:read",
 } as const;
@@ -77,6 +82,7 @@ const READ_ONLY: PermissionValue[] = [
   Permission.PURCHASE_INVOICE_READ,
   Permission.RECEIPT_READ,
   Permission.PAYMENT_READ,
+  Permission.INTER_ACCOUNT_TRANSFER_READ,
 ];
 
 export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> =
@@ -96,6 +102,8 @@ export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> 
       Permission.RECEIPT_DELETE,
       Permission.PAYMENT_WRITE,
       Permission.PAYMENT_DELETE,
+      Permission.INTER_ACCOUNT_TRANSFER_WRITE,
+      Permission.INTER_ACCOUNT_TRANSFER_DELETE,
     ],
     viewer: READ_ONLY,
   };

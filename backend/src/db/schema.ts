@@ -8,7 +8,8 @@
  *
  * SOFT-DELETE (Guide §5.2): kolom `deletedAt` ada di entitas tenant —
  * businesses, users, chart_of_accounts, contacts, journal_entries,
- * bank_accounts, sales_invoices, purchase_invoices, receipts, payments.
+ * bank_accounts, sales_invoices, purchase_invoices, receipts, payments,
+ * inter_account_transfers.
  * SETIAP query list WAJIB memfilter `isNull(x.deletedAt)`.
  *
  * Beberapa tabel sengaja TIDAK punya deletedAt:
@@ -506,7 +507,48 @@ export const paymentLines = pgTable(
 );
 
 // =====================================================================
-// 17. AUDIT_LOGS
+// 17. INTER_ACCOUNT_TRANSFERS  (transfer antar akun bank/kas)
+//
+// - TANPA tabel baris item: cuma 2 akun + 1 nominal.
+// - Jurnal: DEBIT COA akun tujuan (to), KREDIT COA akun sumber (from),
+//   dua-duanya sebesar amount yang sama.
+// - Dilacak via journal_entries(source_module='inter_account_transfer',
+//   source_id=transfer id).
+// =====================================================================
+export const interAccountTransfers = pgTable(
+  "inter_account_transfers",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    date: date().notNull(),
+    reference: varchar({ length: 50 }),
+    description: text(),
+    fromBankAccountId: uuid()
+      .notNull()
+      .references(() => bankAccounts.id),
+    toBankAccountId: uuid()
+      .notNull()
+      .references(() => bankAccounts.id),
+    amount: numeric({ precision: 18, scale: 2 }).notNull(),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+    deletedAt: timestamp(),
+  },
+  (t) => [
+    index("idx_inter_account_transfers_business").on(t.businessId),
+    index("idx_inter_account_transfers_from").on(t.fromBankAccountId),
+    index("idx_inter_account_transfers_to").on(t.toBankAccountId),
+    check(
+      "chk_inter_account_transfers_amount_positive",
+      sql`${t.amount} > 0`,
+    ),
+  ],
+);
+
+// =====================================================================
+// 18. AUDIT_LOGS
 // =====================================================================
 export const auditLogs = pgTable(
   "audit_logs",
@@ -546,6 +588,7 @@ export const businessesRelations = relations(businesses, ({ many }) => ({
   purchaseInvoices: many(purchaseInvoices),
   receipts: many(receipts),
   payments: many(payments),
+  interAccountTransfers: many(interAccountTransfers),
   auditLogs: many(auditLogs),
 }));
 
@@ -633,6 +676,8 @@ export const bankAccountsRelations = relations(bankAccounts, ({ one, many }) => 
   }),
   receipts: many(receipts),
   payments: many(payments),
+  transfersFrom: many(interAccountTransfers, { relationName: "transferFrom" }),
+  transfersTo: many(interAccountTransfers, { relationName: "transferTo" }),
 }));
 
 export const salesInvoicesRelations = relations(
@@ -752,6 +797,26 @@ export const paymentLinesRelations = relations(paymentLines, ({ one }) => ({
   }),
 }));
 
+export const interAccountTransfersRelations = relations(
+  interAccountTransfers,
+  ({ one }) => ({
+    business: one(businesses, {
+      fields: [interAccountTransfers.businessId],
+      references: [businesses.id],
+    }),
+    fromBankAccount: one(bankAccounts, {
+      fields: [interAccountTransfers.fromBankAccountId],
+      references: [bankAccounts.id],
+      relationName: "transferFrom",
+    }),
+    toBankAccount: one(bankAccounts, {
+      fields: [interAccountTransfers.toBankAccountId],
+      references: [bankAccounts.id],
+      relationName: "transferTo",
+    }),
+  }),
+);
+
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   business: one(businesses, {
     fields: [auditLogs.businessId],
@@ -782,4 +847,5 @@ export type Receipt = typeof receipts.$inferSelect;
 export type ReceiptLine = typeof receiptLines.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type PaymentLine = typeof paymentLines.$inferSelect;
+export type InterAccountTransfer = typeof interAccountTransfers.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
