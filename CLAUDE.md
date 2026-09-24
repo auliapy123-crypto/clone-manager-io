@@ -218,3 +218,11 @@ asumsi dari nama file doang.**
   commit+push sebelum pindah tool. Waspada provider "gratisan"/pool tidak
   jelas asal-usulnya (privasi kode + kemungkinan melanggar ToS provider
   asli) — lebih aman pakai API key sendiri yang legitimate.
+- **Commit dengan hati-hati**: SELALU `git status` dulu sebelum
+  `git add`, baca daftarnya. Kalau semua yang muncul jelas punya kerjaan
+  yang baru selesai, aman pakai `git add -A`. Kalau ada file yang
+  nggak dikenal/mencurigakan (sisa sesi AI lain yang jalan bersamaan,
+  script sementara yang lupa kehapus), JANGAN `git add -A` — pakai
+  `git add <path spesifik>` buat file yang jelas-jelas punya kerjaan
+  ini aja. Pernah kejadian script sementara ikut ke-commit gara-gara
+  `-A` dipakai tanpa cek dulu.
