@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeftRight, ArrowUpFromLine, BookOpen, Building2, Landmark, LayoutDashboard, Receipt, Truck, User, Users, Wallet } from "lucide-react";
+import { ArrowLeftRight, ArrowUpFromLine, BookOpen, Building2, Landmark, LayoutDashboard, Receipt, Scale, Truck, User, Users, Wallet } from "lucide-react";
 
 /** Role bisnis (Guide §7 RBAC) -- harus sinkron dgn BusinessRoleSchema backend. */
 export type BusinessRole = "admin" | "accountant" | "viewer";
@@ -86,6 +86,12 @@ export const businessMenuItems: MenuItem[] = [
     label: "Inter Account Transfers",
     to: "/businesses/$businessId/inter-account-transfers",
     icon: ArrowLeftRight,
+    allowedRoles: ["admin", "accountant"],
+  },
+  {
+    label: "Bank Reconciliations",
+    to: "/businesses/$businessId/bank-reconciliations",
+    icon: Scale,
     allowedRoles: ["admin", "accountant"],
   },
 ];

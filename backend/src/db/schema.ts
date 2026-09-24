@@ -9,7 +9,7 @@
  * SOFT-DELETE (Guide §5.2): kolom `deletedAt` ada di entitas tenant —
  * businesses, users, chart_of_accounts, contacts, journal_entries,
  * bank_accounts, sales_invoices, purchase_invoices, receipts, payments,
- * inter_account_transfers.
+ * inter_account_transfers, bank_reconciliations.
  * SETIAP query list WAJIB memfilter `isNull(x.deletedAt)`.
  *
  * Beberapa tabel sengaja TIDAK punya deletedAt:
@@ -548,7 +548,38 @@ export const interAccountTransfers = pgTable(
 );
 
 // =====================================================================
-// 18. AUDIT_LOGS
+// 19. BANK_RECONCILIATIONS  (lembar verifikasi saldo vs rekening koran)
+//
+// - MURNI baca-saja: TIDAK ADA posting jurnal dari modul ini.
+// - bookBalance/discrepancy/status DIHITUNG real-time saat GET, bukan
+//   disimpan (bookBalance = SUM jurnal s.d. tanggal cutoff).
+// - Dilacak audit via audit_logs seperti modul lain; jurnal TIDAK tersentuh.
+// =====================================================================
+export const bankReconciliations = pgTable(
+  "bank_reconciliations",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    date: date().notNull(),
+    bankAccountId: uuid()
+      .notNull()
+      .references(() => bankAccounts.id),
+    statementBalance: numeric({ precision: 18, scale: 2 }).notNull().default("0.00"),
+    description: text(),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+    deletedAt: timestamp(),
+  },
+  (t) => [
+    index("idx_bank_reconciliations_business").on(t.businessId),
+    index("idx_bank_reconciliations_bank_account").on(t.bankAccountId),
+  ],
+);
+
+// =====================================================================
+// 20. AUDIT_LOGS
 // =====================================================================
 export const auditLogs = pgTable(
   "audit_logs",
@@ -589,6 +620,7 @@ export const businessesRelations = relations(businesses, ({ many }) => ({
   receipts: many(receipts),
   payments: many(payments),
   interAccountTransfers: many(interAccountTransfers),
+  bankReconciliations: many(bankReconciliations),
   auditLogs: many(auditLogs),
 }));
 
@@ -678,6 +710,7 @@ export const bankAccountsRelations = relations(bankAccounts, ({ one, many }) => 
   payments: many(payments),
   transfersFrom: many(interAccountTransfers, { relationName: "transferFrom" }),
   transfersTo: many(interAccountTransfers, { relationName: "transferTo" }),
+  reconciliations: many(bankReconciliations),
 }));
 
 export const salesInvoicesRelations = relations(
@@ -817,6 +850,20 @@ export const interAccountTransfersRelations = relations(
   }),
 );
 
+export const bankReconciliationsRelations = relations(
+  bankReconciliations,
+  ({ one }) => ({
+    business: one(businesses, {
+      fields: [bankReconciliations.businessId],
+      references: [businesses.id],
+    }),
+    bankAccount: one(bankAccounts, {
+      fields: [bankReconciliations.bankAccountId],
+      references: [bankAccounts.id],
+    }),
+  }),
+);
+
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   business: one(businesses, {
     fields: [auditLogs.businessId],
@@ -848,4 +895,5 @@ export type ReceiptLine = typeof receiptLines.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type PaymentLine = typeof paymentLines.$inferSelect;
 export type InterAccountTransfer = typeof interAccountTransfers.$inferSelect;
+export type BankReconciliation = typeof bankReconciliations.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;

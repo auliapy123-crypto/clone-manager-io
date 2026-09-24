@@ -37,6 +37,7 @@ import { toHttpError } from "./libs/safe-error.js";
 import authMiddlewarePlugin from "./plugins/AuthMiddleware.js";
 import authRoutesPlugin from "./plugins/AuthRoutes.js";
 import bankAccountRoutesPlugin from "./plugins/BankAccountRoutes.js";
+import bankReconciliationRoutesPlugin from "./plugins/BankReconciliationRoutes.js";
 import businessRoutesPlugin from "./plugins/BusinessRoutes.js";
 import chartOfAccountRoutesPlugin from "./plugins/ChartOfAccountRoutes.js";
 import customerRoutesPlugin from "./plugins/CustomerRoutes.js";
@@ -297,6 +298,7 @@ export async function buildApp() {
             { name: "Receipts", description: "Penerimaan kas/bank + posting jurnal per bisnis" },
             { name: "Payments", description: "Pengeluaran kas/bank + alokasi ke Purchase Invoice per bisnis" },
             { name: "InterAccountTransfers", description: "Transfer antar akun bank/kas + posting jurnal per bisnis" },
+            { name: "BankReconciliations", description: "Lembar verifikasi saldo vs rekening koran per bisnis (tanpa posting jurnal)" },
          ],
       },
       transform: jsonSchemaTransform,
@@ -323,6 +325,7 @@ export async function buildApp() {
   await app.register(receiptRoutesPlugin);
   await app.register(paymentRoutesPlugin);
   await app.register(interAccountTransferRoutesPlugin);
+  await app.register(bankReconciliationRoutesPlugin);
 
   return app;
 }
