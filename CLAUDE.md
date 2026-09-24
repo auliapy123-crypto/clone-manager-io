@@ -143,18 +143,59 @@ environment variable atau `.env` yang sudah di-gitignore.
   `=invoiceAmount` lagi. Frontend: dropdown "Invoice" cuma muncul kalau
   Account baris = akun kontrol AP, nunjukkin daftar invoice Unpaid/
   Overdue milik Payee yang dipilih.
+- **InterAccountTransfers** — `/businesses/:id/inter-account-transfers`.
+  Modul PALING SIMPEL — TANPA baris item dinamis (cuma 2 akun bank + 1
+  nominal, TIDAK ADA tabel lines terpisah). Debit akun tujuan, Kredit
+  akun sumber, sama besar. Repost jurnal kalau `from`/`to`/`amount`
+  berubah.
+- **BankReconciliations** — `/businesses/:id/bank-reconciliations`. BEDA
+  dari semua modul lain: TIDAK POSTING JURNAL SAMA SEKALI, murni alat
+  verifikasi baca-saja. Fungsi kunci: hitung `bookBalance` akun bank
+  PER TANGGAL TERTENTU (filter `entry_date <= cutoff`, beda dari
+  `currentBalance` yang selalu live/all-time). `discrepancy = statement
+  - book`, status Reconciled/Not Reconciled dari situ.
+- **JournalEntries** — `/businesses/:id/journal-entries`. TIDAK ADA
+  tabel baru (murni CRUD terbatas di atas `journal_entries`/
+  `journal_entry_lines` yang udah ada sejak Fase 1.1). List nampilin
+  SEMUA jurnal (dari modul manapun, read-only) + jurnal manual
+  (`source_module='manual_journal'`, satu-satunya yang bisa
+  diedit/dihapus dari modul ini — jurnal dari modul lain WAJIB ditolak
+  kalau dicoba diedit/dihapus dari sini, harus lewat dokumen sumbernya).
+  Field `Division`/`Tax Code` dan "Locked Period" dari dokumen resmi
+  SENGAJA DILEWATI (modul pendukungnya belum ada).
 
 ### Modul yang SEDANG/AKAN dikerjakan (urutan §3 dokumen analisis)
 
 Urutan: Customers ✅ → Suppliers ✅ → Bank and Cash Accounts ✅ →
 Sales Invoices ✅ → Purchase Invoices ✅ → Receipts ✅ → Payments ✅ →
-**Inter Account Transfers (berikutnya)** → Bank Reconciliations →
-Journal Entries → Purchase Orders → Expense Claims → Projects.
+Inter Account Transfers ✅ → Bank Reconciliations ✅ → Journal Entries ✅
+→ **Purchase Orders (berikutnya)** → Expense Claims → Projects.
 
-**Inter Account Transfers**: detail lengkapnya UDAH ADA di file yang sama
-dengan Receipts/Payments ("Analisis Fitur dan Kebutuhan Sistem Manager
-intern- Aulia.docx", §4) — nggak perlu cari dokumen lain lagi, langsung
-baca section itu sebelum mulai.
+**3 modul sisa roadmap (Purchase Orders, Expense Claims, Projects)**
+DETAIL LENGKAPNYA UDAH ADA di 1 file:
+"Analisis Fitur dan Kebutuhan Sistem Manager intern_pahrio kaspiyanor.docx"
+(§5, §6, §7) — nggak perlu cari dokumen lain lagi, langsung baca section
+itu sebelum mulai tiap modul.
+
+**Purchase Orders**: dokumen non-posting (nggak bikin jurnal apa pun),
+status dinamis berdasar dokumen turunan (Draft/Open → Partially
+Invoiced → Fully Invoiced/Closed — status ini BUTUH ngecek Purchase
+Invoices mana yang "berasal" dari PO tertentu, mirip pola computed
+status di modul lain tapi belum ada field linknya di Purchase Invoices
+sekarang, PERLU ditambahkan kalau mau alur konversi PO→Invoice jalan).
+
+**Expense Claims**: mirip pola Payments (posting Debit
+akun Expense/Asset pilihan user per baris, Kredit akun kontrol Expense
+Claims Liability), pelunasannya lewat modul Payments yang udah ada
+(alokasi mirip pola alokasi ke Purchase Invoice, tapi target beda:
+alokasi ke Expense Claim).
+
+**Projects**: BUKAN modul transaksi — cuma "tag" yang ditempelin ke
+transaksi modul lain (Sales Invoice, Receipt, Purchase Invoice, Payment,
+Expense Claim, Journal Entry) buat hitung Income/Expenses/Net Profit per
+proyek. Butuh nambah kolom `project_id` nullable ke banyak tabel
+transaksi yang udah ada — perubahan lintas-modul, bukan modul baru yang
+berdiri sendiri.
 
 ### Dokumen analisis Fase 0 — CATATAN PENTING
 
@@ -193,7 +234,8 @@ asumsi dari nama file doang.**
 - Businesses (list + detail + sidebar navigasi)
 - Members (kelola anggota per bisnis)
 - Chart of Accounts, Customers, Suppliers, Bank and Cash Accounts, Sales
-  Invoices, Purchase Invoices, Receipts, Payments
+  Invoices, Purchase Invoices, Receipts, Payments, Inter Account
+  Transfers, Bank Reconciliations, Journal Entries
 
 ## Aturan Kerja
 
