@@ -33,6 +33,7 @@ export interface PurchaseInvoiceCreateInput {
   description?: string | null;
   quoteNumber?: string | null;
   orderNumber?: string | null;
+  purchaseOrderId?: string | null;
   lines: PurchaseInvoiceLineInput[];
 }
 
@@ -44,6 +45,7 @@ export interface PurchaseInvoiceUpdateInput {
   description?: string | null;
   quoteNumber?: string | null;
   orderNumber?: string | null;
+  purchaseOrderId?: string | null;
   lines?: PurchaseInvoiceLineInput[];
 }
 
@@ -85,6 +87,7 @@ export interface PurchaseInvoiceRecord {
   description: string | null;
   quoteNumber: string | null;
   orderNumber: string | null;
+  purchaseOrderId: string | null;
   invoiceAmount: number;
   balanceDue: number;
   status: ComputedInvoiceStatus;
@@ -287,6 +290,7 @@ function toRecord(
     description: string | null;
     quoteNumber: string | null;
     orderNumber: string | null;
+    purchaseOrderId: string | null;
     createdAt: Date;
     updatedAt: Date;
   },
@@ -443,6 +447,7 @@ export async function listPurchaseInvoices(
       description: purchaseInvoices.description,
       quoteNumber: purchaseInvoices.quoteNumber,
       orderNumber: purchaseInvoices.orderNumber,
+      purchaseOrderId: purchaseInvoices.purchaseOrderId,
       invoiceAmount: totals.invoiceAmount,
       paidAmount: paidTotals.paidAmount,
       createdAt: purchaseInvoices.createdAt,
@@ -519,6 +524,7 @@ export async function getPurchaseInvoiceById(
       description: purchaseInvoices.description,
       quoteNumber: purchaseInvoices.quoteNumber,
       orderNumber: purchaseInvoices.orderNumber,
+      purchaseOrderId: purchaseInvoices.purchaseOrderId,
       createdAt: purchaseInvoices.createdAt,
       updatedAt: purchaseInvoices.updatedAt,
     })
@@ -557,6 +563,7 @@ export async function createPurchaseInvoice(
         description: input.description,
         quoteNumber: input.quoteNumber,
         orderNumber: input.orderNumber,
+        purchaseOrderId: input.purchaseOrderId ?? null,
       })
       .returning({ id: purchaseInvoices.id });
 
@@ -680,6 +687,7 @@ export async function updatePurchaseInvoice(
     if (input.description !== undefined) patch.description = input.description;
     if (input.quoteNumber !== undefined) patch.quoteNumber = input.quoteNumber;
     if (input.orderNumber !== undefined) patch.orderNumber = input.orderNumber;
+    if (input.purchaseOrderId !== undefined) patch.purchaseOrderId = input.purchaseOrderId;
 
     await tx
       .update(purchaseInvoices)

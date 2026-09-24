@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -14,26 +13,22 @@ import {
 import { Input } from "@/components/ui/input";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useBusinesses } from "@/hooks/use-businesses";
-import { useSuppliers } from "@/hooks/use-suppliers";
 import {
   getTodayDateString,
-  type PurchaseInvoice,
-  type PurchaseInvoiceLineInput,
-  type PurchaseInvoiceStatus,
-  useCreatePurchaseInvoice,
-  useDeletePurchaseInvoice,
-  usePurchaseInvoice,
-  usePurchaseInvoices,
-  useUpdatePurchaseInvoice,
-} from "@/hooks/use-purchase-invoices";
-import { usePurchaseOrder } from "@/hooks/use-purchase-orders";
+  type PurchaseOrder,
+  type PurchaseOrderLineInput,
+  type PurchaseOrderStatus,
+  useCreatePurchaseOrder,
+  useDeletePurchaseOrder,
+  usePurchaseOrder,
+  usePurchaseOrders,
+  useUpdatePurchaseOrder,
+} from "@/hooks/use-purchase-orders";
+import { useSuppliers } from "@/hooks/use-suppliers";
 import { getApiErrorMessage } from "@/lib/errors";
 
-export const Route = createFileRoute("/businesses/$businessId/purchase-invoices")({
-  validateSearch: z.object({
-    convertFromPO: z.string().optional(),
-  }),
-  component: PurchaseInvoicesPage,
+export const Route = createFileRoute("/businesses/$businessId/purchase-orders")({
+  component: PurchaseOrdersPage,
 });
 
 function formatAmount(value: number) {
@@ -43,42 +38,31 @@ function formatAmount(value: number) {
   }).format(value);
 }
 
-function addDaysToDateString(dateStr: string, days: number): string {
-  if (!dateStr) return "";
-  const parts = dateStr.split("-").map(Number);
-  if (parts.length !== 3 || parts.some(isNaN)) return "";
-  const [y, m, d] = parts;
-  const date = new Date(Date.UTC(y, m - 1, d));
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-function StatusBadge({ status }: { status: PurchaseInvoiceStatus }) {
-  if (status === "Paid") {
+function StatusBadge({ status }: { status: PurchaseOrderStatus }) {
+  if (status === "Fully Invoiced/Closed") {
     return (
       <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 border border-green-200">
-        Paid
+        Fully Invoiced/Closed
       </span>
     );
   }
-  if (status === "Overdue") {
+  if (status === "Partially Invoiced") {
     return (
-      <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800 border border-red-200">
-        Overdue
+      <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800 border border-yellow-200">
+        Partially Invoiced
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800 border border-yellow-200">
-      Unpaid
+    <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700 border border-gray-200">
+      Draft/Open
     </span>
   );
 }
 
-function PurchaseInvoicesPage() {
+function PurchaseOrdersPage() {
   const { businessId } = Route.useParams();
   const navigate = Route.useNavigate();
-  const { convertFromPO } = Route.useSearch();
   const { data: businesses } = useBusinesses();
   const role = businesses?.find((b) => b.id === businessId)?.role;
   const canWrite = role === "admin" || role === "accountant";
@@ -86,38 +70,11 @@ function PurchaseInvoicesPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [q, setQ] = useState("");
-  const [statusFilter, setStatusFilter] = useState<PurchaseInvoiceStatus | "">("");
+  const [statusFilter, setStatusFilter] = useState<PurchaseOrderStatus | "">("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
-  const [activeInvoiceId, setActiveInvoiceId] = useState<string | null>(null);
-
-  // Convert to Invoice: prefill dialog dari PO (?convertFromPO=<id>).
-  const { data: convertPO } = usePurchaseOrder(businessId, convertFromPO ?? null);
-
-  useEffect(() => {
-    if (convertFromPO && convertPO && !activeInvoiceId) {
-      setActiveInvoiceId("new");
-    }
-  }, [convertFromPO, convertPO, activeInvoiceId]);
-
-  const convertPrefill = useMemo(() => {
-    if (!convertFromPO || !convertPO || convertPO.id !== convertFromPO) return null;
-    return {
-      purchaseOrderId: convertPO.id,
-      purchaseOrderReference: convertPO.reference,
-      supplierId: convertPO.supplierId,
-      lines: convertPO.lines.map((l) => ({
-        accountId: l.accountId,
-        description: l.description ?? "",
-        quantity: String(l.quantity),
-        unitPrice: String(l.unitPrice),
-      })),
-    };
-  }, [convertFromPO, convertPO]);
-
-  const handleDialogClose = () => {
-    setActiveInvoiceId(null);
-    if (convertFromPO) void navigate({ search: {} });
-  };
+  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -127,52 +84,59 @@ function PurchaseInvoicesPage() {
     return () => clearTimeout(timeout);
   }, [search]);
 
-  const { data, isPending, isError, error } = usePurchaseInvoices(businessId, page, {
+  const { data, isPending, isError, error } = usePurchaseOrders(businessId, page, {
     q: q || undefined,
     status: statusFilter || undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
   });
 
-  const deleteInvoice = useDeletePurchaseInvoice(businessId);
+  const deleteOrder = useDeletePurchaseOrder(businessId);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const totalInvoiceAmount = useMemo(
-    () => data?.data.reduce((total, inv) => total + inv.invoiceAmount, 0) ?? 0,
+  const totalOrderAmount = useMemo(
+    () => data?.data.reduce((total, o) => total + o.totalOrderAmount, 0) ?? 0,
     [data],
   );
 
-  const totalBalanceDue = useMemo(
-    () => data?.data.reduce((total, inv) => total + inv.balanceDue, 0) ?? 0,
-    [data],
-  );
-
-  const handleDelete = async (invoice: PurchaseInvoice) => {
-    const refText = invoice.reference ? ` "${invoice.reference}"` : "";
+  const handleDelete = async (order: PurchaseOrder) => {
+    const refText = order.reference ? ` "${order.reference}"` : "";
     if (
       !window.confirm(
-        `Hapus faktur${refText} untuk supplier "${invoice.supplierName}"? Jurnal terkait juga akan dihapus.`,
+        `Hapus PO${refText} untuk supplier "${order.supplierName}"?`,
       )
     ) {
       return;
     }
     setDeleteError(null);
     try {
-      await deleteInvoice.mutateAsync(invoice.id);
+      await deleteOrder.mutateAsync(order.id);
     } catch (err) {
       setDeleteError(getApiErrorMessage(err));
     }
   };
 
+  const handleConvert = (order: PurchaseOrder) => {
+    void navigate({
+      to: "/businesses/$businessId/purchase-invoices",
+      params: { businessId },
+      search: { convertFromPO: order.id },
+    });
+  };
+
+  const resetPage = () => setPage(1);
+
   return (
     <div className="flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Purchase Invoices</h1>
+          <h1 className="text-lg font-semibold text-gray-900">Purchase Orders</h1>
           {data && (
-            <p className="text-sm text-gray-500">{data.pagination.total} faktur</p>
+            <p className="text-sm text-gray-500">{data.pagination.total} PO</p>
           )}
         </div>
         {canWrite && (
-          <Button onClick={() => setActiveInvoiceId("new")}>Buat Faktur</Button>
+          <Button onClick={() => setActiveOrderId("new")}>PO Baru</Button>
         )}
       </div>
 
@@ -193,88 +157,110 @@ function PurchaseInvoicesPage() {
           className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           value={statusFilter}
           onChange={(event) => {
-            setStatusFilter(event.target.value as PurchaseInvoiceStatus | "");
-            setPage(1);
+            setStatusFilter(event.target.value as PurchaseOrderStatus | "");
+            resetPage();
           }}
         >
           <option value="">Semua Status</option>
-          <option value="Unpaid">Unpaid</option>
-          <option value="Overdue">Overdue</option>
-          <option value="Paid">Paid</option>
+          <option value="Draft/Open">Draft/Open</option>
+          <option value="Partially Invoiced">Partially Invoiced</option>
+          <option value="Fully Invoiced/Closed">Fully Invoiced/Closed</option>
         </select>
+        <Input
+          type="date"
+          className="max-w-[170px]"
+          value={dateFrom}
+          onChange={(event) => {
+            setDateFrom(event.target.value);
+            resetPage();
+          }}
+          aria-label="Tanggal dari"
+        />
+        <span className="text-sm text-gray-500">s.d.</span>
+        <Input
+          type="date"
+          className="max-w-[170px]"
+          value={dateTo}
+          onChange={(event) => {
+            setDateTo(event.target.value);
+            resetPage();
+          }}
+          aria-label="Tanggal sampai"
+        />
       </div>
 
       <Card>
         <CardContent className="p-0">
           {isPending ? (
-            <p className="p-6 text-sm text-gray-500">Memuat faktur pembelian...</p>
+            <p className="p-6 text-sm text-gray-500">Memuat PO...</p>
           ) : isError ? (
             <p role="alert" className="p-6 text-sm text-red-700">
               {getApiErrorMessage(error)}
             </p>
           ) : data.data.length === 0 ? (
-            <p className="p-6 text-sm text-gray-500">Belum ada faktur pembelian.</p>
+            <p className="p-6 text-sm text-gray-500">Belum ada purchase order.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
+                    <th className="px-6 py-3 font-medium">Date</th>
                     <th className="px-6 py-3 font-medium">Reference</th>
                     <th className="px-6 py-3 font-medium">Supplier</th>
-                    <th className="px-6 py-3 font-medium">Issue Date</th>
-                    <th className="px-6 py-3 font-medium">Due Date</th>
+                    <th className="px-6 py-3 font-medium">Description</th>
                     <th className="px-6 py-3 text-right font-medium">
-                      Invoice Amount
-                    </th>
-                    <th className="px-6 py-3 text-right font-medium">
-                      Balance Due
+                      Total Amount
                     </th>
                     <th className="px-6 py-3 font-medium">Status</th>
                     <th className="px-6 py-3 font-medium">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {data.data.map((invoice) => (
-                    <tr key={invoice.id} className="hover:bg-gray-50">
+                  {data.data.map((order) => (
+                    <tr key={order.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-3 text-gray-600">{order.date}</td>
                       <td className="px-6 py-3 font-medium text-gray-900">
-                        {invoice.reference || "-"}
+                        {order.reference || "-"}
                       </td>
                       <td className="px-6 py-3 text-gray-900">
-                        {invoice.supplierName}
+                        {order.supplierName}
                       </td>
                       <td className="px-6 py-3 text-gray-600">
-                        {invoice.issueDate}
-                      </td>
-                      <td className="px-6 py-3 text-gray-600">
-                        {invoice.dueDate || "-"}
+                        {order.description || "-"}
                       </td>
                       <td className="px-6 py-3 text-right font-medium text-gray-900">
-                        {formatAmount(invoice.invoiceAmount)}
-                      </td>
-                      <td className="px-6 py-3 text-right font-medium text-gray-900">
-                        {formatAmount(invoice.balanceDue)}
+                        {formatAmount(order.totalOrderAmount)}
                       </td>
                       <td className="px-6 py-3">
-                        <StatusBadge status={invoice.status} />
+                        <StatusBadge status={order.status} />
                       </td>
                       <td className="px-6 py-3">
                         <div className="flex items-center gap-2">
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setActiveInvoiceId(invoice.id)}
+                            onClick={() => setActiveOrderId(order.id)}
                           >
                             {canWrite ? "Edit" : "Lihat"}
                           </Button>
                           {canWrite && (
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              disabled={deleteInvoice.isPending}
-                              onClick={() => void handleDelete(invoice)}
-                            >
-                              Hapus
-                            </Button>
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleConvert(order)}
+                              >
+                                Convert to Invoice
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                disabled={deleteOrder.isPending}
+                                onClick={() => void handleDelete(order)}
+                              >
+                                Hapus
+                              </Button>
+                            </>
                           )}
                         </div>
                       </td>
@@ -287,10 +273,7 @@ function PurchaseInvoicesPage() {
                       Total
                     </td>
                     <td className="px-6 py-3 text-right font-semibold text-gray-900">
-                      {formatAmount(totalInvoiceAmount)}
-                    </td>
-                    <td className="px-6 py-3 text-right font-semibold text-gray-900">
-                      {formatAmount(totalBalanceDue)}
+                      {formatAmount(totalOrderAmount)}
                     </td>
                     <td colSpan={2} />
                   </tr>
@@ -325,13 +308,12 @@ function PurchaseInvoicesPage() {
         </div>
       )}
 
-      {activeInvoiceId && (
-        <PurchaseInvoiceFormDialog
+      {activeOrderId && (
+        <PurchaseOrderFormDialog
           businessId={businessId}
-          invoiceId={activeInvoiceId}
+          orderId={activeOrderId}
           canWrite={canWrite}
-          onClose={handleDialogClose}
-          convertPrefill={convertPrefill}
+          onClose={() => setActiveOrderId(null)}
         />
       )}
     </div>
@@ -346,7 +328,7 @@ interface FormLine {
   unitPrice: string;
 }
 
-function computeLineSubtotal(line: FormLine): number {
+function computeLineAmount(line: FormLine): number {
   const qty = parseFloat(line.quantity) || 0;
   const price = parseFloat(line.unitPrice) || 0;
   return qty * price;
@@ -362,35 +344,23 @@ function createEmptyLine(): FormLine {
   };
 }
 
-interface PurchaseInvoiceFormDialogProps {
+interface PurchaseOrderFormDialogProps {
   businessId: string;
-  invoiceId: string; // "new" atau UUID
+  orderId: string; // "new" atau UUID
   canWrite: boolean;
   onClose: () => void;
-  convertPrefill?: {
-    purchaseOrderId: string;
-    purchaseOrderReference: string | null;
-    supplierId: string;
-    lines: Array<{
-      accountId: string;
-      description: string;
-      quantity: string;
-      unitPrice: string;
-    }>;
-  } | null;
 }
 
-function PurchaseInvoiceFormDialog({
+function PurchaseOrderFormDialog({
   businessId,
-  invoiceId,
+  orderId,
   canWrite,
   onClose,
-  convertPrefill,
-}: PurchaseInvoiceFormDialogProps) {
-  const isNew = invoiceId === "new";
-  const { data: existingInvoice, isPending: isInvoiceLoading } = usePurchaseInvoice(
+}: PurchaseOrderFormDialogProps) {
+  const isNew = orderId === "new";
+  const { data: existingOrder, isPending: isOrderLoading } = usePurchaseOrder(
     businessId,
-    isNew ? null : invoiceId,
+    isNew ? null : orderId,
   );
 
   const { data: suppliersData, isPending: isSuppliersLoading } = useSuppliers(
@@ -407,51 +377,28 @@ function PurchaseInvoiceFormDialog({
     100,
   );
 
-  const createInvoice = useCreatePurchaseInvoice(businessId);
-  const updateInvoice = useUpdatePurchaseInvoice(businessId);
+  const createOrder = useCreatePurchaseOrder(businessId);
+  const updateOrder = useUpdatePurchaseOrder(businessId);
 
   const [supplierId, setSupplierId] = useState("");
   const [reference, setReference] = useState("");
-  const [issueDate, setIssueDate] = useState(getTodayDateString());
-  const [dueDate, setDueDate] = useState("");
+  const [date, setDate] = useState(getTodayDateString());
+  const [billingAddress, setBillingAddress] = useState("");
   const [description, setDescription] = useState("");
-  const [quoteNumber, setQuoteNumber] = useState("");
-  const [orderNumber, setOrderNumber] = useState("");
   const [lines, setLines] = useState<FormLine[]>([createEmptyLine()]);
   const [formError, setFormError] = useState<string | null>(null);
-  const [prefillApplied, setPrefillApplied] = useState(false);
 
   useEffect(() => {
-    if (isNew && convertPrefill && !prefillApplied) {
-      setSupplierId(convertPrefill.supplierId);
-      if (convertPrefill.lines.length > 0) {
-        setLines(
-          convertPrefill.lines.map((line) => ({
-            id: Math.random().toString(36).substring(2, 9),
-            accountId: line.accountId,
-            description: line.description,
-            quantity: line.quantity,
-            unitPrice: line.unitPrice,
-          })),
-        );
-      }
-      setPrefillApplied(true);
-    }
-  }, [isNew, convertPrefill, prefillApplied]);
+    if (!isNew && existingOrder) {
+      setSupplierId(existingOrder.supplierId);
+      setReference(existingOrder.reference ?? "");
+      setDate(existingOrder.date);
+      setBillingAddress(existingOrder.billingAddress ?? "");
+      setDescription(existingOrder.description ?? "");
 
-  useEffect(() => {
-    if (!isNew && existingInvoice) {
-      setSupplierId(existingInvoice.supplierId);
-      setReference(existingInvoice.reference ?? "");
-      setIssueDate(existingInvoice.issueDate);
-      setDueDate(existingInvoice.dueDate ?? "");
-      setDescription(existingInvoice.description ?? "");
-      setQuoteNumber(existingInvoice.quoteNumber ?? "");
-      setOrderNumber(existingInvoice.orderNumber ?? "");
-
-      if (existingInvoice.lines && existingInvoice.lines.length > 0) {
+      if (existingOrder.lines && existingOrder.lines.length > 0) {
         setLines(
-          existingInvoice.lines.map((line) => ({
+          existingOrder.lines.map((line) => ({
             id: line.id || Math.random().toString(36).substring(2, 9),
             accountId: line.accountId,
             description: line.description ?? "",
@@ -461,40 +408,7 @@ function PurchaseInvoiceFormDialog({
         );
       }
     }
-  }, [isNew, existingInvoice]);
-
-  const handleSupplierChange = (newSupplierId: string) => {
-    setSupplierId(newSupplierId);
-    const selectedSupp = suppliersData?.data.find((c) => c.id === newSupplierId);
-    if (selectedSupp) {
-      if (
-        selectedSupp.purchaseInvoiceDueDateDays != null &&
-        selectedSupp.purchaseInvoiceDueDateDays > 0 &&
-        (!dueDate || isNew)
-      ) {
-        setDueDate(
-          addDaysToDateString(
-            issueDate || getTodayDateString(),
-            selectedSupp.purchaseInvoiceDueDateDays,
-          ),
-        );
-      }
-    }
-  };
-
-  const handleIssueDateChange = (newIssueDate: string) => {
-    setIssueDate(newIssueDate);
-    const selectedSupp = suppliersData?.data.find((c) => c.id === supplierId);
-    if (
-      selectedSupp &&
-      selectedSupp.purchaseInvoiceDueDateDays != null &&
-      selectedSupp.purchaseInvoiceDueDateDays > 0
-    ) {
-      setDueDate(
-        addDaysToDateString(newIssueDate, selectedSupp.purchaseInvoiceDueDateDays),
-      );
-    }
-  };
+  }, [isNew, existingOrder]);
 
   const addLine = () => {
     setLines((prev) => [...prev, createEmptyLine()]);
@@ -511,8 +425,8 @@ function PurchaseInvoiceFormDialog({
     );
   };
 
-  const liveTotalInvoiceAmount = useMemo(() => {
-    return lines.reduce((sum, line) => sum + computeLineSubtotal(line), 0);
+  const liveTotalOrderAmount = useMemo(() => {
+    return lines.reduce((sum, line) => sum + computeLineAmount(line), 0);
   }, [lines]);
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -524,10 +438,10 @@ function PurchaseInvoiceFormDialog({
       return;
     }
 
-    const finalIssueDate = issueDate.trim() || getTodayDateString();
+    const finalDate = date.trim() || getTodayDateString();
 
     if (lines.length === 0) {
-      setFormError("Faktur wajib memiliki minimal 1 baris item.");
+      setFormError("PO wajib memiliki minimal 1 baris item.");
       return;
     }
 
@@ -549,7 +463,7 @@ function PurchaseInvoiceFormDialog({
       }
     }
 
-    const formattedLines: PurchaseInvoiceLineInput[] = lines.map((l) => ({
+    const formattedLines: PurchaseOrderLineInput[] = lines.map((l) => ({
       accountId: l.accountId,
       description: l.description.trim() || null,
       quantity: parseFloat(l.quantity) || 1,
@@ -558,27 +472,22 @@ function PurchaseInvoiceFormDialog({
 
     try {
       if (isNew) {
-        await createInvoice.mutateAsync({
+        await createOrder.mutateAsync({
           supplierId,
           reference: reference.trim() || undefined,
-          issueDate: finalIssueDate,
-          dueDate: dueDate.trim() || undefined,
+          date: finalDate,
+          billingAddress: billingAddress.trim() || undefined,
           description: description.trim() || undefined,
-          quoteNumber: quoteNumber.trim() || undefined,
-          orderNumber: orderNumber.trim() || undefined,
-          purchaseOrderId: convertPrefill?.purchaseOrderId ?? undefined,
           lines: formattedLines,
         });
       } else {
-        await updateInvoice.mutateAsync({
-          invoiceId,
+        await updateOrder.mutateAsync({
+          orderId,
           supplierId,
           reference: reference.trim() || null,
-          issueDate: finalIssueDate,
-          dueDate: dueDate.trim() || null,
+          date: finalDate,
+          billingAddress: billingAddress.trim() || null,
           description: description.trim() || null,
-          quoteNumber: quoteNumber.trim() || null,
-          orderNumber: orderNumber.trim() || null,
           lines: formattedLines,
         });
       }
@@ -588,8 +497,8 @@ function PurchaseInvoiceFormDialog({
     }
   };
 
-  const isSubmitting = createInvoice.isPending || updateInvoice.isPending;
-  const isInitialLoading = !isNew && isInvoiceLoading;
+  const isSubmitting = createOrder.isPending || updateOrder.isPending;
+  const isInitialLoading = !isNew && isOrderLoading;
   const expenseAccounts = accountsData?.data ?? [];
 
   return (
@@ -600,22 +509,18 @@ function PurchaseInvoiceFormDialog({
       >
         <DialogHeader>
           <DialogTitle>
-            {isNew
-              ? "Buat Faktur Pembelian"
-              : canWrite
-                ? "Edit Faktur Pembelian"
-                : "Detail Faktur Pembelian"}
+            {isNew ? "PO Baru" : canWrite ? "Edit PO" : "Detail PO"}
           </DialogTitle>
           <DialogDescription>
             {isNew
-              ? "Buat faktur baru. Jurnal utang usaha dan beban akan otomatis diposting."
-              : "Lihat atau perbarui faktur pembelian beserta baris itemnya."}
+              ? "Buat pesanan pembelian. PO tidak memposting jurnal apa pun."
+              : "Lihat atau perbarui PO beserta baris itemnya."}
           </DialogDescription>
         </DialogHeader>
 
         {isInitialLoading ? (
           <div className="py-12 text-center text-sm text-gray-500">
-            Memuat data faktur...
+            Memuat data PO...
           </div>
         ) : (
           <form
@@ -631,9 +536,25 @@ function PurchaseInvoiceFormDialog({
                   {formError}
                 </div>
               )}
-              {isNew && convertPrefill && (
-                <div className="rounded bg-blue-50 px-3 py-2 text-sm text-blue-800">
-                  Convert dari PO {convertPrefill.purchaseOrderReference ?? convertPrefill.purchaseOrderId} — baris bisa disunting dulu sebelum disimpan.
+
+              {!isNew && existingOrder && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 rounded-md bg-gray-50 p-3 text-sm">
+                  <div>
+                    <div className="text-xs text-gray-500">Total Order</div>
+                    <div className="font-semibold text-gray-900">
+                      {formatAmount(existingOrder.totalOrderAmount)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Invoiced</div>
+                    <div className="font-semibold text-gray-900">
+                      {formatAmount(existingOrder.invoicedAmount)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Status</div>
+                    <StatusBadge status={existingOrder.status} />
+                  </div>
                 </div>
               )}
 
@@ -646,7 +567,7 @@ function PurchaseInvoiceFormDialog({
                     className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
                     value={supplierId}
                     disabled={!canWrite || isSuppliersLoading}
-                    onChange={(event) => handleSupplierChange(event.target.value)}
+                    onChange={(event) => setSupplierId(event.target.value)}
                     required
                   >
                     <option value="">-- Pilih Supplier --</option>
@@ -663,7 +584,7 @@ function PurchaseInvoiceFormDialog({
                     Reference
                   </label>
                   <Input
-                    placeholder="Contoh: PI-2026-001"
+                    placeholder="Contoh: PO-2026-0042"
                     value={reference}
                     disabled={!canWrite}
                     onChange={(event) => setReference(event.target.value)}
@@ -672,59 +593,37 @@ function PurchaseInvoiceFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Issue Date *
+                    Date *
                   </label>
                   <Input
                     type="date"
-                    value={issueDate}
+                    value={date}
                     disabled={!canWrite}
-                    onChange={(event) => handleIssueDateChange(event.target.value)}
+                    onChange={(event) => setDate(event.target.value)}
                     required
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Due Date
-                  </label>
-                  <Input
-                    type="date"
-                    value={dueDate}
-                    disabled={!canWrite}
-                    onChange={(event) => setDueDate(event.target.value)}
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Quote Number
-                  </label>
-                  <Input
-                    placeholder="Quote reference (opsional)"
-                    value={quoteNumber}
-                    disabled={!canWrite}
-                    onChange={(event) => setQuoteNumber(event.target.value)}
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Order Number
-                  </label>
-                  <Input
-                    placeholder="Order reference (opsional)"
-                    value={orderNumber}
-                    disabled={!canWrite}
-                    onChange={(event) => setOrderNumber(event.target.value)}
                   />
                 </div>
 
                 <div className="flex flex-col gap-1 md:col-span-2">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
+                    Billing Address
+                  </label>
+                  <textarea
+                    className="min-h-9 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
+                    placeholder="Alamat penagihan/pengiriman (opsional)"
+                    rows={2}
+                    value={billingAddress}
+                    disabled={!canWrite}
+                    onChange={(event) => setBillingAddress(event.target.value)}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
                     Description
                   </label>
                   <Input
-                    placeholder="Keterangan umum faktur (opsional)"
+                    placeholder="Keterangan umum PO (opsional)"
                     value={description}
                     disabled={!canWrite}
                     onChange={(event) => setDescription(event.target.value)}
@@ -735,7 +634,7 @@ function PurchaseInvoiceFormDialog({
               <div className="mt-2 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-gray-900">
-                    Baris Item Faktur
+                    Baris Item PO
                   </h3>
                   {canWrite && (
                     <Button
@@ -762,7 +661,7 @@ function PurchaseInvoiceFormDialog({
                         <th className="px-3 py-2 font-medium w-24">Qty *</th>
                         <th className="px-3 py-2 font-medium w-36">Unit Price *</th>
                         <th className="px-3 py-2 text-right font-medium w-36">
-                          Subtotal Baris
+                          Line Amount
                         </th>
                         {canWrite && (
                           <th className="px-3 py-2 text-center font-medium w-16">
@@ -773,7 +672,7 @@ function PurchaseInvoiceFormDialog({
                     </thead>
                     <tbody className="divide-y">
                       {lines.map((line, index) => {
-                        const lineSubtotal = computeLineSubtotal(line);
+                        const lineAmount = computeLineAmount(line);
                         return (
                           <tr key={line.id} className="hover:bg-gray-50">
                             <td className="p-2">
@@ -841,7 +740,7 @@ function PurchaseInvoiceFormDialog({
                               />
                             </td>
                             <td className="p-2 text-right font-medium text-gray-900">
-                              {formatAmount(lineSubtotal)}
+                              {formatAmount(lineAmount)}
                             </td>
                             {canWrite && (
                               <td className="p-2 text-center">
@@ -866,9 +765,9 @@ function PurchaseInvoiceFormDialog({
               <div className="mt-4 border-t pt-3">
                 <div className="flex items-center justify-end gap-6">
                   <div className="text-right">
-                    <div className="text-xs text-gray-500">Total Faktur</div>
+                    <div className="text-xs text-gray-500">Total PO</div>
                     <div className="text-lg font-semibold text-gray-900">
-                      {formatAmount(liveTotalInvoiceAmount)}
+                      {formatAmount(liveTotalOrderAmount)}
                     </div>
                   </div>
                 </div>
@@ -882,8 +781,8 @@ function PurchaseInvoiceFormDialog({
               {canWrite && (
                 <Button type="submit" disabled={isSubmitting}>
                   {isNew
-                    ? (isSubmitting ? "Menyimpan..." : "Simpan Faktur")
-                    : (isSubmitting ? "Menyimpan..." : "Perbarui Faktur")}
+                    ? (isSubmitting ? "Menyimpan..." : "Simpan PO")
+                    : (isSubmitting ? "Menyimpan..." : "Perbarui PO")}
                 </Button>
               )}
             </DialogFooter>

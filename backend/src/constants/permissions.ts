@@ -75,6 +75,11 @@ export const Permission = {
     JOURNAL_ENTRY_WRITE: "journal_entry:write",
     JOURNAL_ENTRY_DELETE: "journal_entry:delete",
 
+    // Pesanan pembelian (non-posting)
+    PURCHASE_ORDER_READ: "purchase_order:read",
+    PURCHASE_ORDER_WRITE: "purchase_order:write",
+    PURCHASE_ORDER_DELETE: "purchase_order:delete",
+
     // Audit
     AUDIT_READ: "audit:read",
 } as const;
@@ -95,6 +100,7 @@ const READ_ONLY: PermissionValue[] = [
   Permission.INTER_ACCOUNT_TRANSFER_READ,
   Permission.BANK_RECONCILIATION_READ,
   Permission.JOURNAL_ENTRY_READ,
+  Permission.PURCHASE_ORDER_READ,
 ];
 
 export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> =
@@ -120,6 +126,8 @@ export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> 
       Permission.BANK_RECONCILIATION_DELETE,
       Permission.JOURNAL_ENTRY_WRITE,
       Permission.JOURNAL_ENTRY_DELETE,
+      Permission.PURCHASE_ORDER_WRITE,
+      Permission.PURCHASE_ORDER_DELETE,
     ],
     viewer: READ_ONLY,
   };

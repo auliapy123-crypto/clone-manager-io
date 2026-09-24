@@ -46,6 +46,7 @@ import interAccountTransferRoutesPlugin from "./plugins/InterAccountTransferRout
 import journalEntryRoutesPlugin from "./plugins/JournalEntryRoutes.js";
 import paymentRoutesPlugin from "./plugins/PaymentRoutes.js";
 import purchaseInvoiceRoutesPlugin from "./plugins/PurchaseInvoiceRoutes.js";
+import purchaseOrderRoutesPlugin from "./plugins/PurchaseOrderRoutes.js";
 import receiptRoutesPlugin from "./plugins/ReceiptRoutes.js";
 import salesInvoiceRoutesPlugin from "./plugins/SalesInvoiceRoutes.js";
 import supplierRoutesPlugin from "./plugins/SupplierRoutes.js";
@@ -301,6 +302,7 @@ export async function buildApp() {
             { name: "InterAccountTransfers", description: "Transfer antar akun bank/kas + posting jurnal per bisnis" },
             { name: "BankReconciliations", description: "Lembar verifikasi saldo vs rekening koran per bisnis (tanpa posting jurnal)" },
             { name: "JournalEntries", description: "Buku besar semua jurnal + jurnal manual per bisnis" },
+            { name: "PurchaseOrders", description: "Pesanan pembelian non-posting + status penagihan per bisnis" },
          ],
       },
       transform: jsonSchemaTransform,
@@ -329,6 +331,7 @@ export async function buildApp() {
   await app.register(interAccountTransferRoutesPlugin);
   await app.register(bankReconciliationRoutesPlugin);
   await app.register(journalEntryRoutesPlugin);
+  await app.register(purchaseOrderRoutesPlugin);
 
   return app;
 }

@@ -351,12 +351,14 @@ export const purchaseInvoices = pgTable("purchase_invoices", {
   description: text(),
   quoteNumber: varchar({ length: 50 }),
   orderNumber: varchar({ length: 50 }),
+  purchaseOrderId: uuid().references(() => purchaseOrders.id),
   createdAt: timestamp().notNull().defaultNow(),
   updatedAt: timestamp().notNull().defaultNow(),
   deletedAt: timestamp(),
 }, (t) => [
   index("idx_purchase_invoices_business").on(t.businessId),
   index("idx_purchase_invoices_supplier").on(t.supplierId),
+  index("idx_purchase_invoices_purchase_order").on(t.purchaseOrderId),
 ]);
 
 // =====================================================================
@@ -579,7 +581,65 @@ export const bankReconciliations = pgTable(
 );
 
 // =====================================================================
-// 20. AUDIT_LOGS
+// 20. PURCHASE_ORDERS  (header pesanan pembelian — NON-POSTING)
+//
+// - TIDAK ADA jurnal dari modul ini.
+// - purchase_invoices.purchase_order_id menunjuk ke sini (nullable).
+// =====================================================================
+export const purchaseOrders = pgTable(
+  "purchase_orders",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    supplierId: uuid()
+      .notNull()
+      .references(() => contacts.id),
+    reference: varchar({ length: 50 }),
+    date: date().notNull(),
+    billingAddress: text(),
+    description: text(),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+    deletedAt: timestamp(),
+  },
+  (t) => [
+    index("idx_purchase_orders_business").on(t.businessId),
+    index("idx_purchase_orders_supplier").on(t.supplierId),
+  ],
+);
+
+// =====================================================================
+// 21. PURCHASE_ORDER_LINES  (baris item pesanan pembelian)
+//
+// Anak dari purchase_orders (ON DELETE CASCADE), ikut lewat header-nya.
+// line_amount = quantity × unit_price, dihitung backend.
+// =====================================================================
+export const purchaseOrderLines = pgTable(
+  "purchase_order_lines",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    purchaseOrderId: uuid()
+      .notNull()
+      .references(() => purchaseOrders.id, { onDelete: "cascade" }),
+    accountId: uuid()
+      .notNull()
+      .references(() => chartOfAccounts.id),
+    description: varchar({ length: 255 }),
+    quantity: numeric({ precision: 18, scale: 4 }).notNull().default("1.0000"),
+    unitPrice: numeric({ precision: 18, scale: 2 }).notNull(),
+    lineAmount: numeric({ precision: 18, scale: 2 }).notNull(),
+    sortOrder: integer().notNull().default(0),
+  },
+  (t) => [
+    index("idx_purchase_order_lines_order").on(t.purchaseOrderId),
+    index("idx_purchase_order_lines_account").on(t.accountId),
+  ],
+);
+
+// =====================================================================
+// 22. AUDIT_LOGS
 // =====================================================================
 export const auditLogs = pgTable(
   "audit_logs",
@@ -621,6 +681,7 @@ export const businessesRelations = relations(businesses, ({ many }) => ({
   payments: many(payments),
   interAccountTransfers: many(interAccountTransfers),
   bankReconciliations: many(bankReconciliations),
+  purchaseOrders: many(purchaseOrders),
   auditLogs: many(auditLogs),
 }));
 
@@ -666,6 +727,7 @@ export const contactsRelations = relations(contacts, ({ one, many }) => ({
   purchaseInvoices: many(purchaseInvoices),
   receipts: many(receipts),
   payments: many(payments),
+  purchaseOrders: many(purchaseOrders),
 }));
 
 export const journalEntriesRelations = relations(
@@ -753,6 +815,10 @@ export const purchaseInvoicesRelations = relations(
       fields: [purchaseInvoices.supplierId],
       references: [contacts.id],
     }),
+    purchaseOrder: one(purchaseOrders, {
+      fields: [purchaseInvoices.purchaseOrderId],
+      references: [purchaseOrders.id],
+    }),
     lines: many(purchaseInvoiceLines),
     paymentLines: many(paymentLines),
   }),
@@ -767,6 +833,36 @@ export const purchaseInvoiceLinesRelations = relations(
     }),
     account: one(chartOfAccounts, {
       fields: [purchaseInvoiceLines.accountId],
+      references: [chartOfAccounts.id],
+    }),
+  }),
+);
+
+export const purchaseOrdersRelations = relations(
+  purchaseOrders,
+  ({ one, many }) => ({
+    business: one(businesses, {
+      fields: [purchaseOrders.businessId],
+      references: [businesses.id],
+    }),
+    supplier: one(contacts, {
+      fields: [purchaseOrders.supplierId],
+      references: [contacts.id],
+    }),
+    lines: many(purchaseOrderLines),
+    invoices: many(purchaseInvoices),
+  }),
+);
+
+export const purchaseOrderLinesRelations = relations(
+  purchaseOrderLines,
+  ({ one }) => ({
+    order: one(purchaseOrders, {
+      fields: [purchaseOrderLines.purchaseOrderId],
+      references: [purchaseOrders.id],
+    }),
+    account: one(chartOfAccounts, {
+      fields: [purchaseOrderLines.accountId],
       references: [chartOfAccounts.id],
     }),
   }),
@@ -890,6 +986,8 @@ export type SalesInvoice = typeof salesInvoices.$inferSelect;
 export type SalesInvoiceLine = typeof salesInvoiceLines.$inferSelect;
 export type PurchaseInvoice = typeof purchaseInvoices.$inferSelect;
 export type PurchaseInvoiceLine = typeof purchaseInvoiceLines.$inferSelect;
+export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
+export type PurchaseOrderLine = typeof purchaseOrderLines.$inferSelect;
 export type Receipt = typeof receipts.$inferSelect;
 export type ReceiptLine = typeof receiptLines.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
