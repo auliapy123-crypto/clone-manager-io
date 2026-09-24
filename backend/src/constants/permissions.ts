@@ -70,6 +70,11 @@ export const Permission = {
     BANK_RECONCILIATION_WRITE: "bank_reconciliation:write",
     BANK_RECONCILIATION_DELETE: "bank_reconciliation:delete",
 
+    // Jurnal umum (GL view + jurnal manual)
+    JOURNAL_ENTRY_READ: "journal_entry:read",
+    JOURNAL_ENTRY_WRITE: "journal_entry:write",
+    JOURNAL_ENTRY_DELETE: "journal_entry:delete",
+
     // Audit
     AUDIT_READ: "audit:read",
 } as const;
@@ -89,6 +94,7 @@ const READ_ONLY: PermissionValue[] = [
   Permission.PAYMENT_READ,
   Permission.INTER_ACCOUNT_TRANSFER_READ,
   Permission.BANK_RECONCILIATION_READ,
+  Permission.JOURNAL_ENTRY_READ,
 ];
 
 export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> =
@@ -112,6 +118,8 @@ export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> 
       Permission.INTER_ACCOUNT_TRANSFER_DELETE,
       Permission.BANK_RECONCILIATION_WRITE,
       Permission.BANK_RECONCILIATION_DELETE,
+      Permission.JOURNAL_ENTRY_WRITE,
+      Permission.JOURNAL_ENTRY_DELETE,
     ],
     viewer: READ_ONLY,
   };
