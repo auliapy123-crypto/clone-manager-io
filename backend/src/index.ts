@@ -47,6 +47,7 @@ import journalEntryRoutesPlugin from "./plugins/JournalEntryRoutes.js";
 import expenseClaimRoutesPlugin from "./plugins/ExpenseClaimRoutes.js";
 import contactRoutesPlugin from "./plugins/ContactRoutes.js";
 import paymentRoutesPlugin from "./plugins/PaymentRoutes.js";
+import projectRoutesPlugin from "./plugins/ProjectRoutes.js";
 import purchaseInvoiceRoutesPlugin from "./plugins/PurchaseInvoiceRoutes.js";
 import purchaseOrderRoutesPlugin from "./plugins/PurchaseOrderRoutes.js";
 import receiptRoutesPlugin from "./plugins/ReceiptRoutes.js";
@@ -306,6 +307,7 @@ export async function buildApp() {
             { name: "BankReconciliations", description: "Lembar verifikasi saldo vs rekening koran per bisnis (tanpa posting jurnal)" },
             { name: "JournalEntries", description: "Buku besar semua jurnal + jurnal manual per bisnis" },
             { name: "PurchaseOrders", description: "Pesanan pembelian non-posting + status penagihan per bisnis" },
+            { name: "Projects", description: "Pelacakan proyek dan ringkasan keuangan per bisnis" },
          ],
       },
       transform: jsonSchemaTransform,
@@ -337,6 +339,7 @@ export async function buildApp() {
   await app.register(bankReconciliationRoutesPlugin);
   await app.register(journalEntryRoutesPlugin);
   await app.register(purchaseOrderRoutesPlugin);
+  await app.register(projectRoutesPlugin);
 
   return app;
 }

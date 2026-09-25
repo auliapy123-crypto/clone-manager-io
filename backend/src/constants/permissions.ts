@@ -84,6 +84,11 @@ export const Permission = {
     EXPENSE_CLAIM_WRITE: "expense_claim:write",
     EXPENSE_CLAIM_DELETE: "expense_claim:delete",
 
+    // Proyek
+    PROJECT_READ: "project:read",
+    PROJECT_WRITE: "project:write",
+    PROJECT_DELETE: "project:delete",
+
     // Audit
     AUDIT_READ: "audit:read",
 } as const;
@@ -106,6 +111,7 @@ const READ_ONLY: PermissionValue[] = [
   Permission.BANK_RECONCILIATION_READ,
   Permission.JOURNAL_ENTRY_READ,
   Permission.PURCHASE_ORDER_READ,
+  Permission.PROJECT_READ,
 ];
 
 export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> =
@@ -135,6 +141,8 @@ export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> 
       Permission.JOURNAL_ENTRY_DELETE,
       Permission.PURCHASE_ORDER_WRITE,
       Permission.PURCHASE_ORDER_DELETE,
+      Permission.PROJECT_WRITE,
+      Permission.PROJECT_DELETE,
     ],
     viewer: READ_ONLY,
   };

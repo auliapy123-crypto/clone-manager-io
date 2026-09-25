@@ -56,6 +56,9 @@ export type AccountCategory = (typeof ACCOUNT_CATEGORIES)[number];
 export const AUDIT_ACTIONS = ["CREATE", "UPDATE", "DELETE"] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
+export const PROJECT_STATUSES = ["active", "inactive", "completed"] as const;
+export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
+
 // =====================================================================
 // 1. BUSINESSES
 // =====================================================================
@@ -661,7 +664,36 @@ export const purchaseOrderLines = pgTable(
 );
 
 // =====================================================================
-// 22. AUDIT_LOGS
+// 22. PROJECTS (Proyek)
+// =====================================================================
+export const projects = pgTable(
+  "projects",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    name: varchar({ length: 255 }).notNull(),
+    code: varchar({ length: 50 }),
+    customerId: uuid().references(() => contacts.id, { onDelete: "set null" }),
+    status: varchar({ length: 20 }).$type<ProjectStatus>().notNull().default("active"),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+    deletedAt: timestamp(),
+  },
+  (t) => [
+    index("idx_projects_business").on(t.businessId),
+    index("idx_projects_customer").on(t.customerId),
+    index("idx_projects_status").on(t.businessId, t.status),
+    check(
+      "projects_status_check",
+      sql`${t.status} IN ('active', 'inactive', 'completed')`,
+    ),
+  ],
+);
+
+// =====================================================================
+// 23. AUDIT_LOGS
 // =====================================================================
 export const auditLogs = pgTable(
   "audit_logs",
@@ -704,6 +736,7 @@ export const businessesRelations = relations(businesses, ({ many }) => ({
   interAccountTransfers: many(interAccountTransfers),
   bankReconciliations: many(bankReconciliations),
   purchaseOrders: many(purchaseOrders),
+  projects: many(projects),
   auditLogs: many(auditLogs),
 }));
 
@@ -1005,6 +1038,17 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   user: one(users, { fields: [auditLogs.userId], references: [users.id] }),
 }));
 
+export const projectsRelations = relations(projects, ({ one }) => ({
+  business: one(businesses, {
+    fields: [projects.businessId],
+    references: [businesses.id],
+  }),
+  customer: one(contacts, {
+    fields: [projects.customerId],
+    references: [contacts.id],
+  }),
+}));
+
 // =====================================================================
 // TIPE TURUNAN (dipakai repository & route)
 // =====================================================================
@@ -1031,4 +1075,6 @@ export type Payment = typeof payments.$inferSelect;
 export type PaymentLine = typeof paymentLines.$inferSelect;
 export type InterAccountTransfer = typeof interAccountTransfers.$inferSelect;
 export type BankReconciliation = typeof bankReconciliations.$inferSelect;
+export type Project = typeof projects.$inferSelect;
+export type NewProject = typeof projects.$inferInsert;
 export type AuditLog = typeof auditLogs.$inferSelect;
