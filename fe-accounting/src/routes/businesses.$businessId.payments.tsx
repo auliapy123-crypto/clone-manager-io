@@ -14,7 +14,8 @@ import { Input } from "@/components/ui/input";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useBankAccounts } from "@/hooks/use-bank-accounts";
 import { useBusinesses } from "@/hooks/use-businesses";
-import { useCustomers } from "@/hooks/use-customers";
+import { useContacts } from "@/hooks/use-contacts";
+import { useExpenseClaimOptions } from "@/hooks/use-expense-claims";
 import {
   getTodayDateString,
   type Payment,
@@ -26,7 +27,6 @@ import {
   useUpdatePayment,
 } from "@/hooks/use-payments";
 import { usePurchaseInvoices } from "@/hooks/use-purchase-invoices";
-import { useSuppliers } from "@/hooks/use-suppliers";
 import { getApiErrorMessage } from "@/lib/errors";
 
 export const Route = createFileRoute("/businesses/$businessId/payments")({
@@ -76,7 +76,7 @@ function PaymentsPage() {
     const refText = payment.reference ? ` "${payment.reference}"` : "";
     if (
       !window.confirm(
-        `Hapus pembayaran${refText} sebesar ${formatAmount(payment.totalAmount)} dari "${payment.bankAccountName}"? Jurnal terkait juga akan dihapus, dan alokasi ke Purchase Invoice (jika ada) akan dikembalikan.`,
+        `Hapus pembayaran${refText} sebesar ${formatAmount(payment.totalAmount)} dari "${payment.bankAccountName}"? Jurnal terkait juga akan dihapus, dan alokasi ke Purchase Invoice/Expense Claim (jika ada) akan dikembalikan.`,
       )
     ) {
       return;
@@ -244,6 +244,7 @@ interface FormLine {
   id: string;
   accountId: string;
   purchaseInvoiceId: string;
+  expenseClaimId: string;
   description: string;
   amount: string;
 }
@@ -257,16 +258,10 @@ function createEmptyLine(): FormLine {
     id: Math.random().toString(36).substring(2, 9),
     accountId: "",
     purchaseInvoiceId: "",
+    expenseClaimId: "",
     description: "",
     amount: "",
   };
-}
-
-interface ContactOption {
-  id: string;
-  name: string;
-  code: string | null;
-  kinds: string[];
 }
 
 interface PaymentFormDialogProps {
@@ -295,19 +290,7 @@ function PaymentFormDialog({
     100,
   );
 
-  const { data: customersData, isPending: isCustomersLoading } = useCustomers(
-    businessId,
-    1,
-    {},
-    100,
-  );
-
-  const { data: suppliersData, isPending: isSuppliersLoading } = useSuppliers(
-    businessId,
-    1,
-    {},
-    100,
-  );
+  const { data: contactsData, isPending: isContactsLoading } = useContacts(businessId);
 
   const { data: accountsData, isPending: isAccountsLoading } = useAccounts(
     businessId,
@@ -317,7 +300,7 @@ function PaymentFormDialog({
   );
 
   const { data: purchaseInvoicesData, isPending: isInvoicesLoading } =
-    usePurchaseInvoices(businessId, 1, {}, 200);
+    usePurchaseInvoices(businessId, 1, {}, 100);
 
   const createPayment = useCreatePayment(businessId);
   const updatePayment = useUpdatePayment(businessId);
@@ -326,6 +309,7 @@ function PaymentFormDialog({
   const [reference, setReference] = useState("");
   const [bankAccountId, setBankAccountId] = useState("");
   const [contactId, setContactId] = useState("");
+  const { data: claimOptions = [], isPending: isClaimsLoading, error: claimsError } = useExpenseClaimOptions(businessId, contactId);
   const [description, setDescription] = useState("");
   const [lines, setLines] = useState<FormLine[]>([createEmptyLine()]);
   const [formError, setFormError] = useState<string | null>(null);
@@ -344,6 +328,7 @@ function PaymentFormDialog({
             id: line.id || Math.random().toString(36).substring(2, 9),
             accountId: line.accountId,
             purchaseInvoiceId: line.purchaseInvoiceId ?? "",
+            expenseClaimId: line.expenseClaimId ?? "",
             description: line.description ?? "",
             amount: String(line.amount),
           })),
@@ -352,24 +337,7 @@ function PaymentFormDialog({
     }
   }, [isNew, existingPayment]);
 
-  // Payee: gabungan customers + suppliers, dedupe per id (bisa bayar kontak
-  // apapun, bukan cuma Supplier -- lihat Payments.md §3.1).
-  const contactOptions: ContactOption[] = useMemo(() => {
-    const map = new Map<string, ContactOption>();
-    for (const c of customersData?.data ?? []) {
-      const entry = map.get(c.id) ?? { id: c.id, name: c.name, code: c.code, kinds: [] };
-      if (!entry.kinds.includes("Customer")) entry.kinds.push("Customer");
-      map.set(c.id, entry);
-    }
-    for (const s of suppliersData?.data ?? []) {
-      const entry = map.get(s.id) ?? { id: s.id, name: s.name, code: s.code, kinds: [] };
-      if (!entry.kinds.includes("Supplier")) entry.kinds.push("Supplier");
-      map.set(s.id, entry);
-    }
-    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
-  }, [customersData, suppliersData]);
-
-  const isContactsLoading = isCustomersLoading || isSuppliersLoading;
+  const contactOptions = contactsData ?? [];
 
   // Akun baris: semua kategori KECUALI Revenue (uang keluar nggak masuk akal
   // dibayarkan atas nama akun pendapatan). Validasi final tetap di backend.
@@ -387,21 +355,26 @@ function PaymentFormDialog({
     return apAccount?.id ?? null;
   }, [accountsData]);
 
+  const expenseControlAccountId = (accountsData?.data ?? []).find(a => a.category === "Liability" && a.isExpenseClaimsControlAccount)?.id;
+  const claimBalance = (id: string, balanceDue: number) =>
+    (Math.round(balanceDue * 100) + (existingPayment?.lines ?? []).filter(l => l.expenseClaimId === id).reduce((sum, l) => sum + Math.round(l.amount * 100), 0)) / 100;
+
   const allInvoicesById = useMemo(() => {
     const map = new Map<string, NonNullable<typeof purchaseInvoicesData>["data"][number]>();
     for (const inv of purchaseInvoicesData?.data ?? []) {
-      map.set(inv.id, inv);
+      const oldAllocation = (existingPayment?.lines ?? []).filter(l => l.purchaseInvoiceId === inv.id).reduce((sum, l) => sum + Math.round(l.amount * 100), 0);
+      map.set(inv.id, { ...inv, balanceDue: (Math.round(inv.balanceDue * 100) + oldAllocation) / 100 });
     }
     return map;
-  }, [purchaseInvoicesData]);
+  }, [purchaseInvoicesData, existingPayment]);
 
   // Invoice milik Payee yang dipilih dan masih ada tagihan (Unpaid/Overdue).
   const invoiceOptionsForPayee = useMemo(() => {
     if (!contactId) return [];
-    return (purchaseInvoicesData?.data ?? []).filter(
-      (inv) => inv.supplierId === contactId && inv.status !== "Paid",
+    return [...allInvoicesById.values()].filter(
+      (inv) => inv.supplierId === contactId && inv.balanceDue > 0,
     );
-  }, [purchaseInvoicesData, contactId]);
+  }, [allInvoicesById, contactId]);
 
   function invoiceOptionsForLine(line: FormLine) {
     if (line.purchaseInvoiceId && !invoiceOptionsForPayee.some((inv) => inv.id === line.purchaseInvoiceId)) {
@@ -430,6 +403,7 @@ function PaymentFormDialog({
         if (field === "accountId" && value !== apControlAccountId) {
           next.purchaseInvoiceId = "";
         }
+        if (field === "accountId" && value !== expenseControlAccountId) next.expenseClaimId = "";
         return next;
       }),
     );
@@ -439,7 +413,7 @@ function PaymentFormDialog({
   // tidak valid, kosongkan semua alokasi baris.
   const handleContactChange = (value: string) => {
     setContactId(value);
-    setLines((prev) => prev.map((line) => ({ ...line, purchaseInvoiceId: "" })));
+    setLines((prev) => prev.map((line) => ({ ...line, purchaseInvoiceId: "", expenseClaimId: "" })));
   };
 
   const liveTotalAmount = useMemo(() => {
@@ -477,6 +451,14 @@ function PaymentFormDialog({
         setFormError(`Baris #${i + 1}: Nominal harus lebih dari 0.`);
         return;
       }
+      if (line.expenseClaimId) {
+        const claim = claimOptions.find(c => c.id === line.expenseClaimId);
+        const allocated = lines.filter(l => l.expenseClaimId === line.expenseClaimId).reduce((sum, l) => sum + Math.round(Number(l.amount) * 100), 0);
+        if (claim && allocated > Math.round(claimBalance(claim.id, claim.balanceDue) * 100)) {
+          setFormError("Total alokasi melebihi sisa tagihan Expense Claim.");
+          return;
+        }
+      }
       if (line.purchaseInvoiceId) {
         const invoice = allInvoicesById.get(line.purchaseInvoiceId);
         if (invoice && amount > invoice.balanceDue) {
@@ -491,6 +473,7 @@ function PaymentFormDialog({
     const formattedLines: PaymentLineInput[] = lines.map((l) => ({
       accountId: l.accountId,
       purchaseInvoiceId: l.purchaseInvoiceId || null,
+      expenseClaimId: l.expenseClaimId || null,
       description: l.description.trim() || null,
       amount: parseFloat(l.amount) || 0,
     }));
@@ -541,7 +524,7 @@ function PaymentFormDialog({
           </DialogTitle>
           <DialogDescription>
             {isNew
-              ? "Catat pembayaran baru. Jurnal kas/bank akan otomatis diposting, dan alokasi ke Purchase Invoice (kalau ada) langsung mengurangi sisa tagihannya."
+              ? "Catat pembayaran baru. Jurnal kas/bank akan otomatis diposting, dan alokasi ke Purchase Invoice/Expense Claim (kalau ada) langsung mengurangi sisa tagihannya."
               : "Lihat atau perbarui pembayaran beserta baris itemnya."}
           </DialogDescription>
         </DialogHeader>
@@ -625,7 +608,7 @@ function PaymentFormDialog({
                     <option value="">-- Pilih Payee --</option>
                     {contactOptions.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.name} ({c.kinds.join(", ")})
+                        {c.name}
                       </option>
                     ))}
                   </select>
@@ -669,7 +652,7 @@ function PaymentFormDialog({
                           Account (bukan Revenue) *
                         </th>
                         <th className="px-3 py-2 font-medium min-w-[220px]">
-                          Invoice
+                          Invoice / Expense Claim
                         </th>
                         <th className="px-3 py-2 font-medium min-w-[160px]">
                           Description
@@ -750,9 +733,23 @@ function PaymentFormDialog({
                                     </p>
                                   )}
                                 </>
+                              ) : line.accountId === expenseControlAccountId ? (
+                                <>
+                                  <select aria-label={`Expense Claim baris ${index + 1}`} className="w-full h-8 rounded border border-gray-300 bg-white px-2 text-xs"
+                                    value={line.expenseClaimId} disabled={!canWrite || isClaimsLoading || !contactId}
+                                    onChange={event => updateLine(index, "expenseClaimId", event.target.value)}>
+                                    <option value="">-- Tanpa Alokasi Expense Claim --</option>
+                                    {claimOptions.filter(c => c.status === "Unpaid" || c.id === line.expenseClaimId || (existingPayment?.lines ?? []).some(l => l.expenseClaimId === c.id)).map(c => (
+                                      <option key={c.id} value={c.id}>{c.reference || c.date} - Sisa {formatAmount(claimBalance(c.id, c.balanceDue))}</option>
+                                    ))}
+                                    {line.expenseClaimId && !claimOptions.some(c => c.id === line.expenseClaimId) && <option value={line.expenseClaimId}>Klaim tidak tersedia</option>}
+                                  </select>
+                                  {!contactId && <p className="text-xs text-amber-600">Pilih Payee dulu.</p>}
+                                  {claimsError && <p role="alert" className="text-xs text-red-600">{getApiErrorMessage(claimsError)}</p>}
+                                </>
                               ) : (
                                 <span className="text-[10px] text-gray-400">
-                                  Hanya untuk akun kontrol Accounts Payable
+                                  Pilih akun kontrol AP atau Expense Claims
                                 </span>
                               )}
                             </td>

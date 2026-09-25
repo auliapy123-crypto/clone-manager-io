@@ -114,7 +114,7 @@ export async function paymentRoutesPlugin(fastify: FastifyInstance) {
       schema: {
         tags: ["Payments"],
         operationId: "createPayment",
-        summary: "Buat pembayaran + langsung posting jurnal",
+        summary: "Buat pembayaran + alokasi Purchase Invoice atau Expense Claim + posting jurnal",
         security: [{ bearerAuth: [] }],
         params: BusinessIdParamsSchema,
         body: CreatePaymentSchema,
@@ -151,7 +151,7 @@ export async function paymentRoutesPlugin(fastify: FastifyInstance) {
         action: "CREATE",
         entityType: "payments",
         entityId: payment.id,
-        newValues: { reference: payment.reference, totalAmount: payment.totalAmount },
+        newValues: { reference: payment.reference, totalAmount: payment.totalAmount, allocations: payment.lines.map(l => ({ purchaseInvoiceId: l.purchaseInvoiceId, expenseClaimId: l.expenseClaimId, amount: l.amount })) },
       };
 
       return sendData(reply, payment, 201);
@@ -222,6 +222,7 @@ export async function paymentRoutesPlugin(fastify: FastifyInstance) {
           reference: updated.reference,
           bankAccountId: updated.bankAccountId,
           totalAmount: updated.totalAmount,
+          allocations: updated.lines.map(l => ({ purchaseInvoiceId: l.purchaseInvoiceId, expenseClaimId: l.expenseClaimId, amount: l.amount })),
         },
       };
 

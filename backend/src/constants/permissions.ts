@@ -80,6 +80,10 @@ export const Permission = {
     PURCHASE_ORDER_WRITE: "purchase_order:write",
     PURCHASE_ORDER_DELETE: "purchase_order:delete",
 
+    EXPENSE_CLAIM_READ: "expense_claim:read",
+    EXPENSE_CLAIM_WRITE: "expense_claim:write",
+    EXPENSE_CLAIM_DELETE: "expense_claim:delete",
+
     // Audit
     AUDIT_READ: "audit:read",
 } as const;
@@ -97,6 +101,7 @@ const READ_ONLY: PermissionValue[] = [
   Permission.PURCHASE_INVOICE_READ,
   Permission.RECEIPT_READ,
   Permission.PAYMENT_READ,
+  Permission.EXPENSE_CLAIM_READ,
   Permission.INTER_ACCOUNT_TRANSFER_READ,
   Permission.BANK_RECONCILIATION_READ,
   Permission.JOURNAL_ENTRY_READ,
@@ -120,6 +125,8 @@ export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> 
       Permission.RECEIPT_DELETE,
       Permission.PAYMENT_WRITE,
       Permission.PAYMENT_DELETE,
+      Permission.EXPENSE_CLAIM_WRITE,
+      Permission.EXPENSE_CLAIM_DELETE,
       Permission.INTER_ACCOUNT_TRANSFER_WRITE,
       Permission.INTER_ACCOUNT_TRANSFER_DELETE,
       Permission.BANK_RECONCILIATION_WRITE,

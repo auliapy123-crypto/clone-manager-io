@@ -27,6 +27,7 @@ export interface Account {
   groupName: string | null;
   currencyCode: string;
   isControlAccount: boolean;
+  isExpenseClaimsControlAccount: boolean;
 }
 
 export interface AccountFilters {
@@ -46,7 +47,7 @@ export function useAccounts(
   pageSize = 20,
 ) {
   return useQuery({
-    queryKey: accountsQueryKey(businessId, page, filters),
+    queryKey: [...accountsQueryKey(businessId, page, filters), pageSize],
     queryFn: async () => {
       const { data, error } = await apiClient.get<
         { data: Account[]; pagination: PaginationInfo },

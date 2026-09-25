@@ -9,9 +9,10 @@ const dateString = z
 export const PaymentLineInputSchema = z.object({
   accountId: z.string().uuid(),
   purchaseInvoiceId: z.string().uuid().optional().nullable(),
+  expenseClaimId: z.string().uuid().optional().nullable(),
   description: z.string().trim().max(255).optional().nullable(),
-  amount: z.number().positive("Nominal baris harus lebih dari 0"),
-});
+  amount: z.number().min(0.01).max(Number.MAX_SAFE_INTEGER / 100).refine(v => Math.abs(v * 100 - Math.round(v * 100)) < 0.00001, "Maksimal dua desimal"),
+}).refine(line => !(line.purchaseInvoiceId && line.expenseClaimId), { message: "Satu baris hanya boleh mengalokasikan ke Invoice ATAU Expense Claim" });
 
 export const CreatePaymentSchema = z.object({
   date: dateString,
@@ -48,6 +49,7 @@ export const PaymentLineResponseSchema = z.object({
   accountCode: z.string(),
   accountName: z.string(),
   purchaseInvoiceId: z.string().nullable(),
+  expenseClaimId: z.string().nullable(),
   description: z.string().nullable(),
   amount: z.number(),
   sortOrder: z.number(),

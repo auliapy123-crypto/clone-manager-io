@@ -407,3 +407,15 @@ export async function getContactById(
     .limit(1);
   return row ?? null;
 }
+
+/** All active contacts, including contacts without customer/supplier roles. */
+export async function listAllContacts(businessId: string, opts: ContactListOptions) {
+  const where = and(eq(contacts.businessId, businessId), isNull(contacts.deletedAt));
+  const [data, [total]] = await Promise.all([
+    db.select({ id: contacts.id, name: contacts.name, code: contacts.code }).from(contacts)
+      .where(where).orderBy(asc(contacts.name), asc(contacts.id))
+      .limit(opts.pageSize).offset((opts.page - 1) * opts.pageSize),
+    db.select({ total: count() }).from(contacts).where(where),
+  ]);
+  return { data, total: total.total };
+}

@@ -21,6 +21,7 @@ export interface AccountRecord {
   groupName: string | null;
   currencyCode: string;
   isControlAccount: boolean;
+  isExpenseClaimsControlAccount: boolean;
 }
 
 export interface AccountListOptions {
@@ -37,6 +38,7 @@ export interface AccountCreateInput {
   groupName?: string;
   currencyCode: string;
   isControlAccount: boolean;
+  isExpenseClaimsControlAccount?: boolean;
 }
 
 export interface AccountUpdateInput {
@@ -46,6 +48,7 @@ export interface AccountUpdateInput {
   groupName?: string | null;
   currencyCode?: string;
   isControlAccount?: boolean;
+  isExpenseClaimsControlAccount?: boolean;
 }
 
 const accountColumns = {
@@ -57,7 +60,15 @@ const accountColumns = {
   groupName: chartOfAccounts.groupName,
   currencyCode: chartOfAccounts.currencyCode,
   isControlAccount: chartOfAccounts.isControlAccount,
+  isExpenseClaimsControlAccount: chartOfAccounts.isExpenseClaimsControlAccount,
 };
+
+class AccountValidationError extends Error { readonly statusCode = 400; }
+function validateExpenseClaimsControl(input: { category: AccountCategory; isControlAccount?: boolean; isExpenseClaimsControlAccount?: boolean }) {
+  if (input.isExpenseClaimsControlAccount && (input.category !== "Liability" || input.isControlAccount)) {
+    throw new AccountValidationError("Akun kontrol Expense Claims harus Liability dan isControlAccount=false (terpisah dari AR/AP).");
+  }
+}
 
 /**
  * Daftar akun satu bisnis, dengan pencarian bebas (code/name) dan filter
@@ -125,6 +136,7 @@ export async function createAccount(
   businessId: string,
   input: AccountCreateInput,
 ): Promise<AccountRecord> {
+  validateExpenseClaimsControl(input);
   const [row] = await db
     .insert(chartOfAccounts)
     .values({ ...input, businessId })
@@ -138,6 +150,9 @@ export async function updateAccount(
   accountId: string,
   input: AccountUpdateInput,
 ): Promise<AccountRecord | null> {
+  const existing = await getAccountById(businessId, accountId);
+  if (!existing) return null;
+  validateExpenseClaimsControl({ ...existing, ...input });
   const [row] = await db
     .update(chartOfAccounts)
     .set(input)

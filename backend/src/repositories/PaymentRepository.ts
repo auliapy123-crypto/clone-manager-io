@@ -1,3 +1,4 @@
+import { findExpenseClaimsControlAccount, getExpenseClaimAllocationInfo } from "./ExpenseClaimRepository.js";
 import { and, asc, count, eq, ilike, isNull, or, sql } from "drizzle-orm";
 import db, { type Database } from "../db/index.js";
 import {
@@ -31,6 +32,7 @@ export class PaymentValidationError extends Error {
 export interface PaymentLineInput {
   accountId: string;
   purchaseInvoiceId?: string | null;
+  expenseClaimId?: string | null;
   description?: string | null;
   amount: number;
 }
@@ -62,6 +64,7 @@ export interface PaymentListOptions {
 interface ComputedLine {
   accountId: string;
   purchaseInvoiceId: string | null;
+  expenseClaimId: string | null;
   description: string | null;
   amount: string;
   amountCents: number;
@@ -73,6 +76,7 @@ export interface PaymentLineRecord {
   accountCode: string;
   accountName: string;
   purchaseInvoiceId: string | null;
+  expenseClaimId: string | null;
   description: string | null;
   amount: number;
   sortOrder: number;
@@ -128,6 +132,20 @@ async function validateAndComputeLines(
   for (const line of lines) {
     const amountCents = toCents(line.amount);
     const purchaseInvoiceId = line.purchaseInvoiceId ?? null;
+    const expenseClaimId = line.expenseClaimId ?? null;
+    if (expenseClaimId && purchaseInvoiceId) throw new PaymentValidationError("Satu baris hanya boleh alokasi ke Purchase Invoice ATAU Expense Claim.");
+    if (!Number.isSafeInteger(amountCents) || amountCents <= 0) throw new PaymentValidationError("Nominal baris tidak valid.");
+    if (expenseClaimId) {
+      const control = await findExpenseClaimsControlAccount(businessId, tx);
+      if (line.accountId !== control.id) throw new PaymentValidationError("Alokasi Expense Claim wajib memakai akun kontrol Expense Claims.");
+      const allocation = await getExpenseClaimAllocationInfo(businessId, expenseClaimId, { tx, excludePaymentId });
+      if (!allocation) throw new PaymentValidationError("Expense Claim tidak ditemukan.");
+      if (allocation.payerContactId !== contactId) throw new PaymentValidationError("Expense Claim bukan milik Payee ini.");
+      const key = "claim:" + expenseClaimId;
+      const allocated = (allocatedInBatchCents.get(key) ?? 0) + amountCents;
+      if (allocated > toCents(allocation.balanceDue)) throw new PaymentValidationError("Nominal alokasi melebihi sisa tagihan Expense Claim.");
+      allocatedInBatchCents.set(key, allocated);
+    }
 
     if (purchaseInvoiceId) {
       if (apAccountId === undefined) {
@@ -174,6 +192,7 @@ async function validateAndComputeLines(
     computed.push({
       accountId: line.accountId,
       purchaseInvoiceId,
+      expenseClaimId,
       description: line.description?.trim() ? line.description.trim() : null,
       amount: fromCents(amountCents),
       amountCents,
@@ -181,6 +200,7 @@ async function validateAndComputeLines(
   }
 
   const totalCents = computed.reduce((sum, l) => sum + l.amountCents, 0);
+  if (!Number.isSafeInteger(totalCents)) throw new PaymentValidationError("Total melebihi batas presisi.");
   return { computed, totalCents };
 }
 
@@ -309,6 +329,7 @@ function toLineRecord(row: {
   accountCode: string;
   accountName: string;
   purchaseInvoiceId: string | null;
+  expenseClaimId: string | null;
   description: string | null;
   amount: string;
   sortOrder: number;
@@ -319,6 +340,7 @@ function toLineRecord(row: {
     accountCode: row.accountCode,
     accountName: row.accountName,
     purchaseInvoiceId: row.purchaseInvoiceId,
+    expenseClaimId: row.expenseClaimId,
     description: row.description,
     amount: Number(row.amount),
     sortOrder: row.sortOrder,
@@ -430,6 +452,7 @@ async function getLinesWithAccounts(
       accountCode: chartOfAccounts.code,
       accountName: chartOfAccounts.name,
       purchaseInvoiceId: paymentLines.purchaseInvoiceId,
+      expenseClaimId: paymentLines.expenseClaimId,
       description: paymentLines.description,
       amount: paymentLines.amount,
       sortOrder: paymentLines.sortOrder,
@@ -514,6 +537,7 @@ export async function createPayment(
         paymentId: header.id,
         accountId: l.accountId,
         purchaseInvoiceId: l.purchaseInvoiceId,
+        expenseClaimId: l.expenseClaimId,
         description: l.description,
         amount: l.amount,
         sortOrder: i,
@@ -554,7 +578,7 @@ export async function updatePayment(
   const contactIdChanged =
     input.contactId !== undefined && input.contactId !== existing.contactId;
   const linesChanged = input.lines !== undefined;
-  const needsJournalRepost = bankAccountChanged || contactIdChanged || linesChanged;
+  const needsJournalRepost = bankAccountChanged || contactIdChanged || linesChanged || input.date !== undefined || input.reference !== undefined || input.description !== undefined;
 
   await db.transaction(async (tx) => {
     let linesToUse = existing.lines;
@@ -566,6 +590,7 @@ export async function updatePayment(
         : existing.lines.map((l) => ({
             accountId: l.accountId,
             purchaseInvoiceId: l.purchaseInvoiceId,
+            expenseClaimId: l.expenseClaimId,
             description: l.description,
             amount: l.amount,
           }));
@@ -585,6 +610,7 @@ export async function updatePayment(
             paymentId,
             accountId: l.accountId,
             purchaseInvoiceId: l.purchaseInvoiceId,
+            expenseClaimId: l.expenseClaimId,
             description: l.description,
             amount: l.amount,
             sortOrder: i,
@@ -596,6 +622,7 @@ export async function updatePayment(
           accountCode: "",
           accountName: "",
           purchaseInvoiceId: l.purchaseInvoiceId,
+          expenseClaimId: l.expenseClaimId,
           description: l.description,
           amount: Number(l.amount),
           sortOrder: i,
@@ -612,6 +639,7 @@ export async function updatePayment(
       const computedLinesForJournal: ComputedLine[] = linesToUse.map((l) => ({
         accountId: l.accountId,
         purchaseInvoiceId: l.purchaseInvoiceId,
+        expenseClaimId: l.expenseClaimId,
         description: l.description,
         amount: fromCents(toCents(l.amount)),
         amountCents: toCents(l.amount),

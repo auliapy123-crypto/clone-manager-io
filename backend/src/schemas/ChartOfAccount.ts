@@ -13,6 +13,7 @@ export const AccountCreateSchema = z.object({
   groupName: z.string().max(100).optional(),
   currencyCode: z.string().length(3).default("IDR"),
   isControlAccount: z.boolean().default(false),
+  isExpenseClaimsControlAccount: z.boolean().default(false),
 });
 
 export const AccountUpdateSchema = z
@@ -23,6 +24,7 @@ export const AccountUpdateSchema = z
     groupName: z.string().max(100).nullable().optional(),
     currencyCode: z.string().length(3).optional(),
     isControlAccount: z.boolean().optional(),
+    isExpenseClaimsControlAccount: z.boolean().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "Minimal satu field harus diisi.",
@@ -47,4 +49,5 @@ export const AccountResponseSchema = z.object({
   groupName: z.string().nullable(),
   currencyCode: z.string(),
   isControlAccount: z.boolean(),
+  isExpenseClaimsControlAccount: z.boolean(),
 });

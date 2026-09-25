@@ -124,6 +124,7 @@ export const chartOfAccounts = pgTable(
     groupName: varchar({ length: 100 }),
     currencyCode: varchar({ length: 3 }).notNull().default("IDR"),
     isControlAccount: boolean().notNull().default(false),
+    isExpenseClaimsControlAccount: boolean().notNull().default(false),
     deletedAt: timestamp(),
   },
   (t) => [
@@ -485,6 +486,24 @@ export const payments = pgTable(
 // purchaseInvoiceId nullable — diisi kalau baris ini mengalokasikan
 // pelunasan ke Purchase Invoice tertentu (mengurangi balanceDue-nya).
 // =====================================================================
+export const expenseClaims = pgTable("expense_claims", {
+  id: uuid().primaryKey().defaultRandom(),
+  businessId: uuid().notNull().references(() => businesses.id, { onDelete: "cascade" }),
+  date: date().notNull().default(sql`CURRENT_DATE`),
+  reference: varchar({ length: 50 }),
+  payerContactId: uuid().notNull().references(() => contacts.id),
+  payee: varchar({ length: 255 }), description: text(), deletedAt: timestamp(),
+  createdAt: timestamp().notNull().defaultNow(), updatedAt: timestamp().notNull().defaultNow(),
+}, (t) => [index("idx_expense_claims_business").on(t.businessId), index("idx_expense_claims_payer").on(t.payerContactId)]);
+
+export const expenseClaimLines = pgTable("expense_claim_lines", {
+  id: uuid().primaryKey().defaultRandom(),
+  expenseClaimId: uuid().notNull().references(() => expenseClaims.id, { onDelete: "cascade" }),
+  accountId: uuid().notNull().references(() => chartOfAccounts.id),
+  description: varchar({ length: 255 }), amount: numeric({ precision: 18, scale: 2 }).notNull(),
+  sortOrder: integer().notNull().default(0),
+}, (t) => [index("idx_expense_claim_lines_claim").on(t.expenseClaimId), check("expense_claim_lines_amount_check", sql`${t.amount} > 0`)]);
+
 export const paymentLines = pgTable(
   "payment_lines",
   {
@@ -496,6 +515,7 @@ export const paymentLines = pgTable(
       .notNull()
       .references(() => chartOfAccounts.id),
     purchaseInvoiceId: uuid().references(() => purchaseInvoices.id),
+    expenseClaimId: uuid().references(() => expenseClaims.id),
     description: varchar({ length: 255 }),
     amount: numeric({ precision: 18, scale: 2 }).notNull(),
     sortOrder: integer().notNull().default(0),
@@ -504,6 +524,8 @@ export const paymentLines = pgTable(
     index("idx_payment_lines_payment").on(t.paymentId),
     index("idx_payment_lines_account").on(t.accountId),
     index("idx_payment_lines_purchase_invoice").on(t.purchaseInvoiceId),
+    index("idx_payment_lines_expense_claim").on(t.expenseClaimId),
+    check("chk_payment_allocation_target", sql`${t.purchaseInvoiceId} IS NULL OR ${t.expenseClaimId} IS NULL`),
     check("chk_payment_lines_amount_positive", sql`${t.amount} > 0`),
   ],
 );
@@ -924,6 +946,21 @@ export const paymentLinesRelations = relations(paymentLines, ({ one }) => ({
     fields: [paymentLines.purchaseInvoiceId],
     references: [purchaseInvoices.id],
   }),
+  expenseClaim: one(expenseClaims, {
+    fields: [paymentLines.expenseClaimId],
+    references: [expenseClaims.id],
+  }),
+}));
+
+export const expenseClaimsRelations = relations(expenseClaims, ({ one, many }) => ({
+  business: one(businesses, { fields: [expenseClaims.businessId], references: [businesses.id] }),
+  payer: one(contacts, { fields: [expenseClaims.payerContactId], references: [contacts.id] }),
+  lines: many(expenseClaimLines),
+  paymentLines: many(paymentLines),
+}));
+export const expenseClaimLinesRelations = relations(expenseClaimLines, ({ one }) => ({
+  claim: one(expenseClaims, { fields: [expenseClaimLines.expenseClaimId], references: [expenseClaims.id] }),
+  account: one(chartOfAccounts, { fields: [expenseClaimLines.accountId], references: [chartOfAccounts.id] }),
 }));
 
 export const interAccountTransfersRelations = relations(

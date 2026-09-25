@@ -7,6 +7,7 @@ import { queryClient } from "@/lib/query-client";
 export interface PaymentLineInput {
   accountId: string;
   purchaseInvoiceId?: string | null;
+  expenseClaimId?: string | null;
   description?: string | null;
   amount: number;
 }
@@ -17,6 +18,7 @@ export interface PaymentLine {
   accountCode: string;
   accountName: string;
   purchaseInvoiceId: string | null;
+  expenseClaimId: string | null;
   description: string | null;
   amount: number;
   sortOrder: number;
@@ -83,7 +85,7 @@ export function usePayments(
   pageSize = 20,
 ) {
   return useQuery({
-    queryKey: paymentsQueryKey(businessId, page, filters),
+    queryKey: [...paymentsQueryKey(businessId, page, filters), pageSize],
     queryFn: async () => {
       const { data, error } = await apiClient.get<
         { data: Payment[]; pagination: PaginationInfo },
@@ -147,6 +149,11 @@ export function useCreatePayment(businessId: string) {
       void queryClient.invalidateQueries({ queryKey: ["bank-accounts", businessId] });
       void queryClient.invalidateQueries({ queryKey: ["accounts", businessId] });
       void queryClient.invalidateQueries({ queryKey: ["purchase-invoices", businessId] });
+      void queryClient.invalidateQueries({ queryKey: ["purchase-invoice", businessId] });
+      void queryClient.invalidateQueries({ queryKey: ["expense-claims", businessId] });
+      void queryClient.invalidateQueries({ queryKey: ["expense-claim", businessId] });
+      void queryClient.invalidateQueries({ queryKey: ["expense-claim-options", businessId] });
+      void queryClient.invalidateQueries({ queryKey: ["journal-entries", businessId] });
       void queryClient.invalidateQueries({ queryKey: ["suppliers", businessId] });
     },
   });
@@ -178,6 +185,11 @@ export function useUpdatePayment(businessId: string) {
       void queryClient.invalidateQueries({ queryKey: ["bank-accounts", businessId] });
       void queryClient.invalidateQueries({ queryKey: ["accounts", businessId] });
       void queryClient.invalidateQueries({ queryKey: ["purchase-invoices", businessId] });
+      void queryClient.invalidateQueries({ queryKey: ["purchase-invoice", businessId] });
+      void queryClient.invalidateQueries({ queryKey: ["expense-claims", businessId] });
+      void queryClient.invalidateQueries({ queryKey: ["expense-claim", businessId] });
+      void queryClient.invalidateQueries({ queryKey: ["expense-claim-options", businessId] });
+      void queryClient.invalidateQueries({ queryKey: ["journal-entries", businessId] });
       void queryClient.invalidateQueries({ queryKey: ["suppliers", businessId] });
     },
   });
@@ -200,6 +212,11 @@ export function useDeletePayment(businessId: string) {
       void queryClient.invalidateQueries({ queryKey: ["bank-accounts", businessId] });
       void queryClient.invalidateQueries({ queryKey: ["accounts", businessId] });
       void queryClient.invalidateQueries({ queryKey: ["purchase-invoices", businessId] });
+      void queryClient.invalidateQueries({ queryKey: ["purchase-invoice", businessId] });
+      void queryClient.invalidateQueries({ queryKey: ["expense-claims", businessId] });
+      void queryClient.invalidateQueries({ queryKey: ["expense-claim", businessId] });
+      void queryClient.invalidateQueries({ queryKey: ["expense-claim-options", businessId] });
+      void queryClient.invalidateQueries({ queryKey: ["journal-entries", businessId] });
       void queryClient.invalidateQueries({ queryKey: ["suppliers", businessId] });
     },
   });
