@@ -65,9 +65,27 @@ buat ngitung Income/Expenses/Net Profit per proyek/pekerjaan tertentu.
 
 | Field | Cara Hitung |
 |---|---|
-| totalIncome | Σ(kredit) baris jurnal AKTIF berkategori Revenue, dari jurnal sumber (`sales_invoices`/`receipts`) yang `project_id` = proyek ini |
-| totalExpenses | Σ(debit) baris jurnal AKTIF berkategori Expense, dari jurnal sumber (`purchase_invoices`/`payments`/`expense_claims`) YANG `project_id` = proyek ini, DITAMBAH jurnal manual yang `project_id`-nya langsung diisi proyek ini |
+| totalIncome | Σ(credit − debit) baris jurnal AKTIF berkategori Revenue, dari jurnal sumber (`sales_invoices`/`receipts`) yang `project_id` = proyek ini |
+| totalExpenses | Σ(debit − credit) baris jurnal AKTIF berkategori Expense, dari jurnal sumber (`purchase_invoices`/`payments`/`expense_claims`) YANG `project_id` = proyek ini, DITAMBAH jurnal manual yang `project_id`-nya langsung diisi proyek ini |
 | netProfit | `totalIncome - totalExpenses` |
+
+> Keputusan desain (Bagian C, diimplementasikan):
+> - Yang dihitung adalah jurnal **AKTIF** (`journal_entries.deleted_at IS
+>   NULL) dari dokumen sumber yang `project_id`-nya proyek ini **dan**
+>   dokumennya belum di-soft-delete — dihubungkan lewat
+>   `journal_entries.source_module` + `source_id` (`sales_invoice`,
+>   `receipt`, `purchase_invoice`, `payment`, `expense_claim`,
+>   `manual_journal` — sesuai konstanta di tiap repository, jangan ditebak).
+> - Dihitung per KATEGORI akun (`chart_of_accounts.category`):
+>   `totalIncome` hanya baris `Revenue`, `totalExpenses` hanya baris
+>   `Expense`. Kategori lain (Asset, Liability — termasuk Utang Pajak dan
+>   akun kontrol AP — Equity) TIDAK dihitung. Konsekuensinya: pajak pada
+>   Sales Invoice tidak masuk income; pelunasan Payment ke Purchase
+>   Invoice/Expense Claim (debit ke akun kontrol, bukan Expense) tidak
+>   dihitung ganda sebagai beban.
+> - Dihitung di database dalam 1 query agregat (UNION ALL per jalur
+>   sumber, GROUP BY project) untuk seluruh proyek di satu halaman list —
+>   bukan 1 query per proyek. Proyek tanpa transaksi = 0.
 
 ## 5. Aturan Bisnis
 

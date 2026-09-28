@@ -1,15 +1,19 @@
 /**
- * ProjectRepository — Modul Proyek (Bagian A: CRUD Dasar + Bagian B: tagging).
+ * ProjectRepository — Modul Proyek (Bagian A: CRUD Dasar + Bagian B: tagging
+ * + Bagian C: agregat keuangan real-time).
  *
  * Catatan Arsitektur:
  * - Proyek itu sendiri TIDAK bikin jurnal.
- * - Untuk Bagian A/B: totalIncome, totalExpenses, dan netProfit SELALU 0
- *   (placeholder, akan diisi di Bagian C saat join ke jurnal diterapkan).
- * - delete: SEKARANG (Bagian B) menolak kalau masih ada dokumen AKTIF di
- *   salah satu 6 tabel transaksi yang project_id-nya proyek ini (termasuk
- *   jurnal manual aktif).
+ * - totalIncome/totalExpenses/netProfit DIHITUNG dari jurnal milik dokumen
+ *   yang di-tag proyek ini (lihat getProjectTotals): jurnal AKTIF dari
+ *   sales_invoices/receipts (Revenue) + purchase_invoices/payments/
+ *   expense_claims (Expense) yang project_id-nya proyek ini, DITAMBAH
+ *   jurnal manual yang project_id-nya langsung proyek ini.
+ * - delete: menolak kalau masih ada dokumen AKTIF di salah satu 6 tabel
+ *   transaksi yang project_id-nya proyek ini (termasuk jurnal manual
+ *   aktif).
  */
-import { and, asc, count, eq, ilike, isNull, or } from "drizzle-orm";
+import { and, asc, count, eq, ilike, isNull, or, sql } from "drizzle-orm";
 import db from "../db/index.js";
 import {
   contacts,
@@ -65,17 +69,24 @@ export interface ProjectUpdateInput {
   status?: ProjectStatus;
 }
 
-function toRecord(row: {
-  id: string;
-  businessId: string;
-  name: string;
-  code: string | null;
-  customerId: string | null;
-  customerName: string | null;
-  status: ProjectStatus;
-  createdAt: Date;
-  updatedAt: Date;
-}): ProjectRecord {
+function toRecord(
+  row: {
+    id: string;
+    businessId: string;
+    name: string;
+    code: string | null;
+    customerId: string | null;
+    customerName: string | null;
+    status: ProjectStatus;
+    createdAt: Date;
+    updatedAt: Date;
+  },
+  totals?: { income: number; expenses: number },
+): ProjectRecord {
+  // Numeric Postgres datang sebagai STRING — Number() eksplisit
+  // (pelajaran #2). totals selalu ada dari getProjectTotals.
+  const totalIncome = Number(totals?.income ?? 0);
+  const totalExpenses = Number(totals?.expenses ?? 0);
   return {
     id: row.id,
     businessId: row.businessId,
@@ -84,12 +95,109 @@ function toRecord(row: {
     customerId: row.customerId ?? null,
     customerName: row.customerName ?? null,
     status: row.status,
-    totalIncome: Number(0),
-    totalExpenses: Number(0),
-    netProfit: Number(0),
+    totalIncome,
+    totalExpenses,
+    netProfit: totalIncome - totalExpenses,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+/**
+ * Agregat keuangan per proyek dalam 1 query (GROUP BY project).
+ *
+ * Aturan hitung (keputusan desain, dicatat di Projects.md §4.3): jurnal
+ * AKTIF (journal_entries.deleted_at IS NULL) dari dokumen sumber yang
+ * project_id-nya proyek target dan dokumennya belum di-soft-delete —
+ * dihubungkan lewat source_module + source_id — DITAMBAH jurnal manual
+ * yang project_id-nya langsung proyek target. Dari situ:
+ * - totalIncome = Σ(credit − debit) baris akun kategori 'Revenue'
+ * - totalExpenses = Σ(debit − credit) baris akun kategori 'Expense'
+ * Kategori lain (Asset/Liability/Equity) TIDAK dihitung.
+ *
+ * SQL ditulis mentah dengan nama tabel/kolom eksplisit (pelajaran #1:
+ * interpolasi kolom Drizzle ke sql mentah tidak ter-qualify). Nilai
+ * dinamis (businessId, daftar id) tetap jadi parameter query.
+ */
+export async function getProjectTotals(
+  businessId: string,
+  projectIds: string[],
+): Promise<Map<string, { income: number; expenses: number }>> {
+  const result = new Map<string, { income: number; expenses: number }>();
+  if (projectIds.length === 0) return result;
+
+  const executed = await db.execute(sql`
+    SELECT agg.project_id AS project_id,
+      COALESCE(SUM(CASE WHEN agg.category = 'Revenue' THEN agg.credit - agg.debit ELSE 0 END), 0) AS income,
+      COALESCE(SUM(CASE WHEN agg.category = 'Expense' THEN agg.debit - agg.credit ELSE 0 END), 0) AS expenses
+    FROM (
+      SELECT si.project_id, l.credit, l.debit, coa.category, si.business_id AS biz
+      FROM journal_entry_lines l
+      JOIN journal_entries je ON je.id = l.journal_entry_id
+      JOIN sales_invoices si ON si.id = je.source_id
+      JOIN chart_of_accounts coa ON coa.id = l.account_id
+      WHERE je.source_module = 'sales_invoice' AND je.deleted_at IS NULL
+        AND si.deleted_at IS NULL AND si.project_id IS NOT NULL AND coa.category = 'Revenue'
+      UNION ALL
+      SELECT r.project_id, l.credit, l.debit, coa.category, r.business_id AS biz
+      FROM journal_entry_lines l
+      JOIN journal_entries je ON je.id = l.journal_entry_id
+      JOIN receipts r ON r.id = je.source_id
+      JOIN chart_of_accounts coa ON coa.id = l.account_id
+      WHERE je.source_module = 'receipt' AND je.deleted_at IS NULL
+        AND r.deleted_at IS NULL AND r.project_id IS NOT NULL AND coa.category = 'Revenue'
+      UNION ALL
+      SELECT pi.project_id, l.credit, l.debit, coa.category, pi.business_id AS biz
+      FROM journal_entry_lines l
+      JOIN journal_entries je ON je.id = l.journal_entry_id
+      JOIN purchase_invoices pi ON pi.id = je.source_id
+      JOIN chart_of_accounts coa ON coa.id = l.account_id
+      WHERE je.source_module = 'purchase_invoice' AND je.deleted_at IS NULL
+        AND pi.deleted_at IS NULL AND pi.project_id IS NOT NULL AND coa.category = 'Expense'
+      UNION ALL
+      SELECT p.project_id, l.credit, l.debit, coa.category, p.business_id AS biz
+      FROM journal_entry_lines l
+      JOIN journal_entries je ON je.id = l.journal_entry_id
+      JOIN payments p ON p.id = je.source_id
+      JOIN chart_of_accounts coa ON coa.id = l.account_id
+      WHERE je.source_module = 'payment' AND je.deleted_at IS NULL
+        AND p.deleted_at IS NULL AND p.project_id IS NOT NULL AND coa.category = 'Expense'
+      UNION ALL
+      SELECT ec.project_id, l.credit, l.debit, coa.category, ec.business_id AS biz
+      FROM journal_entry_lines l
+      JOIN journal_entries je ON je.id = l.journal_entry_id
+      JOIN expense_claims ec ON ec.id = je.source_id
+      JOIN chart_of_accounts coa ON coa.id = l.account_id
+      WHERE je.source_module = 'expense_claim' AND je.deleted_at IS NULL
+        AND ec.deleted_at IS NULL AND ec.project_id IS NOT NULL AND coa.category = 'Expense'
+      UNION ALL
+      SELECT je.project_id, l.credit, l.debit, coa.category, je.business_id AS biz
+      FROM journal_entry_lines l
+      JOIN journal_entries je ON je.id = l.journal_entry_id
+      JOIN chart_of_accounts coa ON coa.id = l.account_id
+      WHERE je.source_module = 'manual_journal' AND je.deleted_at IS NULL
+        AND je.project_id IS NOT NULL
+    ) agg
+    WHERE agg.biz = ${businessId}
+      AND agg.project_id IN (${sql.join(
+        projectIds.map((id) => sql`${id}`),
+        sql`, `,
+      )})
+    GROUP BY agg.project_id
+  `);
+  const rows = executed.rows as unknown as {
+    project_id: string;
+    income: string;
+    expenses: string;
+  }[];
+
+  for (const r of rows) {
+    result.set(r.project_id, {
+      income: Number(r.income),
+      expenses: Number(r.expenses),
+    });
+  }
+  return result;
 }
 
 export async function listProjects(
@@ -139,8 +247,14 @@ export async function listProjects(
     db.select({ total: count() }).from(projects).where(where),
   ]);
 
+  // 1 query agregat untuk SELURUH proyek di halaman ini (bukan per proyek).
+  const totals = await getProjectTotals(
+    businessId,
+    rows.map((r) => r.id),
+  );
+
   return {
-    data: rows.map(toRecord),
+    data: rows.map((r) => toRecord(r, totals.get(r.id))),
     total: totalRow?.total ?? 0,
   };
 }
@@ -175,7 +289,10 @@ export async function getProjectById(
     )
     .limit(1);
 
-  return row ? toRecord(row) : null;
+  if (!row) return null;
+
+  const totals = await getProjectTotals(businessId, [row.id]);
+  return toRecord(row, totals.get(row.id));
 }
 
 export async function createProject(
