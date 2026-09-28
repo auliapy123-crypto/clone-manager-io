@@ -184,11 +184,13 @@ export const journalEntries = pgTable(
     sourceModule: varchar({ length: 50 }).notNull().default("manual_journal"),
     sourceId: uuid(),
     description: text(),
+    projectId: uuid().references(() => projects.id),
     deletedAt: timestamp(),
   },
   (t) => [
     index("idx_je_business").on(t.businessId),
     index("idx_je_source").on(t.sourceModule, t.sourceId),
+    index("idx_je_project").on(t.projectId),
   ],
 );
 
@@ -294,12 +296,14 @@ export const salesInvoices = pgTable("sales_invoices", {
   dueDate: date(),
   billingAddress: text(),
   description: text(),
+  projectId: uuid().references(() => projects.id),
   createdAt: timestamp().notNull().defaultNow(),
   updatedAt: timestamp().notNull().defaultNow(),
   deletedAt: timestamp(),
 }, (t) => [
   index("idx_sales_invoices_business").on(t.businessId),
   index("idx_sales_invoices_customer").on(t.customerId),
+  index("idx_sales_invoices_project").on(t.projectId),
 ]);
 
 // =====================================================================
@@ -356,6 +360,7 @@ export const purchaseInvoices = pgTable("purchase_invoices", {
   quoteNumber: varchar({ length: 50 }),
   orderNumber: varchar({ length: 50 }),
   purchaseOrderId: uuid().references(() => purchaseOrders.id),
+  projectId: uuid().references(() => projects.id),
   createdAt: timestamp().notNull().defaultNow(),
   updatedAt: timestamp().notNull().defaultNow(),
   deletedAt: timestamp(),
@@ -363,6 +368,7 @@ export const purchaseInvoices = pgTable("purchase_invoices", {
   index("idx_purchase_invoices_business").on(t.businessId),
   index("idx_purchase_invoices_supplier").on(t.supplierId),
   index("idx_purchase_invoices_purchase_order").on(t.purchaseOrderId),
+  index("idx_purchase_invoices_project").on(t.projectId),
 ]);
 
 // =====================================================================
@@ -411,6 +417,7 @@ export const receipts = pgTable(
       .references(() => bankAccounts.id),
     contactId: uuid().references(() => contacts.id),
     description: text(),
+    projectId: uuid().references(() => projects.id),
     createdAt: timestamp().notNull().defaultNow(),
     updatedAt: timestamp().notNull().defaultNow(),
     deletedAt: timestamp(),
@@ -419,6 +426,7 @@ export const receipts = pgTable(
     index("idx_receipts_business").on(t.businessId),
     index("idx_receipts_bank_account").on(t.bankAccountId),
     index("idx_receipts_contact").on(t.contactId),
+    index("idx_receipts_project").on(t.projectId),
   ],
 );
 
@@ -471,6 +479,7 @@ export const payments = pgTable(
       .notNull()
       .references(() => contacts.id),
     description: text(),
+    projectId: uuid().references(() => projects.id),
     createdAt: timestamp().notNull().defaultNow(),
     updatedAt: timestamp().notNull().defaultNow(),
     deletedAt: timestamp(),
@@ -479,6 +488,7 @@ export const payments = pgTable(
     index("idx_payments_business").on(t.businessId),
     index("idx_payments_bank_account").on(t.bankAccountId),
     index("idx_payments_contact").on(t.contactId),
+    index("idx_payments_project").on(t.projectId),
   ],
 );
 
@@ -496,8 +506,9 @@ export const expenseClaims = pgTable("expense_claims", {
   reference: varchar({ length: 50 }),
   payerContactId: uuid().notNull().references(() => contacts.id),
   payee: varchar({ length: 255 }), description: text(), deletedAt: timestamp(),
+  projectId: uuid().references(() => projects.id),
   createdAt: timestamp().notNull().defaultNow(), updatedAt: timestamp().notNull().defaultNow(),
-}, (t) => [index("idx_expense_claims_business").on(t.businessId), index("idx_expense_claims_payer").on(t.payerContactId)]);
+}, (t) => [index("idx_expense_claims_business").on(t.businessId), index("idx_expense_claims_payer").on(t.payerContactId), index("idx_expense_claims_project").on(t.projectId)]);
 
 export const expenseClaimLines = pgTable("expense_claim_lines", {
   id: uuid().primaryKey().defaultRandom(),
@@ -792,6 +803,10 @@ export const journalEntriesRelations = relations(
       fields: [journalEntries.businessId],
       references: [businesses.id],
     }),
+    project: one(projects, {
+      fields: [journalEntries.projectId],
+      references: [projects.id],
+    }),
     lines: many(journalEntryLines),
   }),
 );
@@ -841,6 +856,10 @@ export const salesInvoicesRelations = relations(
       fields: [salesInvoices.customerId],
       references: [contacts.id],
     }),
+    project: one(projects, {
+      fields: [salesInvoices.projectId],
+      references: [projects.id],
+    }),
     lines: many(salesInvoiceLines),
   }),
 );
@@ -873,6 +892,10 @@ export const purchaseInvoicesRelations = relations(
     purchaseOrder: one(purchaseOrders, {
       fields: [purchaseInvoices.purchaseOrderId],
       references: [purchaseOrders.id],
+    }),
+    project: one(projects, {
+      fields: [purchaseInvoices.projectId],
+      references: [projects.id],
     }),
     lines: many(purchaseInvoiceLines),
     paymentLines: many(paymentLines),
@@ -936,6 +959,10 @@ export const receiptsRelations = relations(receipts, ({ one, many }) => ({
     fields: [receipts.contactId],
     references: [contacts.id],
   }),
+  project: one(projects, {
+    fields: [receipts.projectId],
+    references: [projects.id],
+  }),
   lines: many(receiptLines),
 }));
 
@@ -963,6 +990,10 @@ export const paymentsRelations = relations(payments, ({ one, many }) => ({
     fields: [payments.contactId],
     references: [contacts.id],
   }),
+  project: one(projects, {
+    fields: [payments.projectId],
+    references: [projects.id],
+  }),
   lines: many(paymentLines),
 }));
 
@@ -988,6 +1019,7 @@ export const paymentLinesRelations = relations(paymentLines, ({ one }) => ({
 export const expenseClaimsRelations = relations(expenseClaims, ({ one, many }) => ({
   business: one(businesses, { fields: [expenseClaims.businessId], references: [businesses.id] }),
   payer: one(contacts, { fields: [expenseClaims.payerContactId], references: [contacts.id] }),
+  project: one(projects, { fields: [expenseClaims.projectId], references: [projects.id] }),
   lines: many(expenseClaimLines),
   paymentLines: many(paymentLines),
 }));
@@ -1038,7 +1070,7 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   user: one(users, { fields: [auditLogs.userId], references: [users.id] }),
 }));
 
-export const projectsRelations = relations(projects, ({ one }) => ({
+export const projectsRelations = relations(projects, ({ one, many }) => ({
   business: one(businesses, {
     fields: [projects.businessId],
     references: [businesses.id],
@@ -1047,6 +1079,12 @@ export const projectsRelations = relations(projects, ({ one }) => ({
     fields: [projects.customerId],
     references: [contacts.id],
   }),
+  salesInvoices: many(salesInvoices),
+  purchaseInvoices: many(purchaseInvoices),
+  receipts: many(receipts),
+  payments: many(payments),
+  expenseClaims: many(expenseClaims),
+  journalEntries: many(journalEntries),
 }));
 
 // =====================================================================
