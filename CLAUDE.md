@@ -94,6 +94,20 @@ environment variable atau `.env` yang sudah di-gitignore.
    jalankan pakai `tsx`, lalu **HAPUS** setelah dipakai — dan **PASTIKAN
    BENERAN TERHAPUS SEBELUM COMMIT** (pernah kejadian script sementara
    kelewat ikut ke-commit ke Git, harus dibersihkan belakangan).
+8. **Request GET/DELETE TANPA body jangan dikirimi header
+   `Content-Type: application/json`** — Fastify membalas 400 karena
+   mencoba parse body JSON yang kosong. Jebakan ini sudah menjebak DUA
+   sesi AI agent berbeda di skrip tes mereka (sekali bikin cleanup gagal
+   dan meninggalkan jurnal yatim, sekali bikin E2E pertama gagal).
+   Kirim header itu HANYA kalau request memang punya body.
+9. **Skrip debugging/probing dilarang menghapus atau mengubah data
+   berdasarkan "baris pertama" atau query tanpa filter.** Hanya boleh
+   menyentuh ID yang DIBUAT skrip itu sendiri (catat ID-nya waktu
+   dibuat). Pernah kejadian skrip probe menghapus receipt tes milik user
+   ("RCV 2020") karena tidak difilter; untung ketahuan, diaku, dan
+   dipulihkan. Kalau AI agent melakukan kesalahan semacam ini, wajib
+   dilaporkan jujur seperti itu, dan user memverifikasi pemulihannya
+   sendiri (bandingkan saldo dan daftar dokumen).
 
 ### Modul yang sudah ada (backend + frontend kecuali disebutkan)
 
@@ -163,39 +177,103 @@ environment variable atau `.env` yang sudah di-gitignore.
   kalau dicoba diedit/dihapus dari sini, harus lewat dokumen sumbernya).
   Field `Division`/`Tax Code` dan "Locked Period" dari dokumen resmi
   SENGAJA DILEWATI (modul pendukungnya belum ada).
+- **PurchaseOrders** — `/businesses/:id/purchase-orders`. Dokumen
+  NON-POSTING (tidak membuat jurnal). Tabel `purchase_orders` +
+  `purchase_order_lines`; kolom `purchase_invoices.purchase_order_id`
+  (nullable) jadi jembatan ke faktur turunan. Status dihitung
+  (Draft/Open → Partially Invoiced → Fully Invoiced/Closed) dari
+  Σ invoiceAmount faktur aktif yang merujuk PO itu vs total PO. Delete
+  ditolak kalau sudah ada faktur turunan. "Convert to Invoice" dikerjakan
+  di frontend (halaman Purchase Invoices dibuka dengan query
+  `?convertFromPO=<id>`, form ter-prefill, `purchaseOrderId` ikut
+  terkirim saat create faktur).
+- **ExpenseClaims** — `/businesses/:id/expense-claims`. Payer = kontak
+  mana pun di tabel `contacts` (tanpa flag khusus). Posting jurnal:
+  Debit akun Expense/Asset per baris, Kredit akun kontrol Expense Claims
+  (kolom BARU `chart_of_accounts.is_expense_claims_control_account`,
+  TERPISAH dari `is_control_account` yang dipakai AR/AP; di bisnis dummy
+  = akun 2300 "Utang Reimbursement Karyawan" dengan `isControlAccount`
+  FALSE — jangan sampai ada dua akun kontrol AP). Pelunasan lewat
+  Payments: `payment_lines.expense_claim_id` (XOR dengan
+  `purchase_invoice_id`; satu baris cuma boleh salah satu). Status cuma
+  Paid/Unpaid (tanpa Overdue). Catatan gaya kode: repository modul ini
+  menyimpang dari pola modul lain (helper `cents`/`money`, `scope()`,
+  error class sendiri, locking `for update`) — fungsional dan teruji,
+  tapi kandidat penyeragaman kalau ada waktu refactor.
+- **Projects** — `/businesses/:id/projects`. BUKAN modul transaksi:
+  penanda (tag). Tabel `projects`; kolom `project_id` (nullable, FK) di
+  6 tabel: `sales_invoices`, `purchase_invoices`, `receipts`, `payments`,
+  `expense_claims`, `journal_entries` (khusus jurnal MANUAL; jurnal
+  otomatis tidak mengisi project_id sendiri, tag melekat di dokumen
+  sumbernya). Mengubah `project_id` TIDAK memicu repost jurnal (proyek
+  tidak masuk isi jurnal). Validasi tag terpusat di
+  `validateProjectAssignment` (ProjectRepository): proyek harus ada,
+  satu bisnis, belum dihapus, dan berstatus `active` untuk tag BARU;
+  tag yang sama pada dokumen lama tetap boleh walau proyeknya sudah
+  inactive/completed (dropdown frontend juga tetap menampilkan proyek
+  yang sedang tertanda). Delete proyek DITOLAK kalau masih ada dokumen
+  aktif bertag (6 tabel; jurnal manual aktif ikut dicek).
+  `totalIncome`/`totalExpenses`/`netProfit` dihitung live oleh
+  `getProjectTotals` (1 query agregat UNION ALL untuk seluruh halaman):
+  Income = Σ(kredit−debit) baris akun kategori Revenue, Expenses =
+  Σ(debit−kredit) baris akun kategori Expense, dari jurnal aktif milik
+  dokumen bertag (atau jurnal manual bertag). Kategori lain (Asset,
+  Liability termasuk Utang Pajak & akun kontrol AP, Equity) TIDAK
+  dihitung, jadi pajak tidak masuk income dan pelunasan Payment tidak
+  dihitung ganda sebagai beban.
 
-### Modul yang SEDANG/AKAN dikerjakan (urutan §3 dokumen analisis)
+### Status fase
 
-Urutan: Customers ✅ → Suppliers ✅ → Bank and Cash Accounts ✅ →
-Sales Invoices ✅ → Purchase Invoices ✅ → Receipts ✅ → Payments ✅ →
-Inter Account Transfers ✅ → Bank Reconciliations ✅ → Journal Entries ✅
-→ **Purchase Orders (berikutnya)** → Expense Claims → Projects.
+- **Fase 0 (riset Manager.io), Fase 1 (fondasi), dan Fase 2 (13 modul
+  Prioritas 1) SELESAI.** Urutan Fase 2 yang sudah tuntas: Customers,
+  Suppliers, Bank and Cash Accounts, Sales Invoices, Purchase Invoices,
+  Receipts, Payments, Inter Account Transfers, Bank Reconciliations,
+  Journal Entries, Purchase Orders, Expense Claims, Projects.
+- **Fase 3 (Modul Prioritas 2) — BERIKUTNYA.** Daftar dari roadmap:
+  Sales Quotes, Sales Orders, Credit Notes, Late Payment Fees, Delivery
+  Notes, Billable Time, Withholding Tax Receipts, Purchase Quotes, Debit
+  Notes, Goods Receipts, Inventory (Items, Transfers, Write-offs),
+  Production Orders, Employees & Payslips (Payroll), Fixed Assets &
+  Depreciation Entries, Intangible Assets & Amortization Entries, Capital
+  Accounts, Special Accounts, Folders. Payroll dan Fixed Assets butuh
+  analisis kebutuhan tambahan sebelum spesifikasinya ditulis (catatan
+  roadmap).
+  Lokasi spesifikasi (cek header section tiap file dulu, lihat catatan
+  di bawah): file "Analisis_Manager_io Kebutuhan Sistem Prioritas 2
+  Intern- Aulia" memuat Sales Quotes, Sales Orders, Delivery Notes,
+  Credit Notes, Late Payment Fees; file "Analisis Manager.io kebutuhan
+  Sistem Prioritas 2 Pahrio Kaspiyanor" memuat Withholding Tax Receipts,
+  Purchase Quotes, Debit Notes, Goods Receipts, Inventory.
+  Kerjakan modul-modul yang menyambung ke alur yang sudah ada lebih dulu
+  (mis. Sales Quotes → Sales Orders → Credit Notes, yang berkaitan ke
+  Sales Invoices), dan tanyakan urutan pastinya ke owner sebelum mulai.
+- Fase 4 (fitur lintas modul: Attachments, History, Backup/Export,
+  Divisions, Tax Codes, Custom fields, Emails, Obscure mode, Reports,
+  Localization, Custom themes), Fase 5 (QA), Fase 6 (deployment) ada di
+  roadmap. Catatan: field `Division`/`Tax Code`/`Project` yang sengaja
+  dilewati di banyak modul menunggu Fase 4 (Divisions, Tax Codes).
 
-**3 modul sisa roadmap (Purchase Orders, Expense Claims, Projects)**
-DETAIL LENGKAPNYA UDAH ADA di 1 file:
-"Analisis Fitur dan Kebutuhan Sistem Manager intern_pahrio kaspiyanor.docx"
-(§5, §6, §7) — nggak perlu cari dokumen lain lagi, langsung baca section
-itu sebelum mulai tiap modul.
+### Pola yang sudah terbukti (pakai lagi di Fase 3)
 
-**Purchase Orders**: dokumen non-posting (nggak bikin jurnal apa pun),
-status dinamis berdasar dokumen turunan (Draft/Open → Partially
-Invoiced → Fully Invoiced/Closed — status ini BUTUH ngecek Purchase
-Invoices mana yang "berasal" dari PO tertentu, mirip pola computed
-status di modul lain tapi belum ada field linknya di Purchase Invoices
-sekarang, PERLU ditambahkan kalau mau alur konversi PO→Invoice jalan).
-
-**Expense Claims**: mirip pola Payments (posting Debit
-akun Expense/Asset pilihan user per baris, Kredit akun kontrol Expense
-Claims Liability), pelunasannya lewat modul Payments yang udah ada
-(alokasi mirip pola alokasi ke Purchase Invoice, tapi target beda:
-alokasi ke Expense Claim).
-
-**Projects**: BUKAN modul transaksi — cuma "tag" yang ditempelin ke
-transaksi modul lain (Sales Invoice, Receipt, Purchase Invoice, Payment,
-Expense Claim, Journal Entry) buat hitung Income/Expenses/Net Profit per
-proyek. Butuh nambah kolom `project_id` nullable ke banyak tabel
-transaksi yang udah ada — perubahan lintas-modul, bukan modul baru yang
-berdiri sendiri.
+1. Bedakan dulu apakah modul MEMBENTUK JURNAL (Sales/Purchase Invoices,
+   Receipts, Payments, Transfers, Expense Claims, jurnal manual) atau
+   NON-POSTING (Purchase Orders, Bank Reconciliations, Projects). Modul
+   non-posting nggak menyentuh `journal_entries` sama sekali.
+2. Status dokumen yang bergantung pada dokumen lain DIHITUNG saat GET,
+   bukan disimpan sebagai kolom (Unpaid/Overdue/Paid, status PO, dst).
+3. Relasi antar modul lewat kolom nullable (`purchase_order_id`,
+   `project_id`, `expense_claim_id`, `purchase_invoice_id`), semuanya
+   opsional supaya dokumen tanpa relasi tetap berfungsi normal.
+4. Task lintas-modul (menyentuh banyak modul sekaligus) dipecah jadi
+   beberapa CHECKPOINT, tiap checkpoint typecheck bersih lalu commit +
+   push, supaya kalau kuota AI habis di tengah, kerjaan tetap aman.
+5. Minta AI agent memverifikasi dengan skenario yang angka ekspektasinya
+   sudah dihitung DULUAN oleh manusia/pemberi prompt, lalu user
+   mengecek ulang sendiri lewat browser dengan data nyata. Jangan cuma
+   percaya laporan "lolos".
+6. Sebelum menyusun spesifikasi modul sendiri dari konteks, tanya user
+   apakah ada file dokumen lain (lihat catatan dokumen analisis di
+   bawah). Pernah 3 kali spesifikasi resmi ternyata ada di file lain.
 
 ### Dokumen analisis Fase 0 — CATATAN PENTING
 
@@ -235,7 +313,8 @@ asumsi dari nama file doang.**
 - Members (kelola anggota per bisnis)
 - Chart of Accounts, Customers, Suppliers, Bank and Cash Accounts, Sales
   Invoices, Purchase Invoices, Receipts, Payments, Inter Account
-  Transfers, Bank Reconciliations, Journal Entries
+  Transfers, Bank Reconciliations, Journal Entries, Purchase Orders, Expense
+  Claims, Projects (13 modul Fase 2 lengkap)
 
 ## Aturan Kerja
 
