@@ -5,6 +5,7 @@ import { Permission } from "../constants/permissions.js";
 import { sendData, sendError, sendPaginated } from "../libs/reply.js";
 import { getAccountById } from "../repositories/ChartOfAccountRepository.js";
 import { getContactById } from "../repositories/ContactRepository.js";
+import { validateProjectAssignment } from "../repositories/ProjectRepository.js";
 import {
   createExpenseClaim,
   getExpenseClaimById,
@@ -136,6 +137,9 @@ export async function expenseClaimRoutesPlugin(fastify: FastifyInstance) {
       );
       if (accountCheck) return sendError(reply, 400, ErrorCode.BAD_REQUEST, accountCheck);
 
+      const projectError = await validateProjectAssignment(businessId, body.projectId);
+      if (projectError) return sendError(reply, 400, ErrorCode.BAD_REQUEST, projectError);
+
       const expenseClaim = await createExpenseClaim(businessId, body);
 
       request.audit = {
@@ -193,6 +197,13 @@ export async function expenseClaimRoutesPlugin(fastify: FastifyInstance) {
         );
         if (accountCheck) return sendError(reply, 400, ErrorCode.BAD_REQUEST, accountCheck);
       }
+
+      const projectError = await validateProjectAssignment(
+        businessId,
+        body.projectId,
+        existing.projectId,
+      );
+      if (projectError) return sendError(reply, 400, ErrorCode.BAD_REQUEST, projectError);
 
       const updated = await updateExpenseClaim(businessId, expenseClaimId, body);
       if (!updated) {

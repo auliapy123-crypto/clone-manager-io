@@ -23,6 +23,7 @@ export const CreateSalesInvoiceSchema = z.object({
   dueDate: dateString.optional(),
   billingAddress: z.string().trim().max(2000).optional().nullable(),
   description: z.string().trim().max(2000).optional().nullable(),
+  projectId: z.string().uuid().optional().nullable(),
   lines: z
     .array(SalesInvoiceLineInputSchema)
     .min(1, "Faktur wajib punya minimal 1 baris item"),
@@ -35,6 +36,7 @@ export const UpdateSalesInvoiceSchema = z.object({
   dueDate: dateString.optional().nullable(),
   billingAddress: z.string().trim().max(2000).optional().nullable(),
   description: z.string().trim().max(2000).optional().nullable(),
+  projectId: z.string().uuid().optional().nullable(),
   lines: z
     .array(SalesInvoiceLineInputSchema)
     .min(1, "Faktur wajib punya minimal 1 baris item")
@@ -74,6 +76,7 @@ export const SalesInvoiceResponseSchema = z.object({
   dueDate: z.string().nullable(),
   billingAddress: z.string().nullable(),
   description: z.string().nullable(),
+  projectId: z.string().nullable(),
   invoiceAmount: z.number(),
   balanceDue: z.number(),
   status: SalesInvoiceStatusSchema,

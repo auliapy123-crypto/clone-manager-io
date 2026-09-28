@@ -1,17 +1,33 @@
 /**
- * ProjectRepository — Modul Proyek (Bagian A: CRUD Dasar).
+ * ProjectRepository — Modul Proyek (Bagian A: CRUD Dasar + Bagian B: tagging).
  *
  * Catatan Arsitektur:
  * - Proyek itu sendiri TIDAK bikin jurnal.
- * - Untuk Bagian A: totalIncome, totalExpenses, dan netProfit SELALU 0
- *   (placeholder, akan diisi di Bagian B/C saat tagging transaksi aktif).
- * - delete: soft-delete tanpa validasi lock untuk Bagian A karena kolom
- *   project_id pada 6 tabel transaksi belum ada. Validasi lock akan
- *   diaktifkan di Bagian B.
+ * - Untuk Bagian A/B: totalIncome, totalExpenses, dan netProfit SELALU 0
+ *   (placeholder, akan diisi di Bagian C saat join ke jurnal diterapkan).
+ * - delete: SEKARANG (Bagian B) menolak kalau masih ada dokumen AKTIF di
+ *   salah satu 6 tabel transaksi yang project_id-nya proyek ini (termasuk
+ *   jurnal manual aktif).
  */
 import { and, asc, count, eq, ilike, isNull, or } from "drizzle-orm";
 import db from "../db/index.js";
-import { contacts, projects, type ProjectStatus } from "../db/schema.js";
+import {
+  contacts,
+  expenseClaims,
+  journalEntries,
+  payments,
+  projects,
+  purchaseInvoices,
+  receipts,
+  salesInvoices,
+  type ProjectStatus,
+} from "../db/schema.js";
+import { MANUAL_JOURNAL_SOURCE_MODULE } from "./JournalEntryRepository.js";
+
+/** Error validasi Project (lock delete, tag proyek tidak valid) -> 400. */
+export class ProjectValidationError extends Error {
+  readonly statusCode = 400;
+}
 
 export interface ProjectRecord {
   id: string;
@@ -215,23 +231,101 @@ export async function updateProject(
   return getProjectById(businessId, id);
 }
 
+/**
+ * Validasi penandaan proyek pada dokumen transaksi (dipanggil dari
+ * repository ke-6 modul di §4.2 dokumen Projects). `projectId` = nilai yang
+ * dikirim body (undefined = tidak dikirim, tidak divalidasi; null = lepas
+ * tag, selalu boleh). `currentProjectId` = tag yang SUDAH tersimpan di
+ * dokumen ini (khusus update) — kalau projectId baru SAMA dengan yang lama,
+ * boleh lolos walau proyeknya sekarang inactive/completed (dokumen lama
+ * tidak boleh gagal diedit gara-gara proyeknya sudah tidak aktif).
+ */
+export async function validateProjectAssignment(
+  businessId: string,
+  projectId: string | null | undefined,
+  currentProjectId: string | null | undefined = null,
+): Promise<string | null> {
+  if (projectId === undefined || projectId === null) return null;
+
+  const project = await getProjectById(businessId, projectId);
+  if (!project) {
+    return "Proyek tidak ditemukan atau bukan milik bisnis ini.";
+  }
+  if (project.status !== "active" && projectId !== currentProjectId) {
+    return "Proyek harus berstatus aktif untuk ditandai pada dokumen ini.";
+  }
+  return null;
+}
+
+/** 6 tabel transaksi §4.2 dokumen Projects yang punya kolom project_id. */
+const PROJECT_TAGGED_TABLES = [
+  { table: salesInvoices, label: "Sales Invoice" },
+  { table: purchaseInvoices, label: "Purchase Invoice" },
+  { table: receipts, label: "Receipt" },
+  { table: payments, label: "Payment" },
+  { table: expenseClaims, label: "Expense Claim" },
+] as const;
+
 export async function deleteProject(
   businessId: string,
   id: string,
 ): Promise<boolean> {
-  // Catatan Bagian A: Validasi lock terhadap 6 tabel transaksi akan diaktifkan
-  // di Bagian B saat kolom project_id sudah ditambahkan ke tabel-tabel tersebut.
-  const rows = await db
-    .update(projects)
-    .set({ deletedAt: new Date(), updatedAt: new Date() })
-    .where(
-      and(
-        eq(projects.id, id),
-        eq(projects.businessId, businessId),
-        isNull(projects.deletedAt),
-      ),
-    )
-    .returning({ id: projects.id });
+  return db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({ id: projects.id })
+      .from(projects)
+      .where(
+        and(
+          eq(projects.id, id),
+          eq(projects.businessId, businessId),
+          isNull(projects.deletedAt),
+        ),
+      )
+      .limit(1);
+    if (!existing) return false;
 
-  return rows.length > 0;
+    for (const { table, label } of PROJECT_TAGGED_TABLES) {
+      const [row] = await tx
+        .select({ id: table.id })
+        .from(table)
+        .where(and(eq(table.projectId, id), isNull(table.deletedAt)))
+        .limit(1);
+      if (row) {
+        throw new ProjectValidationError(
+          `Proyek masih punya dokumen aktif (${label}), tidak bisa dihapus.`,
+        );
+      }
+    }
+
+    const [manualJournal] = await tx
+      .select({ id: journalEntries.id })
+      .from(journalEntries)
+      .where(
+        and(
+          eq(journalEntries.projectId, id),
+          eq(journalEntries.sourceModule, MANUAL_JOURNAL_SOURCE_MODULE),
+          isNull(journalEntries.deletedAt),
+        ),
+      )
+      .limit(1);
+    if (manualJournal) {
+      throw new ProjectValidationError(
+        "Proyek masih punya jurnal manual aktif, tidak bisa dihapus.",
+      );
+    }
+
+    const rows = await tx
+      .update(projects)
+      .set({ deletedAt: new Date(), updatedAt: new Date() })
+      .where(
+        and(
+          eq(projects.id, id),
+          eq(projects.businessId, businessId),
+          isNull(projects.deletedAt),
+        ),
+      )
+      .returning({ id: projects.id });
+
+    return rows.length > 0;
+  });
 }

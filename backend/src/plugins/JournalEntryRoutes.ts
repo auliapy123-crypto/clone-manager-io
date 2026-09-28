@@ -5,6 +5,7 @@ import { Permission } from "../constants/permissions.js";
 import { sendData, sendError, sendPaginated } from "../libs/reply.js";
 import { getAccountById } from "../repositories/ChartOfAccountRepository.js";
 import { getContactById } from "../repositories/ContactRepository.js";
+import { validateProjectAssignment } from "../repositories/ProjectRepository.js";
 import {
   createManualJournalEntry,
   getJournalEntryById,
@@ -133,6 +134,9 @@ export async function journalEntryRoutesPlugin(fastify: FastifyInstance) {
       const linesCheck = await checkJournalLines(businessId, body.lines);
       if (linesCheck) return sendError(reply, 400, ErrorCode.BAD_REQUEST, linesCheck);
 
+      const projectError = await validateProjectAssignment(businessId, body.projectId);
+      if (projectError) return sendError(reply, 400, ErrorCode.BAD_REQUEST, projectError);
+
       const entry = await createManualJournalEntry(businessId, body);
 
       request.audit = {
@@ -183,6 +187,13 @@ export async function journalEntryRoutesPlugin(fastify: FastifyInstance) {
         const linesCheck = await checkJournalLines(businessId, body.lines);
         if (linesCheck) return sendError(reply, 400, ErrorCode.BAD_REQUEST, linesCheck);
       }
+
+      const projectError = await validateProjectAssignment(
+        businessId,
+        body.projectId,
+        existing.projectId,
+      );
+      if (projectError) return sendError(reply, 400, ErrorCode.BAD_REQUEST, projectError);
 
       const updated = await updateManualJournalEntry(businessId, id, body);
       if (!updated) {

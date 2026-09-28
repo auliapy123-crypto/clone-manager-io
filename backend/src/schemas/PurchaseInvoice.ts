@@ -24,6 +24,7 @@ export const CreatePurchaseInvoiceSchema = z.object({
   quoteNumber: z.string().trim().max(50).optional().nullable(),
   orderNumber: z.string().trim().max(50).optional().nullable(),
   purchaseOrderId: z.string().uuid().optional().nullable(),
+  projectId: z.string().uuid().optional().nullable(),
   lines: z
     .array(PurchaseInvoiceLineInputSchema)
     .min(1, "Faktur wajib punya minimal 1 baris item"),
@@ -38,6 +39,7 @@ export const UpdatePurchaseInvoiceSchema = z.object({
   quoteNumber: z.string().trim().max(50).optional().nullable(),
   orderNumber: z.string().trim().max(50).optional().nullable(),
   purchaseOrderId: z.string().uuid().optional().nullable(),
+  projectId: z.string().uuid().optional().nullable(),
   lines: z
     .array(PurchaseInvoiceLineInputSchema)
     .min(1, "Faktur wajib punya minimal 1 baris item")
@@ -76,6 +78,7 @@ export const PurchaseInvoiceResponseSchema = z.object({
   quoteNumber: z.string().nullable(),
   orderNumber: z.string().nullable(),
   purchaseOrderId: z.string().nullable(),
+  projectId: z.string().nullable(),
   invoiceAmount: z.number(),
   balanceDue: z.number(),
   status: PurchaseInvoiceStatusSchema,

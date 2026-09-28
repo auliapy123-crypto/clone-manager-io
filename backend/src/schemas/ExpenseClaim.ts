@@ -14,6 +14,7 @@ export const CreateExpenseClaimSchema = z.object({
   payerContactId: z.string().uuid(),
   payee: z.string().trim().max(255).nullable().optional(),
   description: z.string().trim().max(2000).nullable().optional(),
+  projectId: z.string().uuid().nullable().optional(),
   lines: z.array(ExpenseClaimLineInputSchema).min(1),
 });
 export const UpdateExpenseClaimSchema = CreateExpenseClaimSchema.partial().extend({
@@ -28,6 +29,7 @@ export const ExpenseClaimIdParamsSchema = BusinessIdParamsSchema.extend({ expens
 export const ExpenseClaimResponseSchema = z.object({
   id: z.string(), businessId: z.string(), date: z.string(), reference: z.string().nullable(),
   payerContactId: z.string(), payerName: z.string(), payee: z.string().nullable(), description: z.string().nullable(),
+  projectId: z.string().nullable(),
   claimAmount: z.number(), balanceDue: z.number(), status: z.enum(["Paid", "Unpaid"]),
   createdAt: z.date(), updatedAt: z.date(),
 });

@@ -50,6 +50,7 @@ export const CreateJournalEntrySchema = z
     entryDate: dateString,
     reference: z.string().trim().min(1).max(100).optional().nullable(),
     description: z.string().trim().max(2000).optional().nullable(),
+    projectId: z.string().uuid().optional().nullable(),
     lines: z
       .array(JournalEntryLineInputSchema)
       .min(2, "Jurnal manual wajib punya minimal 2 baris"),
@@ -61,6 +62,7 @@ export const UpdateJournalEntrySchema = z
     entryDate: dateString.optional(),
     reference: z.string().trim().min(1).max(100).optional().nullable(),
     description: z.string().trim().max(2000).optional().nullable(),
+    projectId: z.string().uuid().optional().nullable(),
     lines: z
       .array(JournalEntryLineInputSchema)
       .min(2, "Jurnal manual wajib punya minimal 2 baris")
@@ -100,6 +102,7 @@ export const JournalEntryResponseSchema = z.object({
   sourceModule: z.string(),
   sourceId: z.string().nullable(),
   description: z.string().nullable(),
+  projectId: z.string().nullable(),
   isManual: z.boolean(),
   totalDebit: z.number(),
   totalCredit: z.number(),

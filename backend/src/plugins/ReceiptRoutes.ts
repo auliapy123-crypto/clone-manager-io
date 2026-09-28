@@ -6,6 +6,7 @@ import { sendData, sendError, sendPaginated } from "../libs/reply.js";
 import { getBankAccountById } from "../repositories/BankAccountRepository.js";
 import { getAccountById } from "../repositories/ChartOfAccountRepository.js";
 import { getContactById } from "../repositories/ContactRepository.js";
+import { validateProjectAssignment } from "../repositories/ProjectRepository.js";
 import {
   createReceipt,
   getReceiptById,
@@ -142,6 +143,9 @@ export async function receiptRoutesPlugin(fastify: FastifyInstance) {
       );
       if (accountCheck) return sendError(reply, 400, ErrorCode.BAD_REQUEST, accountCheck);
 
+      const projectError = await validateProjectAssignment(businessId, body.projectId);
+      if (projectError) return sendError(reply, 400, ErrorCode.BAD_REQUEST, projectError);
+
       const receipt = await createReceipt(businessId, body);
 
       request.audit = {
@@ -204,6 +208,13 @@ export async function receiptRoutesPlugin(fastify: FastifyInstance) {
         );
         if (accountCheck) return sendError(reply, 400, ErrorCode.BAD_REQUEST, accountCheck);
       }
+
+      const projectError = await validateProjectAssignment(
+        businessId,
+        body.projectId,
+        existing.projectId,
+      );
+      if (projectError) return sendError(reply, 400, ErrorCode.BAD_REQUEST, projectError);
 
       const updated = await updateReceipt(businessId, receiptId, body);
       if (!updated) {

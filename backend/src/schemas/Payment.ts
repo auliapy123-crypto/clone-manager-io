@@ -20,6 +20,7 @@ export const CreatePaymentSchema = z.object({
   bankAccountId: z.string().uuid(),
   contactId: z.string().uuid(),
   description: z.string().trim().max(2000).optional().nullable(),
+  projectId: z.string().uuid().optional().nullable(),
   lines: z
     .array(PaymentLineInputSchema)
     .min(1, "Pembayaran wajib punya minimal 1 baris item"),
@@ -31,6 +32,7 @@ export const UpdatePaymentSchema = z.object({
   bankAccountId: z.string().uuid().optional(),
   contactId: z.string().uuid().optional(),
   description: z.string().trim().max(2000).optional().nullable(),
+  projectId: z.string().uuid().optional().nullable(),
   lines: z
     .array(PaymentLineInputSchema)
     .min(1, "Pembayaran wajib punya minimal 1 baris item")
@@ -65,6 +67,7 @@ export const PaymentResponseSchema = z.object({
   contactId: z.string(),
   contactName: z.string(),
   description: z.string().nullable(),
+  projectId: z.string().nullable(),
   totalAmount: z.number(),
   createdAt: z.date(),
   updatedAt: z.date(),

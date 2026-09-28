@@ -39,6 +39,7 @@ export interface JournalEntryCreateInput {
   entryDate: string;
   reference?: string | null;
   description?: string | null;
+  projectId?: string | null;
   lines: JournalEntryLineInput[];
 }
 
@@ -46,6 +47,7 @@ export interface JournalEntryUpdateInput {
   entryDate?: string;
   reference?: string | null;
   description?: string | null;
+  projectId?: string | null;
   lines?: JournalEntryLineInput[];
 }
 
@@ -78,6 +80,7 @@ export interface JournalEntryRecord {
   sourceModule: string;
   sourceId: string | null;
   description: string | null;
+  projectId: string | null;
   isManual: boolean;
   totalDebit: number;
   totalCredit: number;
@@ -178,6 +181,7 @@ function toRecord(header: {
   sourceModule: string;
   sourceId: string | null;
   description: string | null;
+  projectId: string | null;
   totalDebit: string | number | null;
   totalCredit: string | number | null;
 }): JournalEntryRecord {
@@ -189,6 +193,7 @@ function toRecord(header: {
     sourceModule: header.sourceModule,
     sourceId: header.sourceId,
     description: header.description,
+    projectId: header.projectId,
     isManual: header.sourceModule === MANUAL_JOURNAL_SOURCE_MODULE,
     totalDebit: Number(header.totalDebit ?? 0),
     totalCredit: Number(header.totalCredit ?? 0),
@@ -245,6 +250,7 @@ export async function listJournalEntries(
       sourceModule: journalEntries.sourceModule,
       sourceId: journalEntries.sourceId,
       description: journalEntries.description,
+      projectId: journalEntries.projectId,
       totalDebit: totals.totalDebit,
       totalCredit: totals.totalCredit,
     })
@@ -306,6 +312,7 @@ export async function getJournalEntryById(
       sourceModule: journalEntries.sourceModule,
       sourceId: journalEntries.sourceId,
       description: journalEntries.description,
+      projectId: journalEntries.projectId,
     })
     .from(journalEntries)
     .where(
@@ -347,6 +354,7 @@ export async function createManualJournalEntry(
         sourceModule: MANUAL_JOURNAL_SOURCE_MODULE,
         sourceId: null,
         description: input.description ?? null,
+        projectId: input.projectId ?? null,
       })
       .returning({ id: journalEntries.id });
 
@@ -403,6 +411,7 @@ export async function updateManualJournalEntry(
     if (input.entryDate) patch.entryDate = input.entryDate;
     if (input.reference !== undefined) patch.reference = input.reference;
     if (input.description !== undefined) patch.description = input.description;
+    if (input.projectId !== undefined) patch.projectId = input.projectId;
 
     if (Object.keys(patch).length > 0) {
       await tx

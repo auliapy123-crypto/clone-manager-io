@@ -45,6 +45,7 @@ export interface SalesInvoiceCreateInput {
   dueDate?: string;
   billingAddress?: string | null;
   description?: string | null;
+  projectId?: string | null;
   lines: SalesInvoiceLineInput[];
 }
 
@@ -55,6 +56,7 @@ export interface SalesInvoiceUpdateInput {
   dueDate?: string | null;
   billingAddress?: string | null;
   description?: string | null;
+  projectId?: string | null;
   lines?: SalesInvoiceLineInput[];
 }
 
@@ -101,6 +103,7 @@ export interface SalesInvoiceRecord {
   dueDate: string | null;
   billingAddress: string | null;
   description: string | null;
+  projectId: string | null;
   invoiceAmount: number;
   balanceDue: number;
   status: ComputedInvoiceStatus;
@@ -409,6 +412,7 @@ function toRecord(
     dueDate: string | null;
     billingAddress: string | null;
     description: string | null;
+    projectId: string | null;
     createdAt: Date;
     updatedAt: Date;
   },
@@ -483,6 +487,7 @@ export async function listSalesInvoices(
       dueDate: salesInvoices.dueDate,
       billingAddress: salesInvoices.billingAddress,
       description: salesInvoices.description,
+      projectId: salesInvoices.projectId,
       invoiceAmount: totals.invoiceAmount,
       createdAt: salesInvoices.createdAt,
       updatedAt: salesInvoices.updatedAt,
@@ -558,6 +563,7 @@ export async function getSalesInvoiceById(
       dueDate: salesInvoices.dueDate,
       billingAddress: salesInvoices.billingAddress,
       description: salesInvoices.description,
+      projectId: salesInvoices.projectId,
       createdAt: salesInvoices.createdAt,
       updatedAt: salesInvoices.updatedAt,
     })
@@ -603,6 +609,7 @@ export async function createSalesInvoice(
         dueDate: input.dueDateResolved,
         billingAddress: input.billingAddressResolved,
         description: input.description ?? null,
+        projectId: input.projectId ?? null,
       })
       .returning({ id: salesInvoices.id });
 
@@ -730,6 +737,7 @@ export async function updateSalesInvoice(
       dueDate: string | null;
       billingAddress: string | null;
       description: string | null;
+      projectId: string | null;
       updatedAt: Date;
     }> = { updatedAt: new Date() };
     if (input.customerId) patch.customerId = input.customerId;
@@ -744,6 +752,7 @@ export async function updateSalesInvoice(
       if (input.billingAddress !== undefined) patch.billingAddress = input.billingAddress;
     }
     if (input.description !== undefined) patch.description = input.description;
+    if (input.projectId !== undefined) patch.projectId = input.projectId;
 
     await tx
       .update(salesInvoices)
