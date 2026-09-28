@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { apiClient } from "@/integrations/setup";
 import type { PaginationInfo } from "@/hooks/use-members";
 import { ApiError, type ApiErrorBody } from "@/lib/errors";
@@ -141,6 +142,44 @@ export function useUpdateProject(businessId: string) {
       });
     },
   });
+}
+
+/**
+ * Opsi dropdown "Project" untuk form transaksi 6 modul (§10 dokumen
+ * Projects): daftar proyek berstatus active, DITAMBAH proyek yang
+ * sedang tertandai pada dokumen ini (`currentProjectId`) walau
+ * statusnya sekarang inactive/completed -- supaya tag lama tidak
+ * hilang diam-diam saat form edit dibuka.
+ */
+export function useProjectOptions(
+  businessId: string,
+  currentProjectId?: string | null,
+) {
+  const { data: activeData, isPending } = useProjects(
+    businessId,
+    1,
+    { status: "active" },
+    100,
+  );
+
+  const needsCurrentLookup =
+    !!currentProjectId &&
+    !(activeData?.data ?? []).some((p) => p.id === currentProjectId);
+
+  const { data: currentProject } = useProject(
+    businessId,
+    needsCurrentLookup ? currentProjectId : null,
+  );
+
+  const options = useMemo(() => {
+    const list = activeData?.data ?? [];
+    if (currentProject && !list.some((p) => p.id === currentProject.id)) {
+      return [...list, currentProject];
+    }
+    return list;
+  }, [activeData, currentProject]);
+
+  return { options, isPending };
 }
 
 /** DELETE /businesses/:businessId/projects/:id — hapus proyek (soft-delete). */

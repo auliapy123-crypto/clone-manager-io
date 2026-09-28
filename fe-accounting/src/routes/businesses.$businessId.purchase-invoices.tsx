@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useBusinesses } from "@/hooks/use-businesses";
+import { useProjectOptions } from "@/hooks/use-projects";
 import { useSuppliers } from "@/hooks/use-suppliers";
 import {
   getTodayDateString,
@@ -417,9 +418,15 @@ function PurchaseInvoiceFormDialog({
   const [description, setDescription] = useState("");
   const [quoteNumber, setQuoteNumber] = useState("");
   const [orderNumber, setOrderNumber] = useState("");
+  const [projectId, setProjectId] = useState("");
   const [lines, setLines] = useState<FormLine[]>([createEmptyLine()]);
   const [formError, setFormError] = useState<string | null>(null);
   const [prefillApplied, setPrefillApplied] = useState(false);
+
+  const { options: projectOptions } = useProjectOptions(
+    businessId,
+    existingInvoice?.projectId,
+  );
 
   useEffect(() => {
     if (isNew && convertPrefill && !prefillApplied) {
@@ -448,6 +455,7 @@ function PurchaseInvoiceFormDialog({
       setDescription(existingInvoice.description ?? "");
       setQuoteNumber(existingInvoice.quoteNumber ?? "");
       setOrderNumber(existingInvoice.orderNumber ?? "");
+      setProjectId(existingInvoice.projectId ?? "");
 
       if (existingInvoice.lines && existingInvoice.lines.length > 0) {
         setLines(
@@ -567,6 +575,7 @@ function PurchaseInvoiceFormDialog({
           quoteNumber: quoteNumber.trim() || undefined,
           orderNumber: orderNumber.trim() || undefined,
           purchaseOrderId: convertPrefill?.purchaseOrderId ?? undefined,
+          projectId: projectId || null,
           lines: formattedLines,
         });
       } else {
@@ -579,6 +588,7 @@ function PurchaseInvoiceFormDialog({
           description: description.trim() || null,
           quoteNumber: quoteNumber.trim() || null,
           orderNumber: orderNumber.trim() || null,
+          projectId: projectId || null,
           lines: formattedLines,
         });
       }
@@ -729,6 +739,25 @@ function PurchaseInvoiceFormDialog({
                     disabled={!canWrite}
                     onChange={(event) => setDescription(event.target.value)}
                   />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
+                    Project
+                  </label>
+                  <select
+                    className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
+                    value={projectId}
+                    disabled={!canWrite}
+                    onChange={(event) => setProjectId(event.target.value)}
+                  >
+                    <option value="">-- Tanpa Proyek --</option>
+                    {projectOptions.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} {p.code ? `(${p.code})` : ""}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

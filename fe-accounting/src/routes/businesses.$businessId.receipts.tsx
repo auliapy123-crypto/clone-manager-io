@@ -15,6 +15,7 @@ import { useAccounts } from "@/hooks/use-accounts";
 import { useBankAccounts } from "@/hooks/use-bank-accounts";
 import { useBusinesses } from "@/hooks/use-businesses";
 import { useCustomers } from "@/hooks/use-customers";
+import { useProjectOptions } from "@/hooks/use-projects";
 import {
   getTodayDateString,
   type Receipt,
@@ -321,8 +322,14 @@ function ReceiptFormDialog({
   const [bankAccountId, setBankAccountId] = useState("");
   const [contactId, setContactId] = useState("");
   const [description, setDescription] = useState("");
+  const [projectId, setProjectId] = useState("");
   const [lines, setLines] = useState<FormLine[]>([createEmptyLine()]);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const { options: projectOptions } = useProjectOptions(
+    businessId,
+    existingReceipt?.projectId,
+  );
 
   useEffect(() => {
     if (!isNew && existingReceipt) {
@@ -331,6 +338,7 @@ function ReceiptFormDialog({
       setBankAccountId(existingReceipt.bankAccountId);
       setContactId(existingReceipt.contactId ?? "");
       setDescription(existingReceipt.description ?? "");
+      setProjectId(existingReceipt.projectId ?? "");
 
       if (existingReceipt.lines && existingReceipt.lines.length > 0) {
         setLines(
@@ -432,6 +440,7 @@ function ReceiptFormDialog({
           bankAccountId,
           contactId: contactId || undefined,
           description: description.trim() || undefined,
+          projectId: projectId || null,
           lines: formattedLines,
         });
       } else {
@@ -442,6 +451,7 @@ function ReceiptFormDialog({
           bankAccountId,
           contactId: contactId || null,
           description: description.trim() || null,
+          projectId: projectId || null,
           lines: formattedLines,
         });
       }
@@ -569,6 +579,25 @@ function ReceiptFormDialog({
                     disabled={!canWrite}
                     onChange={(event) => setDescription(event.target.value)}
                   />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
+                    Project
+                  </label>
+                  <select
+                    className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
+                    value={projectId}
+                    disabled={!canWrite}
+                    onChange={(event) => setProjectId(event.target.value)}
+                  >
+                    <option value="">-- Tanpa Proyek --</option>
+                    {projectOptions.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} {p.code ? `(${p.code})` : ""}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

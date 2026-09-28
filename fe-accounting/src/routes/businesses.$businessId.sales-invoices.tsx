@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useBusinesses } from "@/hooks/use-businesses";
 import { useCustomers } from "@/hooks/use-customers";
+import { useProjectOptions } from "@/hooks/use-projects";
 import {
   getTodayDateString,
   type SalesInvoice,
@@ -373,8 +374,14 @@ function SalesInvoiceFormDialog({
   const [dueDate, setDueDate] = useState("");
   const [billingAddress, setBillingAddress] = useState("");
   const [description, setDescription] = useState("");
+  const [projectId, setProjectId] = useState("");
   const [lines, setLines] = useState<FormLine[]>([createEmptyLine()]);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const { options: projectOptions } = useProjectOptions(
+    businessId,
+    existingInvoice?.projectId,
+  );
 
   // Inisialisasi form saat mode edit selesai memuat data invoice
   useEffect(() => {
@@ -385,6 +392,7 @@ function SalesInvoiceFormDialog({
       setDueDate(existingInvoice.dueDate ?? "");
       setBillingAddress(existingInvoice.billingAddress ?? "");
       setDescription(existingInvoice.description ?? "");
+      setProjectId(existingInvoice.projectId ?? "");
 
       if (existingInvoice.lines && existingInvoice.lines.length > 0) {
         setLines(
@@ -514,6 +522,7 @@ function SalesInvoiceFormDialog({
           dueDate: dueDate.trim() || undefined,
           billingAddress: billingAddress.trim() || undefined,
           description: description.trim() || undefined,
+          projectId: projectId || null,
           lines: formattedLines,
         });
       } else {
@@ -525,6 +534,7 @@ function SalesInvoiceFormDialog({
           dueDate: dueDate.trim() || null,
           billingAddress: billingAddress.trim() || null,
           description: description.trim() || null,
+          projectId: projectId || null,
           lines: formattedLines,
         });
       }
@@ -647,6 +657,25 @@ function SalesInvoiceFormDialog({
                     disabled={!canWrite}
                     onChange={(event) => setDescription(event.target.value)}
                   />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
+                    Project
+                  </label>
+                  <select
+                    className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
+                    value={projectId}
+                    disabled={!canWrite}
+                    onChange={(event) => setProjectId(event.target.value)}
+                  >
+                    <option value="">-- Tanpa Proyek --</option>
+                    {projectOptions.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} {p.code ? `(${p.code})` : ""}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

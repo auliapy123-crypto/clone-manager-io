@@ -37,6 +37,7 @@ export interface PurchaseInvoice {
   quoteNumber: string | null;
   orderNumber: string | null;
   purchaseOrderId: string | null;
+  projectId: string | null;
   invoiceAmount: number;
   balanceDue: number;
   status: PurchaseInvoiceStatus;
@@ -62,6 +63,7 @@ export interface CreatePurchaseInvoiceInput {
   quoteNumber?: string | null;
   orderNumber?: string | null;
   purchaseOrderId?: string | null;
+  projectId?: string | null;
   lines: PurchaseInvoiceLineInput[];
 }
 
@@ -75,6 +77,7 @@ export interface UpdatePurchaseInvoiceInput {
   quoteNumber?: string | null;
   orderNumber?: string | null;
   purchaseOrderId?: string | null;
+  projectId?: string | null;
   lines?: PurchaseInvoiceLineInput[];
 }
 
