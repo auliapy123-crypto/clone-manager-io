@@ -153,7 +153,7 @@ function ProjectsPage() {
                     <th className="px-6 py-3 text-right font-medium">Expenses</th>
                     <th className="px-6 py-3 text-right font-medium">Net Profit</th>
                     <th className="px-6 py-3 font-medium">Status</th>
-                    {canWrite && <th className="px-6 py-3 font-medium">Aksi</th>}
+                    <th className="px-6 py-3 font-medium">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -188,7 +188,7 @@ function ProjectsPage() {
                     >
                       {formatAmount(totals.netProfit)}
                     </td>
-                    <td colSpan={canWrite ? 2 : 1} />
+                    <td colSpan={2} />
                   </tr>
                 </tfoot>
               </table>
@@ -244,6 +244,7 @@ function ProjectRow({
 }) {
   const deleteProject = useDeleteProject(businessId);
   const [editOpen, setEditOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [rowError, setRowError] = useState<string | null>(null);
 
   const handleDelete = async () => {
@@ -284,29 +285,43 @@ function ProjectRow({
         <td className="px-6 py-3">
           <StatusBadge status={project.status} />
         </td>
-        {canWrite && (
-          <td className="px-6 py-3">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setEditOpen(true)}
-              >
-                Edit
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                disabled={deleteProject.isPending}
-                onClick={() => void handleDelete()}
-              >
-                Hapus
-              </Button>
-            </div>
-            {rowError && <p className="mt-1 text-xs text-red-600">{rowError}</p>}
-          </td>
-        )}
+        <td className="px-6 py-3">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSummaryOpen(true)}
+            >
+              Ringkasan
+            </Button>
+            {canWrite && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditOpen(true)}
+                >
+                  Edit
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={deleteProject.isPending}
+                  onClick={() => void handleDelete()}
+                >
+                  Hapus
+                </Button>
+              </>
+            )}
+          </div>
+          {rowError && <p className="mt-1 text-xs text-red-600">{rowError}</p>}
+        </td>
       </tr>
+      <ProjectSummaryDialog
+        open={summaryOpen}
+        onOpenChange={setSummaryOpen}
+        project={project}
+      />
       {canWrite && (
         <ProjectFormDialog
           mode="edit"
@@ -317,6 +332,65 @@ function ProjectRow({
         />
       )}
     </>
+  );
+}
+
+function ProjectSummaryDialog({
+  open,
+  onOpenChange,
+  project,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  project: Project;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent onClose={() => onOpenChange(false)}>
+        <DialogHeader>
+          <DialogTitle>Ringkasan {project.name}</DialogTitle>
+          <DialogDescription>
+            {project.code ? `${project.code} · ` : ""}dihitung real-time dari
+            jurnal transaksi yang ditandai proyek ini.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between rounded-md bg-gray-50 px-4 py-3">
+            <span className="text-sm text-gray-600">Income</span>
+            <span className="text-sm font-semibold text-gray-900">
+              {formatAmount(project.totalIncome)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between rounded-md bg-gray-50 px-4 py-3">
+            <span className="text-sm text-gray-600">Expenses</span>
+            <span className="text-sm font-semibold text-gray-900">
+              {formatAmount(project.totalExpenses)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between rounded-md bg-gray-50 px-4 py-3">
+            <span className="text-sm text-gray-600">Net Profit</span>
+            <span
+              className={`text-sm font-semibold ${
+                project.netProfit > 0
+                  ? "text-green-600"
+                  : project.netProfit < 0
+                    ? "text-red-600"
+                    : "text-gray-900"
+              }`}
+            >
+              {formatAmount(project.netProfit)}
+            </span>
+          </div>
+        </div>
+
+        <DialogFooter className="mt-4">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Tutup
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
