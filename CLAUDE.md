@@ -187,17 +187,6 @@ environment variable atau `.env` yang sudah di-gitignore.
   di frontend (halaman Purchase Invoices dibuka dengan query
   `?convertFromPO=<id>`, form ter-prefill, `purchaseOrderId` ikut
   terkirim saat create faktur).
-- **SalesQuotes** — `/businesses/:businessId/sales-quotes`. Dokumen
-  NON-POSTING, TANPA status, TANPA relasi ke dokumen lain (delete bebas
-  tanpa lock). Tabel `sales_quotes` + `sales_quote_lines`; baris item
-  **TANPA `account_id`** (cuma description/quantity/unitPrice — beda dari
-  PO/invoice). `totalAmount` (SUM `line_total`) & `expiryDate`
-  (`issue_date + valid_for_days`, null kalau kosong) dihitung real-time,
-  TIDAK disimpan. `billing_address` auto-isi dari Customer saat create
-  HANYA kalau body tidak mengirim field itu (string kosong eksplisit
-  tetap dihormati). **SENGAJA TANPA tombol konversi ke Sales Order /
-  Sales Invoice** (beda dari PO) — jangan ditambahkan, itu keputusan
-  desain di `Dokumentasi Modul/SalesQuotes.md` §2.1.
 - **ExpenseClaims** — `/businesses/:id/expense-claims`. Payer = kontak
   mana pun di tabel `contacts` (tanpa flag khusus). Posting jurnal:
   Debit akun Expense/Asset per baris, Kredit akun kontrol Expense Claims
@@ -232,6 +221,37 @@ environment variable atau `.env` yang sudah di-gitignore.
   Liability termasuk Utang Pajak & akun kontrol AP, Equity) TIDAK
   dihitung, jadi pajak tidak masuk income dan pelunasan Payment tidak
   dihitung ganda sebagai beban.
+- **SalesQuotes** — `/businesses/:id/sales-quotes`. Non-posting, TANPA
+  status, TANPA konversi otomatis ke Sales Order/Invoice (dokumen resmi
+  sendiri bilang nggak ada jalur otomatis di tool asli — sengaja diikuti
+  apa adanya). Baris item TANPA `account_id` (beda dari modul transaksi
+  lain — belum ada konsep akun Revenue di tahap penawaran).
+  `billingAddress` auto-isi dari Customer saat create (kalau body nggak
+  kirim field itu eksplisit), `expiryDate` dihitung live dari
+  `issueDate + validForDays`.
+- **SalesOrders** — `/businesses/:id/sales-orders`. Struktur HAMPIR
+  SAMA PERSIS Sales Quotes tapi lebih sedikit field: TANPA Valid For/
+  Expiry Date, TANPA Billing Address (dokumen resmi sendiri nggak nyebut
+  field itu buat modul ini — jangan ditambah sendiri). Field
+  `orderNumber` yang udah ada di Sales Invoices tetap teks bebas (bukan
+  FK), karena TIDAK ADA jalur konversi otomatis dari sini juga.
+- **CreditNotes** — `/businesses/:id/credit-notes`. Modul TRANSAKSI
+  (posting jurnal), TAPI TIDAK terikat ke Sales Invoice tertentu — beda
+  dari pola alokasi Payments→Purchase Invoice. Jurnal KEBALIKAN dari
+  Sales Invoices: Debit akun Revenue pilihan per baris, Kredit akun
+  kontrol Accounts Receivable (`contactId`=customer), langsung ngurangin
+  `accountsReceivable` Customer secara umum (live, sama pola perhitungan
+  yang udah ada). Reuse `findArControlAccount` yang tadinya cuma dipakai
+  SalesInvoiceRepository.
+- **LatePaymentFees** — `/businesses/:id/late-payment-fees`. Modul
+  PALING SIMPEL sejauh ini: TANPA baris item (1 tabel datar), TANPA
+  jurnal sama sekali, TANPA endpoint GET detail terpisah (cuma
+  list/create/update/delete — dokumen resmi eksplisit cuma minta 4
+  endpoint). `amount` diisi MANUAL (bukan dihitung otomatis dari %/hari
+  telat). WAJIB validasi silang: `salesInvoiceId` yang dipilih harus
+  benar-benar milik `customerId` yang sama, ditolak 400 kalau nggak
+  cocok — SELALU diuji dengan bikin 1 customer/invoice yang SENGAJA
+  nggak cocok, bukan cuma diasumsikan.
 
 ### Status fase
 
@@ -240,8 +260,12 @@ environment variable atau `.env` yang sudah di-gitignore.
   Suppliers, Bank and Cash Accounts, Sales Invoices, Purchase Invoices,
   Receipts, Payments, Inter Account Transfers, Bank Reconciliations,
   Journal Entries, Purchase Orders, Expense Claims, Projects.
-- **Fase 3 (Modul Prioritas 2) — BERIKUTNYA.** Daftar dari roadmap:
-  Sales Quotes ✅, Sales Orders, Credit Notes, Late Payment Fees, Delivery
+- **Fase 3 (Modul Prioritas 2) — SEDANG BERJALAN.** Sudah selesai:
+  Sales Quotes, Sales Orders, Credit Notes, Late Payment Fees.
+  **Berikutnya: Delivery Notes** (dokumen resmi §14, file yang sama
+  dengan 4 modul di atas — "Analisis Fitur dan Kebutuhan Sistem Manager
+  intern- Aulia.docx"). Sisa daftar dari roadmap:
+  Sales Quotes, Sales Orders, Credit Notes, Late Payment Fees, Delivery
   Notes, Billable Time, Withholding Tax Receipts, Purchase Quotes, Debit
   Notes, Goods Receipts, Inventory (Items, Transfers, Write-offs),
   Production Orders, Employees & Payslips (Payroll), Fixed Assets &
@@ -255,6 +279,19 @@ environment variable atau `.env` yang sudah di-gitignore.
   Credit Notes, Late Payment Fees; file "Analisis Manager.io kebutuhan
   Sistem Prioritas 2 Pahrio Kaspiyanor" memuat Withholding Tax Receipts,
   Purchase Quotes, Debit Notes, Goods Receipts, Inventory.
+  Spesifikasi detail yang SUDAH ADA: 11 modul (Sales Quotes, Sales
+  Orders, Credit Notes, Late Payment Fees, Delivery Notes, Withholding
+  Tax Receipts, Purchase Quotes, Debit Notes, Goods Receipts, Inventory
+  Items, Inventory Transfers). Spesifikasi yang BELUM ADA (jangan
+  disusun dari tebakan, minta ke manager/owner dulu; dokumen Prioritas 2
+  sendiri bilang "akan didokumentasikan pada tahap berikutnya"): Billable
+  Time, Inventory Write-offs, Production Orders, Employees & Payslips,
+  Fixed Assets & Depreciation Entries, Intangible Assets & Amortization
+  Entries, Capital Accounts, Special Accounts, Folders.
+  PERLU KEPUTUSAN DESAIN sebelum mengerjakan Inventory: modul ini
+  mengubah baris item faktur dari "akun COA" (yang dipakai semua faktur
+  sekarang) menjadi "item persediaan" + perhitungan HPP/COGS, jadi
+  menyentuh modul yang sudah jadi (retrofit atau dikerjakan belakangan).
   Kerjakan modul-modul yang menyambung ke alur yang sudah ada lebih dulu
   (mis. Sales Quotes → Sales Orders → Credit Notes, yang berkaitan ke
   Sales Invoices), dan tanyakan urutan pastinya ke owner sebelum mulai.
@@ -268,9 +305,8 @@ environment variable atau `.env` yang sudah di-gitignore.
 
 1. Bedakan dulu apakah modul MEMBENTUK JURNAL (Sales/Purchase Invoices,
    Receipts, Payments, Transfers, Expense Claims, jurnal manual) atau
-   NON-POSTING (Purchase Orders, Sales Quotes, Bank Reconciliations,
-   Projects). Modul non-posting nggak menyentuh `journal_entries` sama
-   sekali.
+   NON-POSTING (Purchase Orders, Bank Reconciliations, Projects). Modul
+   non-posting nggak menyentuh `journal_entries` sama sekali.
 2. Status dokumen yang bergantung pada dokumen lain DIHITUNG saat GET,
    bukan disimpan sebagai kolom (Unpaid/Overdue/Paid, status PO, dst).
 3. Relasi antar modul lewat kolom nullable (`purchase_order_id`,
@@ -325,8 +361,9 @@ asumsi dari nama file doang.**
 - Members (kelola anggota per bisnis)
 - Chart of Accounts, Customers, Suppliers, Bank and Cash Accounts, Sales
   Invoices, Purchase Invoices, Receipts, Payments, Inter Account
-  Transfers, Bank Reconciliations, Journal Entries, Purchase Orders, Sales
-  Quotes, Expense Claims, Projects (14 modul lengkap)
+  Transfers, Bank Reconciliations, Journal Entries, Purchase Orders, Expense
+  Claims, Projects (13 modul Fase 2 lengkap), Sales Quotes, Sales Orders,
+  Credit Notes, Late Payment Fees (4 modul Fase 3 sejauh ini)
 
 ## Aturan Kerja
 
