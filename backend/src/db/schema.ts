@@ -833,6 +833,39 @@ export const salesOrderLines = pgTable(
 );
 
 // =====================================================================
+// 21e. LATE_PAYMENT_FEES (Denda Keterlambatan) — NON-POSTING
+//
+// Modul PALING SIMPEL: TANPA baris item, TANPA jurnal, murni catatan
+// datar. amount diisi MANUAL (bukan dihitung otomatis). salesInvoiceId
+// WAJIB milik customerId yang sama (divalidasi di repository/routes).
+// =====================================================================
+export const latePaymentFees = pgTable(
+  "late_payment_fees",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    date: date().notNull(),
+    customerId: uuid()
+      .notNull()
+      .references(() => contacts.id),
+    salesInvoiceId: uuid()
+      .notNull()
+      .references(() => salesInvoices.id),
+    amount: numeric({ precision: 18, scale: 2 }).notNull(),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+    deletedAt: timestamp(),
+  },
+  (t) => [
+    index("idx_late_payment_fees_business").on(t.businessId),
+    index("idx_late_payment_fees_customer").on(t.customerId),
+    index("idx_late_payment_fees_invoice").on(t.salesInvoiceId),
+  ],
+);
+
+// =====================================================================
 // 22. PROJECTS (Proyek)
 // =====================================================================
 export const projects = pgTable(
@@ -908,6 +941,7 @@ export const businessesRelations = relations(businesses, ({ many }) => ({
   salesQuotes: many(salesQuotes),
   salesOrders: many(salesOrders),
   creditNotes: many(creditNotes),
+  latePaymentFees: many(latePaymentFees),
   projects: many(projects),
   auditLogs: many(auditLogs),
 }));
@@ -958,6 +992,7 @@ export const contactsRelations = relations(contacts, ({ one, many }) => ({
   salesQuotes: many(salesQuotes),
   salesOrders: many(salesOrders),
   creditNotes: many(creditNotes),
+  latePaymentFees: many(latePaymentFees),
 }));
 
 export const journalEntriesRelations = relations(
@@ -1183,6 +1218,21 @@ export const salesOrderLinesRelations = relations(
   }),
 );
 
+export const latePaymentFeesRelations = relations(latePaymentFees, ({ one }) => ({
+  business: one(businesses, {
+    fields: [latePaymentFees.businessId],
+    references: [businesses.id],
+  }),
+  customer: one(contacts, {
+    fields: [latePaymentFees.customerId],
+    references: [contacts.id],
+  }),
+  salesInvoice: one(salesInvoices, {
+    fields: [latePaymentFees.salesInvoiceId],
+    references: [salesInvoices.id],
+  }),
+}));
+
 export const receiptsRelations = relations(receipts, ({ one, many }) => ({
   business: one(businesses, {
     fields: [receipts.businessId],
@@ -1350,6 +1400,7 @@ export type SalesQuote = typeof salesQuotes.$inferSelect;
 export type SalesQuoteLine = typeof salesQuoteLines.$inferSelect;
 export type SalesOrder = typeof salesOrders.$inferSelect;
 export type SalesOrderLine = typeof salesOrderLines.$inferSelect;
+export type LatePaymentFee = typeof latePaymentFees.$inferSelect;
 export type Receipt = typeof receipts.$inferSelect;
 export type ReceiptLine = typeof receiptLines.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
