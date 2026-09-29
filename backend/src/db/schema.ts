@@ -675,6 +675,60 @@ export const purchaseOrderLines = pgTable(
 );
 
 // =====================================================================
+// 21a. SALES_QUOTES  (header penawaran harga — NON-POSTING)
+//
+// - TIDAK ADA jurnal dari modul ini.
+// - TANPA kolom status & TANPA total tersimpan: totalAmount dan
+//   expiryDate dihitung real-time saat GET.
+// =====================================================================
+export const salesQuotes = pgTable(
+  "sales_quotes",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    customerId: uuid()
+      .notNull()
+      .references(() => contacts.id),
+    issueDate: date().notNull(),
+    validForDays: integer(),
+    reference: varchar({ length: 50 }),
+    billingAddress: text(),
+    description: text(),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+    deletedAt: timestamp(),
+  },
+  (t) => [
+    index("idx_sales_quotes_business").on(t.businessId),
+    index("idx_sales_quotes_customer").on(t.customerId),
+  ],
+);
+
+// =====================================================================
+// 21b. SALES_QUOTE_LINES  (baris item penawaran)
+//
+// BEDA dari PO/invoice: TANPA account_id — tahap penawaran belum
+// menyentuh akuntansi. line_total = quantity × unit_price.
+// =====================================================================
+export const salesQuoteLines = pgTable(
+  "sales_quote_lines",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    salesQuoteId: uuid()
+      .notNull()
+      .references(() => salesQuotes.id, { onDelete: "cascade" }),
+    description: varchar({ length: 255 }).notNull(),
+    quantity: numeric({ precision: 18, scale: 4 }).notNull().default("1.0000"),
+    unitPrice: numeric({ precision: 18, scale: 2 }).notNull(),
+    lineTotal: numeric({ precision: 18, scale: 2 }).notNull(),
+    sortOrder: integer().notNull().default(0),
+  },
+  (t) => [index("idx_sales_quote_lines_quote").on(t.salesQuoteId)],
+);
+
+// =====================================================================
 // 22. PROJECTS (Proyek)
 // =====================================================================
 export const projects = pgTable(
@@ -747,6 +801,7 @@ export const businessesRelations = relations(businesses, ({ many }) => ({
   interAccountTransfers: many(interAccountTransfers),
   bankReconciliations: many(bankReconciliations),
   purchaseOrders: many(purchaseOrders),
+  salesQuotes: many(salesQuotes),
   projects: many(projects),
   auditLogs: many(auditLogs),
 }));
@@ -794,6 +849,7 @@ export const contactsRelations = relations(contacts, ({ one, many }) => ({
   receipts: many(receipts),
   payments: many(payments),
   purchaseOrders: many(purchaseOrders),
+  salesQuotes: many(salesQuotes),
 }));
 
 export const journalEntriesRelations = relations(
@@ -942,6 +998,28 @@ export const purchaseOrderLinesRelations = relations(
     account: one(chartOfAccounts, {
       fields: [purchaseOrderLines.accountId],
       references: [chartOfAccounts.id],
+    }),
+  }),
+);
+
+export const salesQuotesRelations = relations(salesQuotes, ({ one, many }) => ({
+  business: one(businesses, {
+    fields: [salesQuotes.businessId],
+    references: [businesses.id],
+  }),
+  customer: one(contacts, {
+    fields: [salesQuotes.customerId],
+    references: [contacts.id],
+  }),
+  lines: many(salesQuoteLines),
+}));
+
+export const salesQuoteLinesRelations = relations(
+  salesQuoteLines,
+  ({ one }) => ({
+    quote: one(salesQuotes, {
+      fields: [salesQuoteLines.salesQuoteId],
+      references: [salesQuotes.id],
     }),
   }),
 );
@@ -1107,6 +1185,8 @@ export type PurchaseInvoice = typeof purchaseInvoices.$inferSelect;
 export type PurchaseInvoiceLine = typeof purchaseInvoiceLines.$inferSelect;
 export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
 export type PurchaseOrderLine = typeof purchaseOrderLines.$inferSelect;
+export type SalesQuote = typeof salesQuotes.$inferSelect;
+export type SalesQuoteLine = typeof salesQuoteLines.$inferSelect;
 export type Receipt = typeof receipts.$inferSelect;
 export type ReceiptLine = typeof receiptLines.$inferSelect;
 export type Payment = typeof payments.$inferSelect;

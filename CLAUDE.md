@@ -187,6 +187,17 @@ environment variable atau `.env` yang sudah di-gitignore.
   di frontend (halaman Purchase Invoices dibuka dengan query
   `?convertFromPO=<id>`, form ter-prefill, `purchaseOrderId` ikut
   terkirim saat create faktur).
+- **SalesQuotes** — `/businesses/:businessId/sales-quotes`. Dokumen
+  NON-POSTING, TANPA status, TANPA relasi ke dokumen lain (delete bebas
+  tanpa lock). Tabel `sales_quotes` + `sales_quote_lines`; baris item
+  **TANPA `account_id`** (cuma description/quantity/unitPrice — beda dari
+  PO/invoice). `totalAmount` (SUM `line_total`) & `expiryDate`
+  (`issue_date + valid_for_days`, null kalau kosong) dihitung real-time,
+  TIDAK disimpan. `billing_address` auto-isi dari Customer saat create
+  HANYA kalau body tidak mengirim field itu (string kosong eksplisit
+  tetap dihormati). **SENGAJA TANPA tombol konversi ke Sales Order /
+  Sales Invoice** (beda dari PO) — jangan ditambahkan, itu keputusan
+  desain di `Dokumentasi Modul/SalesQuotes.md` §2.1.
 - **ExpenseClaims** — `/businesses/:id/expense-claims`. Payer = kontak
   mana pun di tabel `contacts` (tanpa flag khusus). Posting jurnal:
   Debit akun Expense/Asset per baris, Kredit akun kontrol Expense Claims
@@ -230,7 +241,7 @@ environment variable atau `.env` yang sudah di-gitignore.
   Receipts, Payments, Inter Account Transfers, Bank Reconciliations,
   Journal Entries, Purchase Orders, Expense Claims, Projects.
 - **Fase 3 (Modul Prioritas 2) — BERIKUTNYA.** Daftar dari roadmap:
-  Sales Quotes, Sales Orders, Credit Notes, Late Payment Fees, Delivery
+  Sales Quotes ✅, Sales Orders, Credit Notes, Late Payment Fees, Delivery
   Notes, Billable Time, Withholding Tax Receipts, Purchase Quotes, Debit
   Notes, Goods Receipts, Inventory (Items, Transfers, Write-offs),
   Production Orders, Employees & Payslips (Payroll), Fixed Assets &
@@ -257,8 +268,9 @@ environment variable atau `.env` yang sudah di-gitignore.
 
 1. Bedakan dulu apakah modul MEMBENTUK JURNAL (Sales/Purchase Invoices,
    Receipts, Payments, Transfers, Expense Claims, jurnal manual) atau
-   NON-POSTING (Purchase Orders, Bank Reconciliations, Projects). Modul
-   non-posting nggak menyentuh `journal_entries` sama sekali.
+   NON-POSTING (Purchase Orders, Sales Quotes, Bank Reconciliations,
+   Projects). Modul non-posting nggak menyentuh `journal_entries` sama
+   sekali.
 2. Status dokumen yang bergantung pada dokumen lain DIHITUNG saat GET,
    bukan disimpan sebagai kolom (Unpaid/Overdue/Paid, status PO, dst).
 3. Relasi antar modul lewat kolom nullable (`purchase_order_id`,
@@ -313,8 +325,8 @@ asumsi dari nama file doang.**
 - Members (kelola anggota per bisnis)
 - Chart of Accounts, Customers, Suppliers, Bank and Cash Accounts, Sales
   Invoices, Purchase Invoices, Receipts, Payments, Inter Account
-  Transfers, Bank Reconciliations, Journal Entries, Purchase Orders, Expense
-  Claims, Projects (13 modul Fase 2 lengkap)
+  Transfers, Bank Reconciliations, Journal Entries, Purchase Orders, Sales
+  Quotes, Expense Claims, Projects (14 modul lengkap)
 
 ## Aturan Kerja
 
