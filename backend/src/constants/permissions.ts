@@ -90,6 +90,11 @@ export const Permission = {
     SALES_ORDER_WRITE: "sales_order:write",
     SALES_ORDER_DELETE: "sales_order:delete",
 
+    // Nota kredit
+    CREDIT_NOTE_READ: "credit_note:read",
+    CREDIT_NOTE_WRITE: "credit_note:write",
+    CREDIT_NOTE_DELETE: "credit_note:delete",
+
     EXPENSE_CLAIM_READ: "expense_claim:read",
     EXPENSE_CLAIM_WRITE: "expense_claim:write",
     EXPENSE_CLAIM_DELETE: "expense_claim:delete",
@@ -120,10 +125,11 @@ const READ_ONLY: PermissionValue[] = [
   Permission.INTER_ACCOUNT_TRANSFER_READ,
   Permission.BANK_RECONCILIATION_READ,
   Permission.JOURNAL_ENTRY_READ,
-  Permission.PURCHASE_ORDER_READ,
-  Permission.SALES_QUOTE_READ,
-  Permission.SALES_ORDER_READ,
-  Permission.PROJECT_READ,
+    Permission.PURCHASE_ORDER_READ,
+    Permission.SALES_QUOTE_READ,
+    Permission.SALES_ORDER_READ,
+    Permission.CREDIT_NOTE_READ,
+    Permission.PROJECT_READ,
 ];
 
 export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> =
@@ -157,6 +163,8 @@ export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> 
       Permission.SALES_QUOTE_DELETE,
       Permission.SALES_ORDER_WRITE,
       Permission.SALES_ORDER_DELETE,
+      Permission.CREDIT_NOTE_WRITE,
+      Permission.CREDIT_NOTE_DELETE,
       Permission.PROJECT_WRITE,
       Permission.PROJECT_DELETE,
     ],

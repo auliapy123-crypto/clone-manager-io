@@ -336,6 +336,60 @@ export const salesInvoiceLines = pgTable("sales_invoice_lines", {
 ]);
 
 // =====================================================================
+// 10.5 CREDIT_NOTES  (header nota kredit)
+//
+// - Modul TRANSAKSI yang posting jurnal otomatis saat create.
+// - TANPA status: credit note yang tersimpan langsung final.
+// - Terhubung ke Customer (contacts.is_customer=true).
+// - Jurnal dilacak via journal_entries(source_module='credit_note',
+//   source_id=credit_note_id).
+// - reference/description opsional.
+// =====================================================================
+export const creditNotes = pgTable("credit_notes", {
+  id: uuid().primaryKey().defaultRandom(),
+  businessId: uuid()
+    .notNull()
+    .references(() => businesses.id, { onDelete: "cascade" }),
+  customerId: uuid()
+    .notNull()
+    .references(() => contacts.id),
+  issueDate: date().notNull(),
+  reference: varchar({ length: 50 }),
+  description: text(),
+  createdAt: timestamp().notNull().defaultNow(),
+  updatedAt: timestamp().notNull().defaultNow(),
+  deletedAt: timestamp(),
+}, (t) => [
+  index("idx_credit_notes_business").on(t.businessId),
+  index("idx_credit_notes_customer").on(t.customerId),
+]);
+
+// =====================================================================
+// 10.6 CREDIT_NOTE_LINES  (baris item nota kredit)
+//
+// Anak dari credit_notes (ON DELETE CASCADE), ikut lewat header-nya.
+// TANPA pajak, TANPA link ke sales_invoice.
+// line_total = quantity × unit_price, dihitung backend.
+// =====================================================================
+export const creditNoteLines = pgTable("credit_note_lines", {
+  id: uuid().primaryKey().defaultRandom(),
+  creditNoteId: uuid()
+    .notNull()
+    .references(() => creditNotes.id, { onDelete: "cascade" }),
+  accountId: uuid()
+    .notNull()
+    .references(() => chartOfAccounts.id),
+  description: varchar({ length: 255 }),
+  quantity: numeric({ precision: 18, scale: 4 }).notNull().default("1.0000"),
+  unitPrice: numeric({ precision: 18, scale: 2 }).notNull(),
+  lineTotal: numeric({ precision: 18, scale: 2 }).notNull(),
+  sortOrder: integer().notNull().default(0),
+}, (t) => [
+  index("idx_credit_note_lines_note").on(t.creditNoteId),
+  index("idx_credit_note_lines_account").on(t.accountId),
+]);
+
+// =====================================================================
 // 11. PURCHASE_INVOICES  (header faktur pembelian)
 //
 // - Cerminan Sales Invoices dengan arah jurnal berlawanan.
@@ -853,6 +907,7 @@ export const businessesRelations = relations(businesses, ({ many }) => ({
   purchaseOrders: many(purchaseOrders),
   salesQuotes: many(salesQuotes),
   salesOrders: many(salesOrders),
+  creditNotes: many(creditNotes),
   projects: many(projects),
   auditLogs: many(auditLogs),
 }));
@@ -902,6 +957,7 @@ export const contactsRelations = relations(contacts, ({ one, many }) => ({
   purchaseOrders: many(purchaseOrders),
   salesQuotes: many(salesQuotes),
   salesOrders: many(salesOrders),
+  creditNotes: many(creditNotes),
 }));
 
 export const journalEntriesRelations = relations(
@@ -981,6 +1037,35 @@ export const salesInvoiceLinesRelations = relations(
     }),
     account: one(chartOfAccounts, {
       fields: [salesInvoiceLines.accountId],
+      references: [chartOfAccounts.id],
+    }),
+  }),
+);
+
+export const creditNotesRelations = relations(
+  creditNotes,
+  ({ one, many }) => ({
+    business: one(businesses, {
+      fields: [creditNotes.businessId],
+      references: [businesses.id],
+    }),
+    customer: one(contacts, {
+      fields: [creditNotes.customerId],
+      references: [contacts.id],
+    }),
+    lines: many(creditNoteLines),
+  }),
+);
+
+export const creditNoteLinesRelations = relations(
+  creditNoteLines,
+  ({ one }) => ({
+    note: one(creditNotes, {
+      fields: [creditNoteLines.creditNoteId],
+      references: [creditNotes.id],
+    }),
+    account: one(chartOfAccounts, {
+      fields: [creditNoteLines.accountId],
       references: [chartOfAccounts.id],
     }),
   }),
@@ -1255,6 +1340,8 @@ export type JournalEntryLine = typeof journalEntryLines.$inferSelect;
 export type BankAccount = typeof bankAccounts.$inferSelect;
 export type SalesInvoice = typeof salesInvoices.$inferSelect;
 export type SalesInvoiceLine = typeof salesInvoiceLines.$inferSelect;
+export type CreditNote = typeof creditNotes.$inferSelect;
+export type CreditNoteLine = typeof creditNoteLines.$inferSelect;
 export type PurchaseInvoice = typeof purchaseInvoices.$inferSelect;
 export type PurchaseInvoiceLine = typeof purchaseInvoiceLines.$inferSelect;
 export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
