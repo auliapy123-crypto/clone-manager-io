@@ -85,6 +85,11 @@ export const Permission = {
     SALES_QUOTE_WRITE: "sales_quote:write",
     SALES_QUOTE_DELETE: "sales_quote:delete",
 
+    // Pesanan penjualan (non-posting)
+    SALES_ORDER_READ: "sales_order:read",
+    SALES_ORDER_WRITE: "sales_order:write",
+    SALES_ORDER_DELETE: "sales_order:delete",
+
     EXPENSE_CLAIM_READ: "expense_claim:read",
     EXPENSE_CLAIM_WRITE: "expense_claim:write",
     EXPENSE_CLAIM_DELETE: "expense_claim:delete",
@@ -117,6 +122,7 @@ const READ_ONLY: PermissionValue[] = [
   Permission.JOURNAL_ENTRY_READ,
   Permission.PURCHASE_ORDER_READ,
   Permission.SALES_QUOTE_READ,
+  Permission.SALES_ORDER_READ,
   Permission.PROJECT_READ,
 ];
 
@@ -149,6 +155,8 @@ export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> 
       Permission.PURCHASE_ORDER_DELETE,
       Permission.SALES_QUOTE_WRITE,
       Permission.SALES_QUOTE_DELETE,
+      Permission.SALES_ORDER_WRITE,
+      Permission.SALES_ORDER_DELETE,
       Permission.PROJECT_WRITE,
       Permission.PROJECT_DELETE,
     ],

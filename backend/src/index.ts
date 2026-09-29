@@ -52,6 +52,7 @@ import purchaseInvoiceRoutesPlugin from "./plugins/PurchaseInvoiceRoutes.js";
 import purchaseOrderRoutesPlugin from "./plugins/PurchaseOrderRoutes.js";
 import receiptRoutesPlugin from "./plugins/ReceiptRoutes.js";
 import salesInvoiceRoutesPlugin from "./plugins/SalesInvoiceRoutes.js";
+import salesOrderRoutesPlugin from "./plugins/SalesOrderRoutes.js";
 import salesQuoteRoutesPlugin from "./plugins/SalesQuoteRoutes.js";
 import supplierRoutesPlugin from "./plugins/SupplierRoutes.js";
 import userRoutesPlugin from "./plugins/UserRoutes.js";
@@ -301,6 +302,7 @@ export async function buildApp() {
             { name: "BankAccounts", description: "CRUD rekening kas & bank per bisnis" },
             { name: "SalesInvoices", description: "Faktur penjualan + posting jurnal per bisnis" },
             { name: "SalesQuotes", description: "Penawaran harga non-posting per bisnis" },
+            { name: "SalesOrders", description: "Pesanan penjualan non-posting per bisnis" },
             { name: "PurchaseInvoices", description: "Faktur pembelian + posting jurnal per bisnis" },
             { name: "Receipts", description: "Penerimaan kas/bank + posting jurnal per bisnis" },
             { name: "ExpenseClaims", description: "Klaim biaya dan saldo reimbursement" },
@@ -333,6 +335,7 @@ export async function buildApp() {
   await app.register(bankAccountRoutesPlugin);
   await app.register(salesInvoiceRoutesPlugin);
   await app.register(salesQuoteRoutesPlugin);
+  await app.register(salesOrderRoutesPlugin);
   await app.register(purchaseInvoiceRoutesPlugin);
   await app.register(receiptRoutesPlugin);
   await app.register(paymentRoutesPlugin);

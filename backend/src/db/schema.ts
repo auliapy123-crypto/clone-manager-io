@@ -729,6 +729,56 @@ export const salesQuoteLines = pgTable(
 );
 
 // =====================================================================
+// 21c. SALES_ORDERS (Pesanan Penjualan) — NON-POSTING
+//
+// Mirip Sales Quotes TAPI TANPA valid_for_days, TANPA billing_address.
+// TIDAK ADA jurnal, TANPA status, totalAmount dihitung real-time.
+// =====================================================================
+export const salesOrders = pgTable(
+  "sales_orders",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    customerId: uuid()
+      .notNull()
+      .references(() => contacts.id),
+    issueDate: date().notNull(),
+    reference: varchar({ length: 50 }),
+    description: text(),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+    deletedAt: timestamp(),
+  },
+  (t) => [
+    index("idx_sales_orders_business").on(t.businessId),
+    index("idx_sales_orders_customer").on(t.customerId),
+  ],
+);
+
+// =====================================================================
+// 21d. SALES_ORDER_LINES  (baris item pesanan)
+//
+// Sama seperti sales_quote_lines: TANPA account_id.
+// =====================================================================
+export const salesOrderLines = pgTable(
+  "sales_order_lines",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    salesOrderId: uuid()
+      .notNull()
+      .references(() => salesOrders.id, { onDelete: "cascade" }),
+    description: varchar({ length: 255 }).notNull(),
+    quantity: numeric({ precision: 18, scale: 4 }).notNull().default("1.0000"),
+    unitPrice: numeric({ precision: 18, scale: 2 }).notNull(),
+    lineTotal: numeric({ precision: 18, scale: 2 }).notNull(),
+    sortOrder: integer().notNull().default(0),
+  },
+  (t) => [index("idx_sales_order_lines_order").on(t.salesOrderId)],
+);
+
+// =====================================================================
 // 22. PROJECTS (Proyek)
 // =====================================================================
 export const projects = pgTable(
@@ -802,6 +852,7 @@ export const businessesRelations = relations(businesses, ({ many }) => ({
   bankReconciliations: many(bankReconciliations),
   purchaseOrders: many(purchaseOrders),
   salesQuotes: many(salesQuotes),
+  salesOrders: many(salesOrders),
   projects: many(projects),
   auditLogs: many(auditLogs),
 }));
@@ -850,6 +901,7 @@ export const contactsRelations = relations(contacts, ({ one, many }) => ({
   payments: many(payments),
   purchaseOrders: many(purchaseOrders),
   salesQuotes: many(salesQuotes),
+  salesOrders: many(salesOrders),
 }));
 
 export const journalEntriesRelations = relations(
@@ -1024,6 +1076,28 @@ export const salesQuoteLinesRelations = relations(
   }),
 );
 
+export const salesOrdersRelations = relations(salesOrders, ({ one, many }) => ({
+  business: one(businesses, {
+    fields: [salesOrders.businessId],
+    references: [businesses.id],
+  }),
+  customer: one(contacts, {
+    fields: [salesOrders.customerId],
+    references: [contacts.id],
+  }),
+  lines: many(salesOrderLines),
+}));
+
+export const salesOrderLinesRelations = relations(
+  salesOrderLines,
+  ({ one }) => ({
+    order: one(salesOrders, {
+      fields: [salesOrderLines.salesOrderId],
+      references: [salesOrders.id],
+    }),
+  }),
+);
+
 export const receiptsRelations = relations(receipts, ({ one, many }) => ({
   business: one(businesses, {
     fields: [receipts.businessId],
@@ -1187,6 +1261,8 @@ export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
 export type PurchaseOrderLine = typeof purchaseOrderLines.$inferSelect;
 export type SalesQuote = typeof salesQuotes.$inferSelect;
 export type SalesQuoteLine = typeof salesQuoteLines.$inferSelect;
+export type SalesOrder = typeof salesOrders.$inferSelect;
+export type SalesOrderLine = typeof salesOrderLines.$inferSelect;
 export type Receipt = typeof receipts.$inferSelect;
 export type ReceiptLine = typeof receiptLines.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
