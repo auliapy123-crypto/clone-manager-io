@@ -5,6 +5,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { useBusinesses } from "@/hooks/use-businesses";
@@ -151,7 +152,7 @@ function BankAccountForm({ mode, open, onOpenChange, businessId, account }: { mo
   return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent><DialogHeader><DialogTitle>{mode === "create" ? "Tambah Akun" : "Edit Akun"}</DialogTitle></DialogHeader>
     <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void form.handleSubmit(); }}>
       <form.Field name="accountType">{(field) => <div className="flex gap-4"><label className="flex items-center gap-1"><Input type="radio" className="w-4" checked={field.state.value === "bank"} onChange={() => field.handleChange("bank")} />Bank</label><label className="flex items-center gap-1"><Input type="radio" className="w-4" checked={field.state.value === "cash"} onChange={() => field.handleChange("cash")} />Cash</label></div>}</form.Field>
-      <form.Field name="accountId">{(field) => <div className="flex flex-col gap-1"><label className="text-sm">Akun COA (Asset)</label><select className="rounded border px-2 py-1.5" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)}><option value="">Pilih Akun</option>{availableCoas.map((c) => <option key={c.id} value={c.id}>{c.code} - {c.name}</option>)}</select></div>}</form.Field>
+      <form.Field name="accountId">{(field) => <div className="flex flex-col gap-1"><label className="text-sm">Akun COA (Asset)</label><Combobox value={field.state.value} onChange={(value) => field.handleChange(value)} placeholder="Pilih Akun" ariaLabel="Akun COA" options={availableCoas.map((c) => ({ value: c.id, label: `${c.code} - ${c.name}` }))} /></div>}</form.Field>
       <form.Field name="name" validators={{ onChange: zodFieldValidator(nameSchema) }}>{(field) => <div className="flex flex-col gap-1"><Input placeholder="Nama Akun" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} />{field.state.meta.errors && <p className="text-xs text-red-600">{field.state.meta.errors}</p>}</div>}</form.Field>
       {form.state.values.accountType === "bank" && <form.Field name="bankName" validators={{ onChange: zodFieldValidator(bankNameSchema) }}>{(field) => <div className="flex flex-col gap-1"><Input placeholder="Nama Bank" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} /></div>}</form.Field>}
       {form.state.values.accountType === "bank" && <form.Field name="accountNumber" validators={{ onChange: zodFieldValidator(accNumSchema) }}>{(field) => <div className="flex flex-col gap-1"><Input placeholder="No. Rekening" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} /></div>}</form.Field>}

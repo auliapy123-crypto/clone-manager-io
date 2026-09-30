@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { useAccounts } from "@/hooks/use-accounts";
@@ -475,21 +476,20 @@ function CreditNoteFormDialog({
                     {formData.lines.map((line, idx) => (
                       <tr key={idx} className="border-b">
                         <td className="px-3 py-2">
-                          <select
-                            disabled={!canWrite || isSaving}
-                            value={line.accountId}
-                            onChange={(e) =>
-                              updateLine(idx, "accountId", e.target.value)
-                            }
-                            className="w-full rounded border border-gray-300 px-2 py-1 text-sm disabled:bg-gray-100"
-                          >
-                            <option value="">-- Account --</option>
-                            {revenueAccounts.map((a) => (
-                              <option key={a.id} value={a.id}>
-                                {a.code} - {a.name}
-                              </option>
-                            ))}
-                          </select>
+                                                      <Combobox
+                              className="h-8 text-xs"
+                              ariaLabel={`Akun baris ${idx + 1}`}
+                              value={line.accountId}
+                              disabled={!canWrite || isSaving}
+                              onChange={(value) =>
+                                updateLine(idx, "accountId", value)
+                              }
+                              placeholder="-- Account --"
+                              options={revenueAccounts.map((a) => ({
+                                value: a.id,
+                                label: `${a.code} - ${a.name}`,
+                              }))}
+                            />
                         </td>
                         <td className="px-3 py-2">
                           <input

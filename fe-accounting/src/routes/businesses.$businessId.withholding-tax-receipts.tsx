@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { useAccounts } from "@/hooks/use-accounts";
@@ -498,22 +499,19 @@ function WithholdingTaxReceiptFormDialog({
 
           <div className="flex flex-col gap-1">
             <label className={labelClass}>Withholding Tax Account *</label>
-            <select
-              className={selectClass}
+                        <Combobox
+              ariaLabel="Withholding Tax Account"
               value={accountId}
               disabled={!canWrite || isAccountsLoading}
-              onChange={(event) => setAccountId(event.target.value)}
-              required
-            >
-              <option value="">-- Pilih Akun (Asset) --</option>
-              {accountsData?.data
+              onChange={(value) => setAccountId(value)}
+              placeholder="-- Pilih Akun (Asset) --"
+              options={(accountsData?.data ?? [])
                 .filter((a) => !a.isControlAccount)
-                .map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.code} — {a.name}
-                  </option>
-                ))}
-            </select>
+                .map((a) => ({
+                  value: a.id,
+                  label: `${a.code} — ${a.name}`,
+                }))}
+            />
           </div>
 
           <div className="flex flex-col gap-1">

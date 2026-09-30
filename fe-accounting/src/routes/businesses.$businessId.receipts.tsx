@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { useAccounts } from "@/hooks/use-accounts";
@@ -628,22 +629,20 @@ function ReceiptFormDialog({
                         return (
                           <tr key={line.id} className="hover:bg-gray-50">
                             <td className="p-2">
-                              <select
-                                className="w-full h-8 rounded border border-gray-300 bg-white px-2 py-0.5 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
-                                value={line.accountId}
-                                disabled={!canWrite || isAccountsLoading}
-                                onChange={(event) =>
-                                  updateLine(index, "accountId", event.target.value)
-                                }
-                                required
-                              >
-                                <option value="">-- Pilih Akun --</option>
-                                {lineAccounts.map((acc) => (
-                                  <option key={acc.id} value={acc.id}>
-                                    {acc.code} - {acc.name}
-                                  </option>
-                                ))}
-                              </select>
+                                                              <Combobox
+                                  className="h-8 text-xs"
+                                  ariaLabel={`Akun baris ${index + 1}`}
+                                  value={line.accountId}
+                                  disabled={!canWrite || isAccountsLoading}
+                                  onChange={(value) =>
+                                    updateLine(index, "accountId", value)
+                                  }
+                                  placeholder="-- Pilih Akun --"
+                                  options={lineAccounts.map((acc) => ({
+                                    value: acc.id,
+                                    label: `${acc.code} - ${acc.name}`,
+                                  }))}
+                                />
                               {lineAccounts.length === 0 &&
                                 !isAccountsLoading && (
                                   <p className="mt-0.5 text-[10px] text-amber-600">
