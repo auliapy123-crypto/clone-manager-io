@@ -866,6 +866,64 @@ export const latePaymentFees = pgTable(
 );
 
 // =====================================================================
+// 21f. DELIVERY_NOTES (Surat Jalan) — NON-POSTING
+//
+// MURNI dokumen administratif: TIDAK ADA jurnal, TANPA status, dan
+// baris item TANPA nilai uang sama sekali (cuma description + quantity,
+// TANPA unit_price/line_total — beda dari SEMUA modul lain).
+// sales_order_id/sales_invoice_id nullable, dropdown-nya difilter per
+// customer (divalidasi silang di repository/routes).
+// =====================================================================
+export const deliveryNotes = pgTable(
+  "delivery_notes",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    deliveryDate: date().notNull(),
+    reference: varchar({ length: 50 }),
+    customerId: uuid()
+      .notNull()
+      .references(() => contacts.id),
+    salesOrderId: uuid().references(() => salesOrders.id),
+    salesInvoiceId: uuid().references(() => salesInvoices.id),
+    deliveryAddress: text(),
+    description: text(),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+    deletedAt: timestamp(),
+  },
+  (t) => [
+    index("idx_delivery_notes_business").on(t.businessId),
+    index("idx_delivery_notes_customer").on(t.customerId),
+    index("idx_delivery_notes_sales_order").on(t.salesOrderId),
+    index("idx_delivery_notes_sales_invoice").on(t.salesInvoiceId),
+  ],
+);
+
+// =====================================================================
+// 21f. DELIVERY_NOTE_LINES  (baris item surat jalan)
+//
+// Anak dari delivery_notes (ON DELETE CASCADE), ikut lewat header-nya.
+// PENTING: TANPA account_id, TANPA unit_price, TANPA line_total —
+// murni catatan Description + Qty.
+// =====================================================================
+export const deliveryNoteLines = pgTable(
+  "delivery_note_lines",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    deliveryNoteId: uuid()
+      .notNull()
+      .references(() => deliveryNotes.id, { onDelete: "cascade" }),
+    description: varchar({ length: 255 }).notNull(),
+    quantity: numeric({ precision: 18, scale: 4 }).notNull().default("1.0000"),
+    sortOrder: integer().notNull().default(0),
+  },
+  (t) => [index("idx_delivery_note_lines_note").on(t.deliveryNoteId)],
+);
+
+// =====================================================================
 // 22. PROJECTS (Proyek)
 // =====================================================================
 export const projects = pgTable(
@@ -942,6 +1000,7 @@ export const businessesRelations = relations(businesses, ({ many }) => ({
   salesOrders: many(salesOrders),
   creditNotes: many(creditNotes),
   latePaymentFees: many(latePaymentFees),
+  deliveryNotes: many(deliveryNotes),
   projects: many(projects),
   auditLogs: many(auditLogs),
 }));
@@ -993,6 +1052,7 @@ export const contactsRelations = relations(contacts, ({ one, many }) => ({
   salesOrders: many(salesOrders),
   creditNotes: many(creditNotes),
   latePaymentFees: many(latePaymentFees),
+  deliveryNotes: many(deliveryNotes),
 }));
 
 export const journalEntriesRelations = relations(
@@ -1233,6 +1293,36 @@ export const latePaymentFeesRelations = relations(latePaymentFees, ({ one }) => 
   }),
 }));
 
+export const deliveryNotesRelations = relations(deliveryNotes, ({ one, many }) => ({
+  business: one(businesses, {
+    fields: [deliveryNotes.businessId],
+    references: [businesses.id],
+  }),
+  customer: one(contacts, {
+    fields: [deliveryNotes.customerId],
+    references: [contacts.id],
+  }),
+  salesOrder: one(salesOrders, {
+    fields: [deliveryNotes.salesOrderId],
+    references: [salesOrders.id],
+  }),
+  salesInvoice: one(salesInvoices, {
+    fields: [deliveryNotes.salesInvoiceId],
+    references: [salesInvoices.id],
+  }),
+  lines: many(deliveryNoteLines),
+}));
+
+export const deliveryNoteLinesRelations = relations(
+  deliveryNoteLines,
+  ({ one }) => ({
+    note: one(deliveryNotes, {
+      fields: [deliveryNoteLines.deliveryNoteId],
+      references: [deliveryNotes.id],
+    }),
+  }),
+);
+
 export const receiptsRelations = relations(receipts, ({ one, many }) => ({
   business: one(businesses, {
     fields: [receipts.businessId],
@@ -1401,6 +1491,8 @@ export type SalesQuoteLine = typeof salesQuoteLines.$inferSelect;
 export type SalesOrder = typeof salesOrders.$inferSelect;
 export type SalesOrderLine = typeof salesOrderLines.$inferSelect;
 export type LatePaymentFee = typeof latePaymentFees.$inferSelect;
+export type DeliveryNote = typeof deliveryNotes.$inferSelect;
+export type DeliveryNoteLine = typeof deliveryNoteLines.$inferSelect;
 export type Receipt = typeof receipts.$inferSelect;
 export type ReceiptLine = typeof receiptLines.$inferSelect;
 export type Payment = typeof payments.$inferSelect;

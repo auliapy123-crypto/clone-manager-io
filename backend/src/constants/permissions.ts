@@ -100,6 +100,11 @@ export const Permission = {
     LATE_PAYMENT_FEE_WRITE: "late_payment_fee:write",
     LATE_PAYMENT_FEE_DELETE: "late_payment_fee:delete",
 
+    // Surat jalan (administratif — tanpa jurnal, tanpa nilai uang)
+    DELIVERY_NOTE_READ: "delivery_note:read",
+    DELIVERY_NOTE_WRITE: "delivery_note:write",
+    DELIVERY_NOTE_DELETE: "delivery_note:delete",
+
     EXPENSE_CLAIM_READ: "expense_claim:read",
     EXPENSE_CLAIM_WRITE: "expense_claim:write",
     EXPENSE_CLAIM_DELETE: "expense_claim:delete",
@@ -135,6 +140,7 @@ const READ_ONLY: PermissionValue[] = [
     Permission.SALES_ORDER_READ,
     Permission.CREDIT_NOTE_READ,
     Permission.LATE_PAYMENT_FEE_READ,
+    Permission.DELIVERY_NOTE_READ,
     Permission.PROJECT_READ,
 ];
 
@@ -173,6 +179,8 @@ export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> 
       Permission.CREDIT_NOTE_DELETE,
       Permission.LATE_PAYMENT_FEE_WRITE,
       Permission.LATE_PAYMENT_FEE_DELETE,
+      Permission.DELIVERY_NOTE_WRITE,
+      Permission.DELIVERY_NOTE_DELETE,
       Permission.PROJECT_WRITE,
       Permission.PROJECT_DELETE,
     ],
