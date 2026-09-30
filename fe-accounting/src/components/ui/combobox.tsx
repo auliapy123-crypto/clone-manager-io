@@ -1,5 +1,6 @@
 import type { InputHTMLAttributes, KeyboardEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
 export interface ComboboxOption {
@@ -14,11 +15,24 @@ export interface ComboboxProps {
   options: ComboboxOption[];
   placeholder?: string;
   disabled?: boolean;
+  /** Class untuk INPUT (tinggi dsb., karena cn tanpa tailwind-merge). */
   className?: string;
   /** Nama field untuk aksesibilitas (aria-label input). */
   ariaLabel?: string;
   inputProps?: Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "onChange">;
 }
+
+interface PanelPos {
+  left: number;
+  width: number;
+  /** fixed top (panel ke bawah) atau fixed bottom (panel ke atas). */
+  top: number | null;
+  bottom: number | null;
+}
+
+// Tinggi maksimum panel: sekitar 5 opsi, sisanya scroll (max-h-48).
+const PANEL_MAX = 192;
+const PANEL_GAP = 4;
 
 /**
  * Combobox yang bisa dicari (searchable dropdown) -- PENGECUALIAN dari
@@ -26,10 +40,16 @@ export interface ComboboxProps {
  * (Account/COA 20+ pilihan) supaya bisa diketik untuk menyaring.
  *
  * Perilaku: kotak input menampilkan label value terpilih (atau
- * placeholder); fokus/klik membuka panel opsi; ketikan memfilter opsi
- * case-insensitive terhadap label; klik opsi memilihnya; klik di luar
- * menutup panel TANPA mengubah value; panah atas/bawah menggerakkan
- * highlight, Enter memilih, Escape menutup.
+ * placeholder); fokus/klik membuka panel opsi; klik ulang pada kotak
+ * MENUTUP panel (toggle); ketikan memfilter opsi case-insensitive
+ * terhadap label; klik opsi memilihnya; klik di luar menutup TANPA
+ * mengubah value; panah atas/bawah menggerakkan highlight, Enter
+ * memilih, Escape menutup.
+ *
+ * Panel dirender via portal ke document.body dengan position:fixed --
+ * supaya TIDAK terpotong container overflow (tabel/dialog) di mana pun
+ * combobox dipakai, dan arah bukanya (ke bawah/ke atas) dipilih sesuai
+ * ruang yang tersedia di viewport.
  */
 export function Combobox({
   value,
@@ -44,8 +64,13 @@ export function Combobox({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
+  const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  // Open state yang tercatat SAAT pointer ditekan di input -- dipakai
+  // untuk toggle: klik ulang pada kotak yang sudah terbuka harus MENUTUP,
+  // bukan membuka lagi (event click datang setelah onFocus).
+  const wasOpenOnPointerDownRef = useRef(false);
 
   const selectedLabel = options.find((o) => o.value === value)?.label ?? "";
 
@@ -57,14 +82,31 @@ export function Combobox({
     return options.filter((o) => o.label.toLowerCase().includes(q));
   }, [options, query]);
 
-  // Klik di luar komponen: tutup panel tanpa mengubah value (pola yang
-  // sama dengan dropdown-menu.tsx).
+  function computePanelPos(): PanelPos | null {
+    const rect = rootRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    // Buka ke atas kalau ruang bawah tidak cukup DAN atasnya lebih lega.
+    const dropUp = spaceBelow < PANEL_MAX + PANEL_GAP && spaceAbove > spaceBelow;
+    return {
+      left: rect.left,
+      width: rect.width,
+      top: dropUp ? null : rect.bottom + PANEL_GAP,
+      bottom: dropUp ? window.innerHeight - rect.top + PANEL_GAP : null,
+    };
+  }
+
+  // Klik di luar komponen: tutup panel tanpa mengubah value. Panel ada
+  // di luar rootRef (portal) -- jadi kotak DAN panel harus dikecualikan
+  // (pola yang sama dengan dropdown-menu.tsx).
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (e: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      if (listRef.current?.contains(target)) return;
+      setOpen(false);
     };
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
@@ -75,8 +117,22 @@ export function Combobox({
   useEffect(() => {
     if (!open) return;
     setQuery("");
-    const idx = filtered.findIndex((o) => o.value === value);
+    const idx = options.findIndex((o) => o.value === value);
     setHighlight(idx >= 0 ? idx : 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // Selagi panel terbuka, ikuti scroll (dialog/container mana pun) dan
+  // resize supaya posisi fixed tetap nempel di kotaknya.
+  useEffect(() => {
+    if (!open) return;
+    const update = () => setPanelPos(computePanelPos());
+    window.addEventListener("resize", update);
+    document.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      document.removeEventListener("scroll", update, true);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -90,6 +146,7 @@ export function Combobox({
 
   const openPanel = () => {
     if (disabled) return;
+    setPanelPos(computePanelPos());
     setOpen(true);
   };
 
@@ -103,7 +160,7 @@ export function Combobox({
     if (!open) {
       if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter") {
         e.preventDefault();
-        setOpen(true);
+        openPanel();
       }
       return;
     }
@@ -139,8 +196,23 @@ export function Combobox({
         value={open ? query : selectedLabel}
         placeholder={placeholder}
         disabled={disabled}
-        onFocus={openPanel}
-        onClick={openPanel}
+        onPointerDown={() => {
+          wasOpenOnPointerDownRef.current = open;
+        }}
+        onFocus={() => {
+          // Klik pertama (kotak belum fokus): buka panel. Kalau pointer
+          // ditahan saat panel sudah terbuka, event click berikutnya
+          // yang menutup (toggle) -- jangan dibuka dua kali.
+          if (!wasOpenOnPointerDownRef.current) openPanel();
+        }}
+        onClick={() => {
+          if (wasOpenOnPointerDownRef.current) {
+            // Klik ulang pada kotak yang terbuka: tutup panel.
+            setOpen(false);
+          } else {
+            openPanel();
+          }
+        }}
         onChange={(e) => {
           setQuery(e.target.value);
           setHighlight(0);
@@ -166,45 +238,55 @@ export function Combobox({
         ▾
       </span>
 
-      {open && (
-        <ul
-          id="combobox-listbox"
-          role="listbox"
-          ref={listRef}
-          className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-md border bg-white py-1 shadow-md"
-        >
-          {filtered.length === 0 ? (
-            <li className="px-3 py-2 text-sm text-gray-500" aria-live="polite">
-              Tidak ada hasil.
-            </li>
-          ) : (
-            filtered.map((option, index) => {
-              const isSelected = option.value === value;
-              return (
-                <li
-                  key={option.value}
-                  role="option"
-                  aria-selected={isSelected}
-                  onMouseDown={(e) => {
-                    // mousedown bukan click: supaya blur/klik-luar handler
-                    // tidak menutup panel sebelum pilihan diproses.
-                    e.preventDefault();
-                    choose(option);
-                  }}
-                  onMouseEnter={() => setHighlight(index)}
-                  className={cn(
-                    "cursor-pointer px-3 py-2 text-sm",
-                    index === highlight ? "bg-gray-100" : "",
-                    isSelected ? "font-semibold text-gray-900" : "text-gray-700",
-                  )}
-                >
-                  {option.label}
-                </li>
-              );
-            })
-          )}
-        </ul>
-      )}
+      {open &&
+        panelPos &&
+        createPortal(
+          <ul
+            id="combobox-listbox"
+            role="listbox"
+            ref={listRef}
+            style={{
+              position: "fixed",
+              left: panelPos.left,
+              width: panelPos.width,
+              top: panelPos.top ?? undefined,
+              bottom: panelPos.bottom ?? undefined,
+            }}
+            className="z-50 max-h-48 overflow-y-auto rounded-md border bg-white py-1 shadow-md"
+          >
+            {filtered.length === 0 ? (
+              <li className="px-3 py-2 text-sm text-gray-500" aria-live="polite">
+                Tidak ada hasil.
+              </li>
+            ) : (
+              filtered.map((option, index) => {
+                const isSelected = option.value === value;
+                return (
+                  <li
+                    key={option.value}
+                    role="option"
+                    aria-selected={isSelected}
+                    onMouseDown={(e) => {
+                      // mousedown bukan click: supaya blur/klik-luar handler
+                      // tidak menutup panel sebelum pilihan diproses.
+                      e.preventDefault();
+                      choose(option);
+                    }}
+                    onMouseEnter={() => setHighlight(index)}
+                    className={cn(
+                      "cursor-pointer px-3 py-2 text-sm",
+                      index === highlight ? "bg-gray-100" : "",
+                      isSelected ? "font-semibold text-gray-900" : "text-gray-700",
+                    )}
+                  >
+                    {option.label}
+                  </li>
+                );
+              })
+            )}
+          </ul>,
+          document.body,
+        )}
     </div>
   );
 }
