@@ -729,6 +729,70 @@ export const purchaseOrderLines = pgTable(
 );
 
 // =====================================================================
+// 21b. PURCHASE_QUOTES  (header penawaran pembelian — NON-POSTING)
+//
+// - TIDAK ADA jurnal dari modul ini (murni CRUD).
+// - BEDA dari Sales Quotes/Orders: PUNYA status yang DISIMPAN
+//   (Draft/Accepted/Rejected), bukan dihitung — user set manual.
+// - quote_number: nomor referensi supplier/internal (nullable).
+// - Sumber prefill "Copy to Purchase Order"/"Copy to Purchase Invoice"
+//   di frontend (query param sekali pakai, TANPA FK balik).
+// =====================================================================
+export const purchaseQuotes = pgTable(
+  "purchase_quotes",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    supplierId: uuid()
+      .notNull()
+      .references(() => contacts.id),
+    date: date().notNull(),
+    quoteNumber: varchar({ length: 50 }),
+    description: text(),
+    status: varchar({ length: 20 }).notNull().default("Draft"),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+    deletedAt: timestamp(),
+  },
+  (t) => [
+    index("idx_purchase_quotes_business").on(t.businessId),
+    index("idx_purchase_quotes_supplier").on(t.supplierId),
+  ],
+);
+
+// =====================================================================
+// 21c. PURCHASE_QUOTE_LINES  (baris item penawaran pembelian)
+//
+// Anak dari purchase_quotes (ON DELETE CASCADE), ikut lewat headernya.
+// account_id wajib kategori Expense (divalidasi di route).
+// TANPA tax_code/division, TANPA link ke Purchase Order/Invoice.
+// line_total = quantity × unit_price, dihitung backend.
+// =====================================================================
+export const purchaseQuoteLines = pgTable(
+  "purchase_quote_lines",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    purchaseQuoteId: uuid()
+      .notNull()
+      .references(() => purchaseQuotes.id, { onDelete: "cascade" }),
+    accountId: uuid()
+      .notNull()
+      .references(() => chartOfAccounts.id),
+    description: varchar({ length: 255 }),
+    quantity: numeric({ precision: 18, scale: 4 }).notNull().default("1.0000"),
+    unitPrice: numeric({ precision: 18, scale: 2 }).notNull(),
+    lineTotal: numeric({ precision: 18, scale: 2 }).notNull(),
+    sortOrder: integer().notNull().default(0),
+  },
+  (t) => [
+    index("idx_purchase_quote_lines_quote").on(t.purchaseQuoteId),
+    index("idx_purchase_quote_lines_account").on(t.accountId),
+  ],
+);
+
+// =====================================================================
 // 21a. SALES_QUOTES  (header penawaran harga — NON-POSTING)
 //
 // - TIDAK ADA jurnal dari modul ini.
@@ -1074,6 +1138,7 @@ export const businessesRelations = relations(businesses, ({ many }) => ({
   interAccountTransfers: many(interAccountTransfers),
   bankReconciliations: many(bankReconciliations),
   purchaseOrders: many(purchaseOrders),
+  purchaseQuotes: many(purchaseQuotes),
   salesQuotes: many(salesQuotes),
   salesOrders: many(salesOrders),
   creditNotes: many(creditNotes),
@@ -1127,6 +1192,7 @@ export const contactsRelations = relations(contacts, ({ one, many }) => ({
   receipts: many(receipts),
   payments: many(payments),
   purchaseOrders: many(purchaseOrders),
+  purchaseQuotes: many(purchaseQuotes),
   salesQuotes: many(salesQuotes),
   salesOrders: many(salesOrders),
   creditNotes: many(creditNotes),
@@ -1314,6 +1380,32 @@ export const purchaseOrderLinesRelations = relations(
     }),
     account: one(chartOfAccounts, {
       fields: [purchaseOrderLines.accountId],
+      references: [chartOfAccounts.id],
+    }),
+  }),
+);
+
+export const purchaseQuotesRelations = relations(purchaseQuotes, ({ one, many }) => ({
+  business: one(businesses, {
+    fields: [purchaseQuotes.businessId],
+    references: [businesses.id],
+  }),
+  supplier: one(contacts, {
+    fields: [purchaseQuotes.supplierId],
+    references: [contacts.id],
+  }),
+  lines: many(purchaseQuoteLines),
+}));
+
+export const purchaseQuoteLinesRelations = relations(
+  purchaseQuoteLines,
+  ({ one }) => ({
+    quote: one(purchaseQuotes, {
+      fields: [purchaseQuoteLines.purchaseQuoteId],
+      references: [purchaseQuotes.id],
+    }),
+    account: one(chartOfAccounts, {
+      fields: [purchaseQuoteLines.accountId],
       references: [chartOfAccounts.id],
     }),
   }),
@@ -1594,6 +1686,8 @@ export type PurchaseInvoice = typeof purchaseInvoices.$inferSelect;
 export type PurchaseInvoiceLine = typeof purchaseInvoiceLines.$inferSelect;
 export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
 export type PurchaseOrderLine = typeof purchaseOrderLines.$inferSelect;
+export type PurchaseQuote = typeof purchaseQuotes.$inferSelect;
+export type PurchaseQuoteLine = typeof purchaseQuoteLines.$inferSelect;
 export type SalesQuote = typeof salesQuotes.$inferSelect;
 export type SalesQuoteLine = typeof salesQuoteLines.$inferSelect;
 export type SalesOrder = typeof salesOrders.$inferSelect;

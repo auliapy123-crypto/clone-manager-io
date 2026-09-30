@@ -55,6 +55,7 @@ import paymentRoutesPlugin from "./plugins/PaymentRoutes.js";
 import projectRoutesPlugin from "./plugins/ProjectRoutes.js";
 import purchaseInvoiceRoutesPlugin from "./plugins/PurchaseInvoiceRoutes.js";
 import purchaseOrderRoutesPlugin from "./plugins/PurchaseOrderRoutes.js";
+import purchaseQuoteRoutesPlugin from "./plugins/PurchaseQuoteRoutes.js";
 import receiptRoutesPlugin from "./plugins/ReceiptRoutes.js";
 import salesInvoiceRoutesPlugin from "./plugins/SalesInvoiceRoutes.js";
 import salesOrderRoutesPlugin from "./plugins/SalesOrderRoutes.js";
@@ -321,6 +322,7 @@ export async function buildApp() {
             { name: "WithholdingTaxReceipts", description: "Bukti potong PPh dari pelanggan per bisnis (posting jurnal, mengurangi balanceDue Sales Invoice)" },
             { name: "BillableTime", description: "Jam kerja yang berpotensi ditagihkan per bisnis (non-posting, berdiri sendiri)" },
             { name: "PurchaseOrders", description: "Pesanan pembelian non-posting + status penagihan per bisnis" },
+           { name: "PurchaseQuotes", description: "Penawaran pembelian non-posting dengan status tersimpan per bisnis" },
             { name: "Projects", description: "Pelacakan proyek dan ringkasan keuangan per bisnis" },
          ],
       },
@@ -360,6 +362,7 @@ export async function buildApp() {
   await app.register(latePaymentFeeRoutesPlugin);
   await app.register(deliveryNoteRoutesPlugin);
   await app.register(purchaseOrderRoutesPlugin);
+  await app.register(purchaseQuoteRoutesPlugin);
   await app.register(projectRoutesPlugin);
 
   return app;

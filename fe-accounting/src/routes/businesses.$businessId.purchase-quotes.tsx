@@ -14,29 +14,27 @@ import {
 import { Input } from "@/components/ui/input";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useBusinesses } from "@/hooks/use-businesses";
-import { useProjectOptions } from "@/hooks/use-projects";
 import { useSuppliers } from "@/hooks/use-suppliers";
 import {
-  getTodayDateString,
-  type PurchaseInvoice,
-  type PurchaseInvoiceLineInput,
-  type PurchaseInvoiceStatus,
-  useCreatePurchaseInvoice,
-  useDeletePurchaseInvoice,
-  usePurchaseInvoice,
-  usePurchaseInvoices,
-  useUpdatePurchaseInvoice,
-} from "@/hooks/use-purchase-invoices";
-import { usePurchaseOrder } from "@/hooks/use-purchase-orders";
-import { usePurchaseQuote } from "@/hooks/use-purchase-quotes";
+  PURCHASE_QUOTE_STATUSES,
+  type CreatePurchaseQuoteInput,
+  type PurchaseQuote,
+  type PurchaseQuoteLineInput,
+  type PurchaseQuoteStatus,
+  useCreatePurchaseQuote,
+  useDeletePurchaseQuote,
+  usePurchaseQuote,
+  usePurchaseQuotes,
+  useUpdatePurchaseQuote,
+} from "@/hooks/use-purchase-quotes";
+import { getTodayDateString } from "@/hooks/use-purchase-orders";
 import { getApiErrorMessage } from "@/lib/errors";
 
-export const Route = createFileRoute("/businesses/$businessId/purchase-invoices")({
+export const Route = createFileRoute("/businesses/$businessId/purchase-quotes")({
   validateSearch: z.object({
-    convertFromPO: z.string().optional(),
     convertFromQuote: z.string().optional(),
   }),
-  component: PurchaseInvoicesPage,
+  component: PurchaseQuotesPage,
 });
 
 function formatAmount(value: number) {
@@ -46,42 +44,31 @@ function formatAmount(value: number) {
   }).format(value);
 }
 
-function addDaysToDateString(dateStr: string, days: number): string {
-  if (!dateStr) return "";
-  const parts = dateStr.split("-").map(Number);
-  if (parts.length !== 3 || parts.some(isNaN)) return "";
-  const [y, m, d] = parts;
-  const date = new Date(Date.UTC(y, m - 1, d));
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-function StatusBadge({ status }: { status: PurchaseInvoiceStatus }) {
-  if (status === "Paid") {
+function StatusBadge({ status }: { status: PurchaseQuoteStatus }) {
+  if (status === "Accepted") {
     return (
       <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 border border-green-200">
-        Paid
+        Accepted
       </span>
     );
   }
-  if (status === "Overdue") {
+  if (status === "Rejected") {
     return (
       <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800 border border-red-200">
-        Overdue
+        Rejected
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800 border border-yellow-200">
-      Unpaid
+    <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700 border border-gray-200">
+      Draft
     </span>
   );
 }
 
-function PurchaseInvoicesPage() {
+function PurchaseQuotesPage() {
   const { businessId } = Route.useParams();
   const navigate = Route.useNavigate();
-  const { convertFromPO, convertFromQuote } = Route.useSearch();
   const { data: businesses } = useBusinesses();
   const role = businesses?.find((b) => b.id === businessId)?.role;
   const canWrite = role === "admin" || role === "accountant";
@@ -89,62 +76,9 @@ function PurchaseInvoicesPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [q, setQ] = useState("");
-  const [statusFilter, setStatusFilter] = useState<PurchaseInvoiceStatus | "">("");
+  const [statusFilter, setStatusFilter] = useState<PurchaseQuoteStatus | "">("");
 
-  const [activeInvoiceId, setActiveInvoiceId] = useState<string | null>(null);
-
-  // Convert to Invoice: prefill dialog dari PO (?convertFromPO=<id>).
-  const { data: convertPO } = usePurchaseOrder(businessId, convertFromPO ?? null);
-  // Copy to Invoice: prefill dialog dari Purchase Quote (?convertFromQuote=<id>).
-  const { data: convertQuote } = usePurchaseQuote(
-    businessId,
-    convertFromQuote ?? null,
-  );
-
-  useEffect(() => {
-    const hasSource =
-      (convertFromPO && convertPO) || (convertFromQuote && convertQuote);
-    if (hasSource && !activeInvoiceId) {
-      setActiveInvoiceId("new");
-    }
-  }, [convertFromPO, convertPO, convertFromQuote, convertQuote, activeInvoiceId]);
-
-  const convertPrefill = useMemo(() => {
-    if (convertFromPO && convertPO && convertPO.id === convertFromPO) {
-      return {
-        purchaseOrderId: convertPO.id as string | undefined,
-        sourceLabel: `PO ${convertPO.reference ?? convertPO.id}` as string,
-        supplierId: convertPO.supplierId,
-        lines: convertPO.lines.map((l) => ({
-          accountId: l.accountId,
-          description: l.description ?? "",
-          quantity: String(l.quantity),
-          unitPrice: String(l.unitPrice),
-        })),
-      };
-    }
-    if (convertFromQuote && convertQuote && convertQuote.id === convertFromQuote) {
-      return {
-        purchaseOrderId: undefined,
-        sourceLabel: `penawaran ${
-          convertQuote.quoteNumber ?? convertQuote.id
-        }` as string,
-        supplierId: convertQuote.supplierId,
-        lines: convertQuote.lines.map((l) => ({
-          accountId: l.accountId,
-          description: l.description ?? "",
-          quantity: String(l.quantity),
-          unitPrice: String(l.unitPrice),
-        })),
-      };
-    }
-    return null;
-  }, [convertFromPO, convertPO, convertFromQuote, convertQuote]);
-
-  const handleDialogClose = () => {
-    setActiveInvoiceId(null);
-    if (convertFromPO || convertFromQuote) void navigate({ search: {} });
-  };
+  const [activeQuoteId, setActiveQuoteId] = useState<string | null>(null);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -154,52 +88,71 @@ function PurchaseInvoicesPage() {
     return () => clearTimeout(timeout);
   }, [search]);
 
-  const { data, isPending, isError, error } = usePurchaseInvoices(businessId, page, {
-    q: q || undefined,
-    status: statusFilter || undefined,
-  });
+  const { data, isPending, isError, error } = usePurchaseQuotes(
+    businessId,
+    page,
+    {
+      q: q || undefined,
+      status: statusFilter || undefined,
+    },
+  );
 
-  const deleteInvoice = useDeletePurchaseInvoice(businessId);
+  const deleteQuote = useDeletePurchaseQuote(businessId);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const totalInvoiceAmount = useMemo(
-    () => data?.data.reduce((total, inv) => total + inv.invoiceAmount, 0) ?? 0,
+  const totalAmount = useMemo(
+    () => data?.data.reduce((total, quote) => total + quote.totalAmount, 0) ?? 0,
     [data],
   );
 
-  const totalBalanceDue = useMemo(
-    () => data?.data.reduce((total, inv) => total + inv.balanceDue, 0) ?? 0,
-    [data],
-  );
-
-  const handleDelete = async (invoice: PurchaseInvoice) => {
-    const refText = invoice.reference ? ` "${invoice.reference}"` : "";
+  const handleDelete = async (quote: PurchaseQuote) => {
+    const refText = quote.quoteNumber ? ` "${quote.quoteNumber}"` : "";
     if (
       !window.confirm(
-        `Hapus faktur${refText} untuk supplier "${invoice.supplierName}"? Jurnal terkait juga akan dihapus.`,
+        `Hapus penawaran${refText} untuk supplier "${quote.supplierName}"?`,
       )
     ) {
       return;
     }
     setDeleteError(null);
     try {
-      await deleteInvoice.mutateAsync(invoice.id);
+      await deleteQuote.mutateAsync(quote.id);
     } catch (err) {
       setDeleteError(getApiErrorMessage(err));
     }
+  };
+
+  const handleCopyToPO = (quote: PurchaseQuote) => {
+    void navigate({
+      to: "/businesses/$businessId/purchase-orders",
+      params: { businessId },
+      search: { convertFromQuote: quote.id },
+    });
+  };
+
+  const handleCopyToInvoice = (quote: PurchaseQuote) => {
+    void navigate({
+      to: "/businesses/$businessId/purchase-invoices",
+      params: { businessId },
+      search: { convertFromQuote: quote.id },
+    });
   };
 
   return (
     <div className="flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Purchase Invoices</h1>
+          <h1 className="text-lg font-semibold text-gray-900">Purchase Quotes</h1>
           {data && (
-            <p className="text-sm text-gray-500">{data.pagination.total} faktur</p>
+            <p className="text-sm text-gray-500">
+              {data.pagination.total} penawaran
+            </p>
           )}
         </div>
         {canWrite && (
-          <Button onClick={() => setActiveInvoiceId("new")}>Buat Faktur</Button>
+          <Button onClick={() => setActiveQuoteId("new")}>
+            Penawaran Baru
+          </Button>
         )}
       </div>
 
@@ -212,7 +165,7 @@ function PurchaseInvoicesPage() {
       <div className="flex flex-wrap items-center gap-3">
         <Input
           className="max-w-xs"
-          placeholder="Cari referensi, supplier, keterangan..."
+          placeholder="Cari nomor penawaran, supplier, keterangan..."
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -220,88 +173,94 @@ function PurchaseInvoicesPage() {
           className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           value={statusFilter}
           onChange={(event) => {
-            setStatusFilter(event.target.value as PurchaseInvoiceStatus | "");
+            setStatusFilter(event.target.value as PurchaseQuoteStatus | "");
             setPage(1);
           }}
         >
           <option value="">Semua Status</option>
-          <option value="Unpaid">Unpaid</option>
-          <option value="Overdue">Overdue</option>
-          <option value="Paid">Paid</option>
+          <option value="Draft">Draft</option>
+          <option value="Accepted">Accepted</option>
+          <option value="Rejected">Rejected</option>
         </select>
       </div>
 
       <Card>
         <CardContent className="p-0">
           {isPending ? (
-            <p className="p-6 text-sm text-gray-500">Memuat faktur pembelian...</p>
+            <p className="p-6 text-sm text-gray-500">Memuat penawaran...</p>
           ) : isError ? (
             <p role="alert" className="p-6 text-sm text-red-700">
               {getApiErrorMessage(error)}
             </p>
           ) : data.data.length === 0 ? (
-            <p className="p-6 text-sm text-gray-500">Belum ada faktur pembelian.</p>
+            <p className="p-6 text-sm text-gray-500">
+              Belum ada penawaran pembelian.
+            </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Reference</th>
+                    <th className="px-6 py-3 font-medium">Date</th>
+                    <th className="px-6 py-3 font-medium">Quote Number</th>
                     <th className="px-6 py-3 font-medium">Supplier</th>
-                    <th className="px-6 py-3 font-medium">Issue Date</th>
-                    <th className="px-6 py-3 font-medium">Due Date</th>
                     <th className="px-6 py-3 text-right font-medium">
-                      Invoice Amount
-                    </th>
-                    <th className="px-6 py-3 text-right font-medium">
-                      Balance Due
+                      Total Amount
                     </th>
                     <th className="px-6 py-3 font-medium">Status</th>
                     <th className="px-6 py-3 font-medium">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {data.data.map((invoice) => (
-                    <tr key={invoice.id} className="hover:bg-gray-50">
+                  {data.data.map((quote) => (
+                    <tr key={quote.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-3 text-gray-600">{quote.date}</td>
                       <td className="px-6 py-3 font-medium text-gray-900">
-                        {invoice.reference || "-"}
+                        {quote.quoteNumber || "-"}
                       </td>
                       <td className="px-6 py-3 text-gray-900">
-                        {invoice.supplierName}
-                      </td>
-                      <td className="px-6 py-3 text-gray-600">
-                        {invoice.issueDate}
-                      </td>
-                      <td className="px-6 py-3 text-gray-600">
-                        {invoice.dueDate || "-"}
+                        {quote.supplierName}
                       </td>
                       <td className="px-6 py-3 text-right font-medium text-gray-900">
-                        {formatAmount(invoice.invoiceAmount)}
-                      </td>
-                      <td className="px-6 py-3 text-right font-medium text-gray-900">
-                        {formatAmount(invoice.balanceDue)}
+                        {formatAmount(quote.totalAmount)}
                       </td>
                       <td className="px-6 py-3">
-                        <StatusBadge status={invoice.status} />
+                        <StatusBadge status={quote.status} />
                       </td>
                       <td className="px-6 py-3">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setActiveInvoiceId(invoice.id)}
+                            onClick={() => setActiveQuoteId(quote.id)}
                           >
                             {canWrite ? "Edit" : "Lihat"}
                           </Button>
                           {canWrite && (
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              disabled={deleteInvoice.isPending}
-                              onClick={() => void handleDelete(invoice)}
-                            >
-                              Hapus
-                            </Button>
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCopyToPO(quote)}
+                              >
+                                Copy to PO
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCopyToInvoice(quote)}
+                              >
+                                Copy to Invoice
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                disabled={deleteQuote.isPending}
+                                onClick={() => void handleDelete(quote)}
+                              >
+                                Hapus
+                              </Button>
+                            </>
                           )}
                         </div>
                       </td>
@@ -310,14 +269,11 @@ function PurchaseInvoicesPage() {
                 </tbody>
                 <tfoot className="border-t bg-gray-50">
                   <tr>
-                    <td colSpan={4} className="px-6 py-3 font-medium text-gray-900">
+                    <td colSpan={3} className="px-6 py-3 font-medium text-gray-900">
                       Total
                     </td>
                     <td className="px-6 py-3 text-right font-semibold text-gray-900">
-                      {formatAmount(totalInvoiceAmount)}
-                    </td>
-                    <td className="px-6 py-3 text-right font-semibold text-gray-900">
-                      {formatAmount(totalBalanceDue)}
+                      {formatAmount(totalAmount)}
                     </td>
                     <td colSpan={2} />
                   </tr>
@@ -352,13 +308,12 @@ function PurchaseInvoicesPage() {
         </div>
       )}
 
-      {activeInvoiceId && (
-        <PurchaseInvoiceFormDialog
+      {activeQuoteId && (
+        <PurchaseQuoteFormDialog
           businessId={businessId}
-          invoiceId={activeInvoiceId}
+          quoteId={activeQuoteId}
           canWrite={canWrite}
-          onClose={handleDialogClose}
-          convertPrefill={convertPrefill}
+          onClose={() => setActiveQuoteId(null)}
         />
       )}
     </div>
@@ -373,7 +328,7 @@ interface FormLine {
   unitPrice: string;
 }
 
-function computeLineSubtotal(line: FormLine): number {
+function computeLineTotal(line: FormLine): number {
   const qty = parseFloat(line.quantity) || 0;
   const price = parseFloat(line.unitPrice) || 0;
   return qty * price;
@@ -389,35 +344,23 @@ function createEmptyLine(): FormLine {
   };
 }
 
-interface PurchaseInvoiceFormDialogProps {
+interface PurchaseQuoteFormDialogProps {
   businessId: string;
-  invoiceId: string; // "new" atau UUID
+  quoteId: string; // "new" atau UUID
   canWrite: boolean;
   onClose: () => void;
-  convertPrefill?: {
-    purchaseOrderId?: string;
-    sourceLabel: string;
-    supplierId: string;
-    lines: Array<{
-      accountId: string;
-      description: string;
-      quantity: string;
-      unitPrice: string;
-    }>;
-  } | null;
 }
 
-function PurchaseInvoiceFormDialog({
+function PurchaseQuoteFormDialog({
   businessId,
-  invoiceId,
+  quoteId,
   canWrite,
   onClose,
-  convertPrefill,
-}: PurchaseInvoiceFormDialogProps) {
-  const isNew = invoiceId === "new";
-  const { data: existingInvoice, isPending: isInvoiceLoading } = usePurchaseInvoice(
+}: PurchaseQuoteFormDialogProps) {
+  const isNew = quoteId === "new";
+  const { data: existingQuote, isPending: isQuoteLoading } = usePurchaseQuote(
     businessId,
-    isNew ? null : invoiceId,
+    isNew ? null : quoteId,
   );
 
   const { data: suppliersData, isPending: isSuppliersLoading } = useSuppliers(
@@ -434,58 +377,28 @@ function PurchaseInvoiceFormDialog({
     100,
   );
 
-  const createInvoice = useCreatePurchaseInvoice(businessId);
-  const updateInvoice = useUpdatePurchaseInvoice(businessId);
+  const createQuote = useCreatePurchaseQuote(businessId);
+  const updateQuote = useUpdatePurchaseQuote(businessId);
 
   const [supplierId, setSupplierId] = useState("");
-  const [reference, setReference] = useState("");
-  const [issueDate, setIssueDate] = useState(getTodayDateString());
-  const [dueDate, setDueDate] = useState("");
-  const [description, setDescription] = useState("");
+  const [date, setDate] = useState(getTodayDateString());
   const [quoteNumber, setQuoteNumber] = useState("");
-  const [orderNumber, setOrderNumber] = useState("");
-  const [projectId, setProjectId] = useState("");
+  const [status, setStatus] = useState<PurchaseQuoteStatus>("Draft");
+  const [description, setDescription] = useState("");
   const [lines, setLines] = useState<FormLine[]>([createEmptyLine()]);
   const [formError, setFormError] = useState<string | null>(null);
-  const [prefillApplied, setPrefillApplied] = useState(false);
-
-  const { options: projectOptions } = useProjectOptions(
-    businessId,
-    existingInvoice?.projectId,
-  );
 
   useEffect(() => {
-    if (isNew && convertPrefill && !prefillApplied) {
-      setSupplierId(convertPrefill.supplierId);
-      if (convertPrefill.lines.length > 0) {
-        setLines(
-          convertPrefill.lines.map((line) => ({
-            id: Math.random().toString(36).substring(2, 9),
-            accountId: line.accountId,
-            description: line.description,
-            quantity: line.quantity,
-            unitPrice: line.unitPrice,
-          })),
-        );
-      }
-      setPrefillApplied(true);
-    }
-  }, [isNew, convertPrefill, prefillApplied]);
+    if (!isNew && existingQuote) {
+      setSupplierId(existingQuote.supplierId);
+      setDate(existingQuote.date);
+      setQuoteNumber(existingQuote.quoteNumber ?? "");
+      setStatus(existingQuote.status);
+      setDescription(existingQuote.description ?? "");
 
-  useEffect(() => {
-    if (!isNew && existingInvoice) {
-      setSupplierId(existingInvoice.supplierId);
-      setReference(existingInvoice.reference ?? "");
-      setIssueDate(existingInvoice.issueDate);
-      setDueDate(existingInvoice.dueDate ?? "");
-      setDescription(existingInvoice.description ?? "");
-      setQuoteNumber(existingInvoice.quoteNumber ?? "");
-      setOrderNumber(existingInvoice.orderNumber ?? "");
-      setProjectId(existingInvoice.projectId ?? "");
-
-      if (existingInvoice.lines && existingInvoice.lines.length > 0) {
+      if (existingQuote.lines && existingQuote.lines.length > 0) {
         setLines(
-          existingInvoice.lines.map((line) => ({
+          existingQuote.lines.map((line) => ({
             id: line.id || Math.random().toString(36).substring(2, 9),
             accountId: line.accountId,
             description: line.description ?? "",
@@ -495,40 +408,7 @@ function PurchaseInvoiceFormDialog({
         );
       }
     }
-  }, [isNew, existingInvoice]);
-
-  const handleSupplierChange = (newSupplierId: string) => {
-    setSupplierId(newSupplierId);
-    const selectedSupp = suppliersData?.data.find((c) => c.id === newSupplierId);
-    if (selectedSupp) {
-      if (
-        selectedSupp.purchaseInvoiceDueDateDays != null &&
-        selectedSupp.purchaseInvoiceDueDateDays > 0 &&
-        (!dueDate || isNew)
-      ) {
-        setDueDate(
-          addDaysToDateString(
-            issueDate || getTodayDateString(),
-            selectedSupp.purchaseInvoiceDueDateDays,
-          ),
-        );
-      }
-    }
-  };
-
-  const handleIssueDateChange = (newIssueDate: string) => {
-    setIssueDate(newIssueDate);
-    const selectedSupp = suppliersData?.data.find((c) => c.id === supplierId);
-    if (
-      selectedSupp &&
-      selectedSupp.purchaseInvoiceDueDateDays != null &&
-      selectedSupp.purchaseInvoiceDueDateDays > 0
-    ) {
-      setDueDate(
-        addDaysToDateString(newIssueDate, selectedSupp.purchaseInvoiceDueDateDays),
-      );
-    }
-  };
+  }, [isNew, existingQuote]);
 
   const addLine = () => {
     setLines((prev) => [...prev, createEmptyLine()]);
@@ -545,8 +425,8 @@ function PurchaseInvoiceFormDialog({
     );
   };
 
-  const liveTotalInvoiceAmount = useMemo(() => {
-    return lines.reduce((sum, line) => sum + computeLineSubtotal(line), 0);
+  const liveTotalAmount = useMemo(() => {
+    return lines.reduce((sum, line) => sum + computeLineTotal(line), 0);
   }, [lines]);
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -558,10 +438,10 @@ function PurchaseInvoiceFormDialog({
       return;
     }
 
-    const finalIssueDate = issueDate.trim() || getTodayDateString();
+    const finalDate = date.trim() || getTodayDateString();
 
     if (lines.length === 0) {
-      setFormError("Faktur wajib memiliki minimal 1 baris item.");
+      setFormError("Penawaran wajib memiliki minimal 1 baris item.");
       return;
     }
 
@@ -583,7 +463,7 @@ function PurchaseInvoiceFormDialog({
       }
     }
 
-    const formattedLines: PurchaseInvoiceLineInput[] = lines.map((l) => ({
+    const formattedLines: PurchaseQuoteLineInput[] = lines.map((l) => ({
       accountId: l.accountId,
       description: l.description.trim() || null,
       quantity: parseFloat(l.quantity) || 1,
@@ -592,29 +472,23 @@ function PurchaseInvoiceFormDialog({
 
     try {
       if (isNew) {
-        await createInvoice.mutateAsync({
+        const input: CreatePurchaseQuoteInput = {
           supplierId,
-          reference: reference.trim() || undefined,
-          issueDate: finalIssueDate,
-          dueDate: dueDate.trim() || undefined,
-          description: description.trim() || undefined,
-          quoteNumber: quoteNumber.trim() || undefined,
-          orderNumber: orderNumber.trim() || undefined,
-          purchaseOrderId: convertPrefill?.purchaseOrderId ?? undefined,
-          projectId: projectId || null,
-          lines: formattedLines,
-        });
-      } else {
-        await updateInvoice.mutateAsync({
-          invoiceId,
-          supplierId,
-          reference: reference.trim() || null,
-          issueDate: finalIssueDate,
-          dueDate: dueDate.trim() || null,
-          description: description.trim() || null,
+          date: finalDate,
           quoteNumber: quoteNumber.trim() || null,
-          orderNumber: orderNumber.trim() || null,
-          projectId: projectId || null,
+          description: description.trim() || null,
+          status,
+          lines: formattedLines,
+        };
+        await createQuote.mutateAsync(input);
+      } else {
+        await updateQuote.mutateAsync({
+          quoteId,
+          supplierId,
+          date: finalDate,
+          quoteNumber: quoteNumber.trim() || null,
+          description: description.trim() || null,
+          status,
           lines: formattedLines,
         });
       }
@@ -624,8 +498,8 @@ function PurchaseInvoiceFormDialog({
     }
   };
 
-  const isSubmitting = createInvoice.isPending || updateInvoice.isPending;
-  const isInitialLoading = !isNew && isInvoiceLoading;
+  const isSubmitting = createQuote.isPending || updateQuote.isPending;
+  const isInitialLoading = !isNew && isQuoteLoading;
   const expenseAccounts = accountsData?.data ?? [];
 
   return (
@@ -637,21 +511,21 @@ function PurchaseInvoiceFormDialog({
         <DialogHeader>
           <DialogTitle>
             {isNew
-              ? "Buat Faktur Pembelian"
+              ? "Buat Penawaran Pembelian"
               : canWrite
-                ? "Edit Faktur Pembelian"
-                : "Detail Faktur Pembelian"}
+                ? "Edit Penawaran Pembelian"
+                : "Detail Penawaran Pembelian"}
           </DialogTitle>
           <DialogDescription>
             {isNew
-              ? "Buat faktur baru. Jurnal utang usaha dan beban akan otomatis diposting."
-              : "Lihat atau perbarui faktur pembelian beserta baris itemnya."}
+              ? "Buat penawaran baru. Modul ini non-posting — tidak memposting jurnal apa pun."
+              : "Lihat atau perbarui penawaran beserta status dan baris itemnya."}
           </DialogDescription>
         </DialogHeader>
 
         {isInitialLoading ? (
           <div className="py-12 text-center text-sm text-gray-500">
-            Memuat data faktur...
+            Memuat data penawaran...
           </div>
         ) : (
           <form
@@ -667,11 +541,6 @@ function PurchaseInvoiceFormDialog({
                   {formError}
                 </div>
               )}
-              {isNew && convertPrefill && (
-                <div className="rounded bg-blue-50 px-3 py-2 text-sm text-blue-800">
-                  Convert dari {convertPrefill.sourceLabel} — baris bisa disunting dulu sebelum disimpan.
-                </div>
-              )}
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="flex flex-col gap-1">
@@ -682,7 +551,7 @@ function PurchaseInvoiceFormDialog({
                     className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
                     value={supplierId}
                     disabled={!canWrite || isSuppliersLoading}
-                    onChange={(event) => handleSupplierChange(event.target.value)}
+                    onChange={(event) => setSupplierId(event.target.value)}
                     required
                   >
                     <option value="">-- Pilih Supplier --</option>
@@ -696,38 +565,14 @@ function PurchaseInvoiceFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Reference
-                  </label>
-                  <Input
-                    placeholder="Contoh: PI-2026-001"
-                    value={reference}
-                    disabled={!canWrite}
-                    onChange={(event) => setReference(event.target.value)}
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Issue Date *
+                    Date *
                   </label>
                   <Input
                     type="date"
-                    value={issueDate}
+                    value={date}
                     disabled={!canWrite}
-                    onChange={(event) => handleIssueDateChange(event.target.value)}
+                    onChange={(event) => setDate(event.target.value)}
                     required
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Due Date
-                  </label>
-                  <Input
-                    type="date"
-                    value={dueDate}
-                    disabled={!canWrite}
-                    onChange={(event) => setDueDate(event.target.value)}
                   />
                 </div>
 
@@ -736,7 +581,7 @@ function PurchaseInvoiceFormDialog({
                     Quote Number
                   </label>
                   <Input
-                    placeholder="Quote reference (opsional)"
+                    placeholder="Contoh: PQ-2026-001"
                     value={quoteNumber}
                     disabled={!canWrite}
                     onChange={(event) => setQuoteNumber(event.target.value)}
@@ -745,52 +590,44 @@ function PurchaseInvoiceFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Order Number
+                    Status *
                   </label>
-                  <Input
-                    placeholder="Order reference (opsional)"
-                    value={orderNumber}
+                  <select
+                    className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
+                    value={status}
                     disabled={!canWrite}
-                    onChange={(event) => setOrderNumber(event.target.value)}
-                  />
+                    onChange={(event) =>
+                      setStatus(event.target.value as PurchaseQuoteStatus)
+                    }
+                    required
+                  >
+                    {PURCHASE_QUOTE_STATUSES.map((value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="flex flex-col gap-1 md:col-span-2">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Description
+                    Summary Description
                   </label>
-                  <Input
-                    placeholder="Keterangan umum faktur (opsional)"
+                  <textarea
+                    className="min-h-9 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
+                    placeholder="Ringkasan penawaran (opsional)"
+                    rows={2}
                     value={description}
                     disabled={!canWrite}
                     onChange={(event) => setDescription(event.target.value)}
                   />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Project
-                  </label>
-                  <select
-                    className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
-                    value={projectId}
-                    disabled={!canWrite}
-                    onChange={(event) => setProjectId(event.target.value)}
-                  >
-                    <option value="">-- Tanpa Proyek --</option>
-                    {projectOptions.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} {p.code ? `(${p.code})` : ""}
-                      </option>
-                    ))}
-                  </select>
                 </div>
               </div>
 
               <div className="mt-2 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-gray-900">
-                    Baris Item Faktur
+                    Baris Item
                   </h3>
                   {canWrite && (
                     <Button
@@ -817,7 +654,7 @@ function PurchaseInvoiceFormDialog({
                         <th className="px-3 py-2 font-medium w-24">Qty *</th>
                         <th className="px-3 py-2 font-medium w-36">Unit Price *</th>
                         <th className="px-3 py-2 text-right font-medium w-36">
-                          Subtotal Baris
+                          Total
                         </th>
                         {canWrite && (
                           <th className="px-3 py-2 text-center font-medium w-16">
@@ -828,7 +665,7 @@ function PurchaseInvoiceFormDialog({
                     </thead>
                     <tbody className="divide-y">
                       {lines.map((line, index) => {
-                        const lineSubtotal = computeLineSubtotal(line);
+                        const lineTotal = computeLineTotal(line);
                         return (
                           <tr key={line.id} className="hover:bg-gray-50">
                             <td className="p-2">
@@ -896,7 +733,7 @@ function PurchaseInvoiceFormDialog({
                               />
                             </td>
                             <td className="p-2 text-right font-medium text-gray-900">
-                              {formatAmount(lineSubtotal)}
+                              {formatAmount(lineTotal)}
                             </td>
                             {canWrite && (
                               <td className="p-2 text-center">
@@ -921,9 +758,9 @@ function PurchaseInvoiceFormDialog({
               <div className="mt-4 border-t pt-3">
                 <div className="flex items-center justify-end gap-6">
                   <div className="text-right">
-                    <div className="text-xs text-gray-500">Total Faktur</div>
+                    <div className="text-xs text-gray-500">Total</div>
                     <div className="text-lg font-semibold text-gray-900">
-                      {formatAmount(liveTotalInvoiceAmount)}
+                      {formatAmount(liveTotalAmount)}
                     </div>
                   </div>
                 </div>
@@ -937,8 +774,8 @@ function PurchaseInvoiceFormDialog({
               {canWrite && (
                 <Button type="submit" disabled={isSubmitting}>
                   {isNew
-                    ? (isSubmitting ? "Menyimpan..." : "Simpan Faktur")
-                    : (isSubmitting ? "Menyimpan..." : "Perbarui Faktur")}
+                    ? (isSubmitting ? "Menyimpan..." : "Simpan Penawaran")
+                    : (isSubmitting ? "Menyimpan..." : "Perbarui Penawaran")}
                 </Button>
               )}
             </DialogFooter>

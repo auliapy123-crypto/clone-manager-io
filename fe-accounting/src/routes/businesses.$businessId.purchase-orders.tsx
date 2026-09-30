@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -25,9 +26,13 @@ import {
   useUpdatePurchaseOrder,
 } from "@/hooks/use-purchase-orders";
 import { useSuppliers } from "@/hooks/use-suppliers";
+import { usePurchaseQuote } from "@/hooks/use-purchase-quotes";
 import { getApiErrorMessage } from "@/lib/errors";
 
 export const Route = createFileRoute("/businesses/$businessId/purchase-orders")({
+  validateSearch: z.object({
+    convertFromQuote: z.string().optional(),
+  }),
   component: PurchaseOrdersPage,
 });
 
@@ -63,6 +68,7 @@ function StatusBadge({ status }: { status: PurchaseOrderStatus }) {
 function PurchaseOrdersPage() {
   const { businessId } = Route.useParams();
   const navigate = Route.useNavigate();
+  const { convertFromQuote } = Route.useSearch();
   const { data: businesses } = useBusinesses();
   const role = businesses?.find((b) => b.id === businessId)?.role;
   const canWrite = role === "admin" || role === "accountant";
@@ -75,6 +81,43 @@ function PurchaseOrdersPage() {
   const [dateTo, setDateTo] = useState("");
 
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+
+  // Copy to PO: prefill dialog dari Purchase Quote (?convertFromQuote=<id>).
+  const { data: convertQuote } = usePurchaseQuote(
+    businessId,
+    convertFromQuote ?? null,
+  );
+
+  useEffect(() => {
+    if (convertFromQuote && convertQuote && !activeOrderId) {
+      setActiveOrderId("new");
+    }
+  }, [convertFromQuote, convertQuote, activeOrderId]);
+
+  const convertPrefill = useMemo(() => {
+    if (
+      !convertFromQuote ||
+      !convertQuote ||
+      convertQuote.id !== convertFromQuote
+    ) {
+      return null;
+    }
+    return {
+      quoteNumber: convertQuote.quoteNumber,
+      supplierId: convertQuote.supplierId,
+      lines: convertQuote.lines.map((l) => ({
+        accountId: l.accountId,
+        description: l.description ?? "",
+        quantity: String(l.quantity),
+        unitPrice: String(l.unitPrice),
+      })),
+    };
+  }, [convertFromQuote, convertQuote]);
+
+  const handleDialogClose = () => {
+    setActiveOrderId(null);
+    if (convertFromQuote) void navigate({ search: {} });
+  };
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -313,7 +356,8 @@ function PurchaseOrdersPage() {
           businessId={businessId}
           orderId={activeOrderId}
           canWrite={canWrite}
-          onClose={() => setActiveOrderId(null)}
+          onClose={handleDialogClose}
+          convertPrefill={convertPrefill}
         />
       )}
     </div>
@@ -349,6 +393,16 @@ interface PurchaseOrderFormDialogProps {
   orderId: string; // "new" atau UUID
   canWrite: boolean;
   onClose: () => void;
+  convertPrefill?: {
+    quoteNumber: string | null;
+    supplierId: string;
+    lines: Array<{
+      accountId: string;
+      description: string;
+      quantity: string;
+      unitPrice: string;
+    }>;
+  } | null;
 }
 
 function PurchaseOrderFormDialog({
@@ -356,6 +410,7 @@ function PurchaseOrderFormDialog({
   orderId,
   canWrite,
   onClose,
+  convertPrefill,
 }: PurchaseOrderFormDialogProps) {
   const isNew = orderId === "new";
   const { data: existingOrder, isPending: isOrderLoading } = usePurchaseOrder(
@@ -387,6 +442,25 @@ function PurchaseOrderFormDialog({
   const [description, setDescription] = useState("");
   const [lines, setLines] = useState<FormLine[]>([createEmptyLine()]);
   const [formError, setFormError] = useState<string | null>(null);
+  const [prefillApplied, setPrefillApplied] = useState(false);
+
+  useEffect(() => {
+    if (isNew && convertPrefill && !prefillApplied) {
+      setSupplierId(convertPrefill.supplierId);
+      if (convertPrefill.lines.length > 0) {
+        setLines(
+          convertPrefill.lines.map((line) => ({
+            id: Math.random().toString(36).substring(2, 9),
+            accountId: line.accountId,
+            description: line.description,
+            quantity: line.quantity,
+            unitPrice: line.unitPrice,
+          })),
+        );
+      }
+      setPrefillApplied(true);
+    }
+  }, [isNew, convertPrefill, prefillApplied]);
 
   useEffect(() => {
     if (!isNew && existingOrder) {
@@ -534,6 +608,13 @@ function PurchaseOrderFormDialog({
                   className="rounded bg-red-50 px-3 py-2 text-sm text-red-700"
                 >
                   {formError}
+                </div>
+              )}
+              {isNew && convertPrefill && (
+                <div className="rounded bg-blue-50 px-3 py-2 text-sm text-blue-800">
+                  Di-copy dari Purchase Quote{" "}
+                  {convertPrefill.quoteNumber ?? "terpilih"} — baris bisa disunting
+                  dulu sebelum disimpan.
                 </div>
               )}
 

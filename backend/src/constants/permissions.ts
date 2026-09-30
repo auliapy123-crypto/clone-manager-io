@@ -80,6 +80,11 @@ export const Permission = {
     PURCHASE_ORDER_WRITE: "purchase_order:write",
     PURCHASE_ORDER_DELETE: "purchase_order:delete",
 
+    // Penawaran pembelian (non-posting, status disimpan)
+    PURCHASE_QUOTE_READ: "purchase_quote:read",
+    PURCHASE_QUOTE_WRITE: "purchase_quote:write",
+    PURCHASE_QUOTE_DELETE: "purchase_quote:delete",
+
     // Penawaran harga (non-posting)
     SALES_QUOTE_READ: "sales_quote:read",
     SALES_QUOTE_WRITE: "sales_quote:write",
@@ -146,6 +151,7 @@ const READ_ONLY: PermissionValue[] = [
   Permission.BANK_RECONCILIATION_READ,
   Permission.JOURNAL_ENTRY_READ,
     Permission.PURCHASE_ORDER_READ,
+    Permission.PURCHASE_QUOTE_READ,
     Permission.SALES_QUOTE_READ,
     Permission.SALES_ORDER_READ,
     Permission.CREDIT_NOTE_READ,
@@ -183,6 +189,8 @@ export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> 
       Permission.JOURNAL_ENTRY_DELETE,
       Permission.PURCHASE_ORDER_WRITE,
       Permission.PURCHASE_ORDER_DELETE,
+      Permission.PURCHASE_QUOTE_WRITE,
+      Permission.PURCHASE_QUOTE_DELETE,
       Permission.SALES_QUOTE_WRITE,
       Permission.SALES_QUOTE_DELETE,
       Permission.SALES_ORDER_WRITE,

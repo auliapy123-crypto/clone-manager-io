@@ -287,6 +287,19 @@ environment variable atau `.env` yang sudah di-gitignore.
   di dalam transaction dengan `SELECT ... FOR UPDATE` pada baris faktur.
   Update SELALU repost jurnal. `POST /:id/copy` (date=hari ini) tetap
   divalidasi ulang, bisa 400. Status respons hardcoded `"Applied"`.
+- **PurchaseQuotes** — `/businesses/:id/purchase-quotes`. Modul
+  NON-POSTING (murni CRUD, jurnal tidak tersentuh — diuji E2E: jumlah
+  `journal_entries` identik sebelum/sesudah create-update-delete).
+  **Bedanya dari Sales Quotes/Orders**: punya kolom `status` yang
+  DISIMPAN (`Draft`/`Accepted`/`Rejected`, default Draft, user bebas
+  gonta-ganti tanpa validasi transisi) dan punya tombol **Copy to
+  Purchase Order / Copy to Invoice** — navigasi ke form tujuan dengan
+  query param `?convertFromQuote=<id>` (prefill sekali pakai, TANPA FK
+  balik, berbeda dari PO→Invoice yang menyimpan `purchaseOrderId`).
+  Penerima prefill: `purchase-orders.tsx` (dapat `validateSearch` baru)
+  dan `purchase-invoices.tsx` (param `convertFromQuote` ditambahkan di
+  samping `convertFromPO`). Baris item wajib akun `category='Expense'`
+  (validasi 400 di route, diuji pakai akun Revenue).
 
 ### Status fase
 
@@ -297,10 +310,9 @@ environment variable atau `.env` yang sudah di-gitignore.
   Journal Entries, Purchase Orders, Expense Claims, Projects.
 - **Fase 3 (Modul Prioritas 2) — SEDANG BERJALAN.** Sudah selesai:
   Sales Quotes, Sales Orders, Credit Notes, Late Payment Fees, Delivery
-  Notes, Billable Time, Withholding Tax Receipts (7 modul).
-  **Berikutnya: Purchase Quotes** — file "Analisis Manager.io kebutuhan
-  Sistem Prioritas 2 Pahrio Kaspiyanor.docx". Sisa daftar dari roadmap:
-  Purchase Quotes, Debit Notes, Goods
+  Notes, Billable Time, Withholding Tax Receipts, Purchase Quotes (8
+  modul).
+  **Berikutnya: Debit Notes**, Goods
   Receipts, Inventory (Items, Transfers, Write-offs), Production
   Orders, Employees & Payslips (Payroll), Fixed Assets & Depreciation
   Entries, Intangible Assets & Amortization Entries, Capital Accounts,
@@ -401,7 +413,7 @@ asumsi dari nama file doang.**
   Transfers, Bank Reconciliations, Journal Entries, Purchase Orders, Expense
   Claims, Projects (13 modul Fase 2 lengkap), Sales Quotes, Sales Orders,
   Credit Notes, Late Payment Fees, Delivery Notes, Billable Time,
-  Withholding Tax Receipts (7 modul Fase 3 sejauh ini)
+  Withholding Tax Receipts, Purchase Quotes (8 modul Fase 3 sejauh ini)
 
 ## Aturan Kerja
 
