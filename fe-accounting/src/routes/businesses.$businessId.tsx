@@ -1,9 +1,9 @@
 import { createFileRoute, Outlet, useLocation } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { BusinessSidebar } from "@/components/layout/business-sidebar";
+import { useRegisterSidebarToggle } from "@/components/layout/sidebar-toggle";
 import { useBusinesses } from "@/hooks/use-businesses";
 import { useBreakpoint } from "@/hooks/use-viewport";
-import { useRegisterSidebarToggle } from "@/routes/businesses";
 
 export const Route = createFileRoute("/businesses/$businessId")({
   component: BusinessLayout,
