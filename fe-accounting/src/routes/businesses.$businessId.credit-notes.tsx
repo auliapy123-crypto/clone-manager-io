@@ -241,8 +241,17 @@ function CreditNoteFormDialog({
   canWrite: boolean;
 }) {
   const { data: note, isLoading } = useCreditNote(businessId, noteId);
-  const { data: customers } = useCustomers(businessId, 1, {}, 1000);
-  const { data: accounts } = useAccounts(businessId, 1, {}, 1000);
+  const { data: customers } = useCustomers(businessId, 1, {}, 100);
+  // Filter kategori Revenue di SERVER (pola Sales Invoices/Receipts).
+  // pageSize melebihi 100 selalu ditolak backend (PaginationQuerySchema
+  // max 100) dengan 400 -- request pageSize 1000 membuat data akun tak
+  // pernah terisi dan dropdown Account kosong.
+  const { data: accounts } = useAccounts(
+    businessId,
+    1,
+    { category: "Revenue" },
+    100,
+  );
   const createMutation = useCreateCreditNote(businessId);
   const updateMutation = useUpdateCreditNote(businessId);
 
@@ -274,10 +283,7 @@ function CreditNoteFormDialog({
     }
   }, [note]);
 
-  const revenueAccounts = useMemo(
-    () => accounts?.data.filter((a) => a.category === "Revenue") || [],
-    [accounts],
-  );
+  const revenueAccounts = useMemo(() => accounts?.data ?? [], [accounts]);
 
   const totalAmount = useMemo(
     () =>

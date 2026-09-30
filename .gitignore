@@ -13,6 +13,9 @@ backend-legacy-express/.env
 # Cache sementara TanStack Router di fe-accounting
 fe-accounting/.tanstack/
 
+# Bukti screenshot verifikasi GUI (artikel sesi testing, bukan bagian app)
+gui-test-screenshots/
+
 # Jaring pengaman umum — node_modules di folder mana pun, kalau sampai
 # ada folder baru lain nanti yang lupa dikasih .gitignore sendiri
 **/node_modules/
