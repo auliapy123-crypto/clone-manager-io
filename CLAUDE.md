@@ -252,6 +252,30 @@ environment variable atau `.env` yang sudah di-gitignore.
   benar-benar milik `customerId` yang sama, ditolak 400 kalau nggak
   cocok — SELALU diuji dengan bikin 1 customer/invoice yang SENGAJA
   nggak cocok, bukan cuma diasumsikan.
+- **DeliveryNotes** — `/businesses/:id/delivery-notes`. Murni
+  administratif: baris item CUMA `description`+`quantity`, TANPA
+  `unit_price`/`line_total`/`account_id` sama sekali (satu-satunya
+  modul yang beneran nol nilai uang di baris itemnya). `sales_order_id`
+  dan `sales_invoice_id` nullable, dropdown-nya difilter per Customer
+  yang dipilih — TANPA jalur konversi otomatis.
+- **BillableTime** — `/businesses/:id/billable-time`. **TIDAK ADA di
+  dokumen spesifikasi asli Fase 3** — sempat 2x salah desain karena
+  disusun dari riset forum Manager.io yang sudah lama (draft awal
+  bikin mekanisme "Jadikan Invoice" otomatis yang TERNYATA NGGAK ADA di
+  Manager.io versi sekarang). Setelah user eksplorasi LANGSUNG ke
+  Manager.io asli dan menulis dokumen sendiri, ketahuan modul ini
+  **100% berdiri sendiri** — TANPA jurnal, TANPA relasi ke Sales
+  Invoices sama sekali (status "Uninvoiced" itu STATIS/hardcoded,
+  bukan dihitung), penagihan harus diketik ulang manual di Sales
+  Invoice. `employee_contact_id` reuse tabel `contacts` yang sama
+  (kontak mana pun, pola sama kayak `payerContactId` Expense Claims) —
+  project belum punya modul Employees sendiri. **Pelajaran baru**:
+  kalau riset dari sumber publik/forum lama dipakai buat modul yang
+  nggak ada di dokumen internal, ANGGAP SEMENTARA sampai user (atau
+  orang yang lebih paham produknya) konfirmasi/eksplorasi langsung —
+  jangan langsung eksekusi ke AI agent sebelum dikonfirmasi, sesuatu
+  yang keliru di tool asli itu KEMUNGKINAN BESAR berubah dari waktu ke
+  waktu (versi Manager.io berkembang), forum lama bisa udah basi.
 
 ### Status fase
 
@@ -261,33 +285,36 @@ environment variable atau `.env` yang sudah di-gitignore.
   Receipts, Payments, Inter Account Transfers, Bank Reconciliations,
   Journal Entries, Purchase Orders, Expense Claims, Projects.
 - **Fase 3 (Modul Prioritas 2) — SEDANG BERJALAN.** Sudah selesai:
-  Sales Quotes, Sales Orders, Credit Notes, Late Payment Fees.
-  **Berikutnya: Delivery Notes** (dokumen resmi §14, file yang sama
-  dengan 4 modul di atas — "Analisis Fitur dan Kebutuhan Sistem Manager
-  intern- Aulia.docx"). Sisa daftar dari roadmap:
   Sales Quotes, Sales Orders, Credit Notes, Late Payment Fees, Delivery
-  Notes, Billable Time, Withholding Tax Receipts, Purchase Quotes, Debit
-  Notes, Goods Receipts, Inventory (Items, Transfers, Write-offs),
-  Production Orders, Employees & Payslips (Payroll), Fixed Assets &
-  Depreciation Entries, Intangible Assets & Amortization Entries, Capital
-  Accounts, Special Accounts, Folders. Payroll dan Fixed Assets butuh
-  analisis kebutuhan tambahan sebelum spesifikasinya ditulis (catatan
-  roadmap).
+  Notes, Billable Time (6 modul). **Berikutnya: Withholding Tax
+  Receipts** — file "Analisis Manager.io kebutuhan Sistem Prioritas 2
+  Pahrio Kaspiyanor.docx" (BEDA dari 6 modul di atas yang semuanya dari
+  file "...Intern- Aulia.docx"). Sisa daftar dari roadmap:
+  Withholding Tax Receipts, Purchase Quotes, Debit Notes, Goods
+  Receipts, Inventory (Items, Transfers, Write-offs), Production
+  Orders, Employees & Payslips (Payroll), Fixed Assets & Depreciation
+  Entries, Intangible Assets & Amortization Entries, Capital Accounts,
+  Special Accounts, Folders. Payroll dan Fixed Assets butuh analisis
+  kebutuhan tambahan sebelum spesifikasinya ditulis (catatan roadmap).
+  Billable Time (spesifikasi TIDAK ADA sebelumnya) sekarang sudah
+  ADA — file "Analisis_Manager_io_Billable_Time.docx", hasil eksplorasi
+  langsung user ke Manager.io asli.
   Lokasi spesifikasi (cek header section tiap file dulu, lihat catatan
   di bawah): file "Analisis_Manager_io Kebutuhan Sistem Prioritas 2
   Intern- Aulia" memuat Sales Quotes, Sales Orders, Delivery Notes,
   Credit Notes, Late Payment Fees; file "Analisis Manager.io kebutuhan
   Sistem Prioritas 2 Pahrio Kaspiyanor" memuat Withholding Tax Receipts,
   Purchase Quotes, Debit Notes, Goods Receipts, Inventory.
-  Spesifikasi detail yang SUDAH ADA: 11 modul (Sales Quotes, Sales
-  Orders, Credit Notes, Late Payment Fees, Delivery Notes, Withholding
-  Tax Receipts, Purchase Quotes, Debit Notes, Goods Receipts, Inventory
-  Items, Inventory Transfers). Spesifikasi yang BELUM ADA (jangan
-  disusun dari tebakan, minta ke manager/owner dulu; dokumen Prioritas 2
-  sendiri bilang "akan didokumentasikan pada tahap berikutnya"): Billable
-  Time, Inventory Write-offs, Production Orders, Employees & Payslips,
-  Fixed Assets & Depreciation Entries, Intangible Assets & Amortization
-  Entries, Capital Accounts, Special Accounts, Folders.
+  Spesifikasi detail yang SUDAH ADA: 12 modul (Sales Quotes, Sales
+  Orders, Credit Notes, Late Payment Fees, Delivery Notes, Billable
+  Time, Withholding Tax Receipts, Purchase Quotes, Debit Notes, Goods
+  Receipts, Inventory Items, Inventory Transfers). Spesifikasi yang
+  BELUM ADA (jangan disusun dari tebakan/riset publik tanpa konfirmasi
+  user — lihat pelajaran BillableTime di atas; minta ke manager/owner
+  dulu; dokumen Prioritas 2 sendiri bilang "akan didokumentasikan pada
+  tahap berikutnya"): Inventory Write-offs, Production Orders, Employees
+  & Payslips, Fixed Assets & Depreciation Entries, Intangible Assets &
+  Amortization Entries, Capital Accounts, Special Accounts, Folders.
   PERLU KEPUTUSAN DESAIN sebelum mengerjakan Inventory: modul ini
   mengubah baris item faktur dari "akun COA" (yang dipakai semua faktur
   sekarang) menjadi "item persediaan" + perhitungan HPP/COGS, jadi
@@ -363,7 +390,8 @@ asumsi dari nama file doang.**
   Invoices, Purchase Invoices, Receipts, Payments, Inter Account
   Transfers, Bank Reconciliations, Journal Entries, Purchase Orders, Expense
   Claims, Projects (13 modul Fase 2 lengkap), Sales Quotes, Sales Orders,
-  Credit Notes, Late Payment Fees (4 modul Fase 3 sejauh ini)
+  Credit Notes, Late Payment Fees, Delivery Notes, Billable Time
+  (6 modul Fase 3 sejauh ini)
 
 ## Aturan Kerja
 
