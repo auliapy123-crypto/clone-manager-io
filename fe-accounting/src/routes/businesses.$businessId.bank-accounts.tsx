@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
 import { useBusinesses } from "@/hooks/use-businesses";
 import { useAccounts } from "@/hooks/use-accounts";
 import {
@@ -48,7 +49,7 @@ function BankAccountsPage() {
     return () => clearTimeout(timeout);
   }, [search]);
 
-  const { data, isPending, isError, error } = useBankAccounts(businessId, page, { q: q || undefined, accountType: accountType === "all" ? undefined : accountType, status: status === "all" ? undefined : status });
+  const { data, isPending, isError, error } = useBankAccounts(businessId, page, { q: q || undefined, accountType: accountType === "all" ? undefined : accountType, status: status === "all" ? undefined : status }, 10);
   const totalBalance = useMemo(() => data?.data.reduce((total, b) => total + b.currentBalance, 0) ?? 0, [data]);
 
   return (
@@ -89,11 +90,13 @@ function BankAccountsPage() {
             </table></div>}
       </CardContent></Card>
       
-      {data && data.pagination.totalPages > 1 && <div className="flex items-center justify-end gap-2">
-        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Sebelumnya</Button>
-        <span className="text-sm">Halaman {data.pagination.currentPage} dari {data.pagination.totalPages}</span>
-        <Button variant="outline" size="sm" disabled={page >= data.pagination.totalPages} onClick={() => setPage((p) => p + 1)}>Berikutnya</Button>
-      </div>}
+            {data && (
+        <Pagination
+          page={page}
+          totalPages={data.pagination.totalPages}
+          onPageChange={setPage}
+        />
+      )}
 
       {canWrite && <BankAccountForm mode="create" open={addOpen} onOpenChange={setAddOpen} businessId={businessId} />}
     </div>

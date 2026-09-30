@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
 import type { BusinessRole } from "@/config/menuConfig";
 import { useMe } from "@/hooks/use-auth";
 import { useBusinesses } from "@/hooks/use-businesses";
@@ -48,7 +49,7 @@ function MembersPage() {
   const isAdmin = currentRole === "admin";
 
   const [page, setPage] = useState(1);
-  const { data, isPending, isError, error } = useMembers(businessId, page);
+  const { data, isPending, isError, error } = useMembers(businessId, page, 10);
   const [addOpen, setAddOpen] = useState(false);
 
   return (
@@ -96,28 +97,12 @@ function MembersPage() {
         </CardContent>
       </Card>
 
-      {data && data.pagination.totalPages > 1 && (
-        <div className="flex items-center justify-end gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => p - 1)}
-          >
-            Sebelumnya
-          </Button>
-          <span className="text-sm text-gray-500">
-            Halaman {data.pagination.currentPage} dari {data.pagination.totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= data.pagination.totalPages}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            Berikutnya
-          </Button>
-        </div>
+            {data && (
+        <Pagination
+          page={page}
+          totalPages={data.pagination.totalPages}
+          onPageChange={setPage}
+        />
       )}
 
       {isAdmin && (

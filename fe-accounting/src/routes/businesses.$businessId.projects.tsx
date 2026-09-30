@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
 import { useBusinesses } from "@/hooks/use-businesses";
 import { useCustomers } from "@/hooks/use-customers";
 import {
@@ -81,7 +82,7 @@ function ProjectsPage() {
   const { data, isPending, isError, error } = useProjects(businessId, page, {
     q: q || undefined,
     status: statusFilter === "all" ? undefined : statusFilter,
-  });
+  }, 10);
 
   const totals = useMemo(() => {
     if (!data?.data) return { income: 0, expenses: 0, netProfit: 0 };
@@ -197,28 +198,12 @@ function ProjectsPage() {
         </CardContent>
       </Card>
 
-      {data && data.pagination.totalPages > 1 && (
-        <div className="flex items-center justify-end gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => setPage((current) => current - 1)}
-          >
-            Sebelumnya
-          </Button>
-          <span className="text-sm text-gray-500">
-            Halaman {data.pagination.currentPage} dari {data.pagination.totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= data.pagination.totalPages}
-            onClick={() => setPage((current) => current + 1)}
-          >
-            Berikutnya
-          </Button>
-        </div>
+            {data && (
+        <Pagination
+          page={page}
+          totalPages={data.pagination.totalPages}
+          onPageChange={setPage}
+        />
       )}
 
       {canWrite && (

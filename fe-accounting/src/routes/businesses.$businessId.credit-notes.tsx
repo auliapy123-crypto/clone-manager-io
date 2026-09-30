@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useBusinesses } from "@/hooks/use-businesses";
 import { useCustomers } from "@/hooks/use-customers";
@@ -56,7 +57,7 @@ function CreditNotesPage() {
     return () => clearTimeout(timeout);
   }, [search]);
 
-  const { data, isPending, isError, error } = useCreditNotes(businessId, page, q || undefined);
+  const { data, isPending, isError, error } = useCreditNotes(businessId, page, q || undefined, 10);
   const deleteNote = useDeleteCreditNote(businessId);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -191,29 +192,12 @@ function CreditNotesPage() {
         </CardContent>
       </Card>
 
-      {/* Pagination */}
-      {data && data.pagination.total > 0 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500">
-            Menampilkan halaman {page} dari {Math.ceil(data.pagination.total / 20)}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              disabled={page <= 1}
-              onClick={() => setPage(page - 1)}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              disabled={page >= Math.ceil(data.pagination.total / 20)}
-              onClick={() => setPage(page + 1)}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
+      {data && (
+        <Pagination
+          page={page}
+          totalPages={data.pagination.totalPages}
+          onPageChange={setPage}
+        />
       )}
 
       {/* Dialog form */}

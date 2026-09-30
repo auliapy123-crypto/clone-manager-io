@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useBusinesses } from "@/hooks/use-businesses";
 import { useContacts } from "@/hooks/use-contacts";
@@ -29,7 +30,7 @@ function ExpenseClaimsPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   useEffect(() => { const timer = setTimeout(() => { setQ(search.trim()); setPage(1); }, 300); return () => clearTimeout(timer); }, [search]);
-  const { data, isPending, error } = useExpenseClaims(businessId, page, { q: q || undefined, status: status || undefined });
+  const { data, isPending, error } = useExpenseClaims(businessId, page, { q: q || undefined, status: status || undefined }, 10);
   const remove = useDeleteExpenseClaim(businessId);
   async function handleDelete(claim: ExpenseClaim) {
     if (!window.confirm(`Hapus klaim ${claim.reference || claim.date} sebesar ${formatAmount(claim.claimAmount)}? Jurnal terkait juga akan dihapus.`)) return;
@@ -49,7 +50,7 @@ function ExpenseClaimsPage() {
       </tr>)}</tbody>
       <tfoot className="border-t bg-gray-50 font-semibold"><tr><td colSpan={5} className="px-4 py-3">Total halaman ini</td><td className="px-4 py-3 text-right">{formatAmount((data?.data.reduce((sum, c) => sum + Math.round(c.claimAmount * 100), 0) ?? 0) / 100)}</td><td colSpan={2} /></tr></tfoot>
     </table></CardContent></Card>
-    <div className="flex items-center justify-between text-sm"><span>Halaman {page} / {Math.max(1, data?.pagination.totalPages ?? 1)} · {data?.pagination.total ?? 0} klaim</span><div className="flex gap-2"><Button variant="outline" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Sebelumnya</Button><Button variant="outline" disabled={page >= (data?.pagination.totalPages ?? 1)} onClick={() => setPage(p => p + 1)}>Berikutnya</Button></div></div>
+    {data && <Pagination page={page} totalPages={data.pagination.totalPages} onPageChange={setPage} />}
     {activeId && <ClaimForm key={activeId} businessId={businessId} id={activeId} canWrite={canWrite} onClose={() => setActiveId(null)} />}
   </div>;
 }
