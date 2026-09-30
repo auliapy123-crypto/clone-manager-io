@@ -38,6 +38,7 @@ import authMiddlewarePlugin from "./plugins/AuthMiddleware.js";
 import authRoutesPlugin from "./plugins/AuthRoutes.js";
 import bankAccountRoutesPlugin from "./plugins/BankAccountRoutes.js";
 import bankReconciliationRoutesPlugin from "./plugins/BankReconciliationRoutes.js";
+import billableTimeEntryRoutesPlugin from "./plugins/BillableTimeEntryRoutes.js";
 import businessRoutesPlugin from "./plugins/BusinessRoutes.js";
 import chartOfAccountRoutesPlugin from "./plugins/ChartOfAccountRoutes.js";
 import creditNoteRoutesPlugin from "./plugins/CreditNoteRoutes.js";
@@ -316,6 +317,7 @@ export async function buildApp() {
             { name: "JournalEntries", description: "Buku besar semua jurnal + jurnal manual per bisnis" },
             { name: "LatePaymentFees", description: "Denda keterlambatan pembayaran non-posting per bisnis" },
             { name: "DeliveryNotes", description: "Surat jalan administratif per bisnis (tanpa jurnal, tanpa nilai uang)" },
+            { name: "BillableTime", description: "Jam kerja yang berpotensi ditagihkan per bisnis (non-posting, berdiri sendiri)" },
             { name: "PurchaseOrders", description: "Pesanan pembelian non-posting + status penagihan per bisnis" },
             { name: "Projects", description: "Pelacakan proyek dan ringkasan keuangan per bisnis" },
          ],
@@ -333,6 +335,7 @@ export async function buildApp() {
   // 9. Route bisnis — satu per satu, di root path
   // -------------------------------------------------------------------
   await app.register(authRoutesPlugin);
+  await app.register(billableTimeEntryRoutesPlugin);
   await app.register(businessRoutesPlugin);
   await app.register(userRoutesPlugin);
   await app.register(chartOfAccountRoutesPlugin);

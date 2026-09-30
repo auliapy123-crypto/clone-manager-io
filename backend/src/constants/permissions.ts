@@ -105,6 +105,11 @@ export const Permission = {
     DELIVERY_NOTE_WRITE: "delivery_note:write",
     DELIVERY_NOTE_DELETE: "delivery_note:delete",
 
+    // Jam kerja yang ditagihkan (non-posting, berdiri sendiri)
+    BILLABLE_TIME_READ: "billable_time:read",
+    BILLABLE_TIME_WRITE: "billable_time:write",
+    BILLABLE_TIME_DELETE: "billable_time:delete",
+
     EXPENSE_CLAIM_READ: "expense_claim:read",
     EXPENSE_CLAIM_WRITE: "expense_claim:write",
     EXPENSE_CLAIM_DELETE: "expense_claim:delete",
@@ -141,6 +146,7 @@ const READ_ONLY: PermissionValue[] = [
     Permission.CREDIT_NOTE_READ,
     Permission.LATE_PAYMENT_FEE_READ,
     Permission.DELIVERY_NOTE_READ,
+    Permission.BILLABLE_TIME_READ,
     Permission.PROJECT_READ,
 ];
 
@@ -181,6 +187,8 @@ export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> 
       Permission.LATE_PAYMENT_FEE_DELETE,
       Permission.DELIVERY_NOTE_WRITE,
       Permission.DELIVERY_NOTE_DELETE,
+      Permission.BILLABLE_TIME_WRITE,
+      Permission.BILLABLE_TIME_DELETE,
       Permission.PROJECT_WRITE,
       Permission.PROJECT_DELETE,
     ],

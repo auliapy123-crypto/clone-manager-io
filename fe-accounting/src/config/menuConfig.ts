@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeftRight, ArrowUpFromLine, BookMarked, BookOpen, Building2, ClipboardList, FileText, FolderKanban, Hourglass, Landmark, LayoutDashboard, PackageCheck, Quote, Receipt, Scale, ShoppingCart, Truck, User, UserRound, Users, Wallet } from "lucide-react";
+import { ArrowLeftRight, ArrowUpFromLine, BookMarked, BookOpen, Building2, ClipboardList, FileText, FolderKanban, Hourglass, Landmark, LayoutDashboard, PackageCheck, Quote, Receipt, Scale, ShoppingCart, Timer, Truck, User, UserRound, Users, Wallet } from "lucide-react";
 
 /** Role bisnis (Guide §7 RBAC) -- harus sinkron dgn BusinessRoleSchema backend. */
 export type BusinessRole = "admin" | "accountant" | "viewer";
@@ -92,6 +92,12 @@ export const businessMenuItems: MenuItem[] = [
     label: "Delivery Notes",
     to: "/businesses/$businessId/delivery-notes",
     icon: PackageCheck,
+    allowedRoles: ["admin", "accountant"],
+  },
+  {
+    label: "Billable Time",
+    to: "/businesses/$businessId/billable-time",
+    icon: Timer,
     allowedRoles: ["admin", "accountant"],
   },
   {

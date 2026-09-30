@@ -924,6 +924,46 @@ export const deliveryNoteLines = pgTable(
 );
 
 // =====================================================================
+// 21g. BILLABLE_TIME_ENTRIES (Jam Kerja yang Ditagihkan) — NON-POSTING
+//
+// 1 tabel datar, TANPA baris item, TANPA jurnal. Berdiri sendiri —
+// TIDAK ADA relasi apa pun ke Sales Invoices (lihat BillableTime.md
+// §2.1). amount = hourly_rate × (time_spent_minutes / 60) DIHITUNG
+// real-time saat GET, bukan disimpan; status "Uninvoiced" STATIS.
+// employee_contact_id = kontak mana pun di tabel contacts (TANPA flag
+// khusus — modul Employees belum ada, pola payerContactId di Expense
+// Claims).
+// =====================================================================
+export const billableTimeEntries = pgTable(
+  "billable_time_entries",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    customerId: uuid()
+      .notNull()
+      .references(() => contacts.id),
+    employeeContactId: uuid()
+      .notNull()
+      .references(() => contacts.id),
+    date: date().notNull(),
+    description: text().notNull(),
+    hourlyRate: numeric({ precision: 18, scale: 2 }).notNull(),
+    timeSpentMinutes: integer().notNull(),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+    deletedAt: timestamp(),
+  },
+  (t) => [
+    index("idx_billable_time_entries_business").on(t.businessId),
+    index("idx_billable_time_entries_customer").on(t.customerId),
+    index("idx_billable_time_entries_employee").on(t.employeeContactId),
+    index("idx_billable_time_entries_date").on(t.date),
+  ],
+);
+
+// =====================================================================
 // 22. PROJECTS (Proyek)
 // =====================================================================
 export const projects = pgTable(
@@ -1001,6 +1041,7 @@ export const businessesRelations = relations(businesses, ({ many }) => ({
   creditNotes: many(creditNotes),
   latePaymentFees: many(latePaymentFees),
   deliveryNotes: many(deliveryNotes),
+  billableTimeEntries: many(billableTimeEntries),
   projects: many(projects),
   auditLogs: many(auditLogs),
 }));
@@ -1053,6 +1094,12 @@ export const contactsRelations = relations(contacts, ({ one, many }) => ({
   creditNotes: many(creditNotes),
   latePaymentFees: many(latePaymentFees),
   deliveryNotes: many(deliveryNotes),
+  billableTimeEntriesAsCustomer: many(billableTimeEntries, {
+    relationName: "billableTimeCustomer",
+  }),
+  billableTimeEntriesAsEmployee: many(billableTimeEntries, {
+    relationName: "billableTimeEmployee",
+  }),
 }));
 
 export const journalEntriesRelations = relations(
@@ -1323,6 +1370,29 @@ export const deliveryNoteLinesRelations = relations(
   }),
 );
 
+// Dua kolom menuju contacts (customer + employee) — WAJIB relationName
+// di kedua sisi biar resolusi relasi drizzle tidak ambigu (pola yang
+// sama dengan transferFrom/transferTo di bank accounts).
+export const billableTimeEntriesRelations = relations(
+  billableTimeEntries,
+  ({ one }) => ({
+    business: one(businesses, {
+      fields: [billableTimeEntries.businessId],
+      references: [businesses.id],
+    }),
+    customer: one(contacts, {
+      fields: [billableTimeEntries.customerId],
+      references: [contacts.id],
+      relationName: "billableTimeCustomer",
+    }),
+    employee: one(contacts, {
+      fields: [billableTimeEntries.employeeContactId],
+      references: [contacts.id],
+      relationName: "billableTimeEmployee",
+    }),
+  }),
+);
+
 export const receiptsRelations = relations(receipts, ({ one, many }) => ({
   business: one(businesses, {
     fields: [receipts.businessId],
@@ -1493,6 +1563,7 @@ export type SalesOrderLine = typeof salesOrderLines.$inferSelect;
 export type LatePaymentFee = typeof latePaymentFees.$inferSelect;
 export type DeliveryNote = typeof deliveryNotes.$inferSelect;
 export type DeliveryNoteLine = typeof deliveryNoteLines.$inferSelect;
+export type BillableTimeEntry = typeof billableTimeEntries.$inferSelect;
 export type Receipt = typeof receipts.$inferSelect;
 export type ReceiptLine = typeof receiptLines.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
