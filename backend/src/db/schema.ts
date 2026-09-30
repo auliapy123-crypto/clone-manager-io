@@ -866,6 +866,44 @@ export const latePaymentFees = pgTable(
 );
 
 // =====================================================================
+// 21f-2. WITHHOLDING_TAX_RECEIPTS (Bukti Potong PPh) — POSTING
+//
+// Tabel datar TANPA baris item. Posting jurnal: Debit akun Asset pilihan,
+// Kredit akun kontrol AR (contactId = customer). Mengurangi balanceDue
+// Sales Invoice (live, dihitung di SalesInvoiceRepository).
+// =====================================================================
+export const withholdingTaxReceipts = pgTable(
+  "withholding_tax_receipts",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    date: date().notNull(),
+    customerId: uuid()
+      .notNull()
+      .references(() => contacts.id),
+    salesInvoiceId: uuid()
+      .notNull()
+      .references(() => salesInvoices.id),
+    withholdingTaxAccountId: uuid()
+      .notNull()
+      .references(() => chartOfAccounts.id),
+    amount: numeric({ precision: 18, scale: 2 }).notNull(),
+    reference: varchar({ length: 50 }),
+    description: text(),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+    deletedAt: timestamp(),
+  },
+  (t) => [
+    index("idx_wht_receipts_business").on(t.businessId),
+    index("idx_wht_receipts_customer").on(t.customerId),
+    index("idx_wht_receipts_invoice").on(t.salesInvoiceId),
+  ],
+);
+
+// =====================================================================
 // 21f. DELIVERY_NOTES (Surat Jalan) — NON-POSTING
 //
 // MURNI dokumen administratif: TIDAK ADA jurnal, TANPA status, dan
@@ -1561,6 +1599,7 @@ export type SalesQuoteLine = typeof salesQuoteLines.$inferSelect;
 export type SalesOrder = typeof salesOrders.$inferSelect;
 export type SalesOrderLine = typeof salesOrderLines.$inferSelect;
 export type LatePaymentFee = typeof latePaymentFees.$inferSelect;
+export type WithholdingTaxReceipt = typeof withholdingTaxReceipts.$inferSelect;
 export type DeliveryNote = typeof deliveryNotes.$inferSelect;
 export type DeliveryNoteLine = typeof deliveryNoteLines.$inferSelect;
 export type BillableTimeEntry = typeof billableTimeEntries.$inferSelect;

@@ -276,6 +276,17 @@ environment variable atau `.env` yang sudah di-gitignore.
   jangan langsung eksekusi ke AI agent sebelum dikonfirmasi, sesuatu
   yang keliru di tool asli itu KEMUNGKINAN BESAR berubah dari waktu ke
   waktu (versi Manager.io berkembang), forum lama bisa udah basi.
+- **WithholdingTaxReceipts** — `/businesses/:id/withholding-tax-receipts`.
+  Modul POSTING, tabel datar (tanpa lines). Jurnal: Debit akun Asset
+  pilihan (bukan akun kontrol AR), Kredit akun kontrol AR
+  (`contactId`=customer). **Modul PERTAMA yang bikin
+  `SalesInvoiceRepository.balanceDue` beneran live**: `invoiceAmount −
+  Σ(receipt aktif)` (list + getById + `getSalesInvoiceAllocationInfo`,
+  cerminan pola Payments→Purchase Invoice). Validasi `amount ≤
+  balanceDue` saat ini (exclude receipt itu sendiri saat update) jalan
+  di dalam transaction dengan `SELECT ... FOR UPDATE` pada baris faktur.
+  Update SELALU repost jurnal. `POST /:id/copy` (date=hari ini) tetap
+  divalidasi ulang, bisa 400. Status respons hardcoded `"Applied"`.
 
 ### Status fase
 
@@ -286,11 +297,10 @@ environment variable atau `.env` yang sudah di-gitignore.
   Journal Entries, Purchase Orders, Expense Claims, Projects.
 - **Fase 3 (Modul Prioritas 2) — SEDANG BERJALAN.** Sudah selesai:
   Sales Quotes, Sales Orders, Credit Notes, Late Payment Fees, Delivery
-  Notes, Billable Time (6 modul). **Berikutnya: Withholding Tax
-  Receipts** — file "Analisis Manager.io kebutuhan Sistem Prioritas 2
-  Pahrio Kaspiyanor.docx" (BEDA dari 6 modul di atas yang semuanya dari
-  file "...Intern- Aulia.docx"). Sisa daftar dari roadmap:
-  Withholding Tax Receipts, Purchase Quotes, Debit Notes, Goods
+  Notes, Billable Time, Withholding Tax Receipts (7 modul).
+  **Berikutnya: Purchase Quotes** — file "Analisis Manager.io kebutuhan
+  Sistem Prioritas 2 Pahrio Kaspiyanor.docx". Sisa daftar dari roadmap:
+  Purchase Quotes, Debit Notes, Goods
   Receipts, Inventory (Items, Transfers, Write-offs), Production
   Orders, Employees & Payslips (Payroll), Fixed Assets & Depreciation
   Entries, Intangible Assets & Amortization Entries, Capital Accounts,
@@ -390,8 +400,8 @@ asumsi dari nama file doang.**
   Invoices, Purchase Invoices, Receipts, Payments, Inter Account
   Transfers, Bank Reconciliations, Journal Entries, Purchase Orders, Expense
   Claims, Projects (13 modul Fase 2 lengkap), Sales Quotes, Sales Orders,
-  Credit Notes, Late Payment Fees, Delivery Notes, Billable Time
-  (6 modul Fase 3 sejauh ini)
+  Credit Notes, Late Payment Fees, Delivery Notes, Billable Time,
+  Withholding Tax Receipts (7 modul Fase 3 sejauh ini)
 
 ## Aturan Kerja
 

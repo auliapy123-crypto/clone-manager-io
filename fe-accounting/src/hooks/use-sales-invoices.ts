@@ -100,7 +100,7 @@ export function useSalesInvoices(
   pageSize = 20,
 ) {
   return useQuery({
-    queryKey: salesInvoicesQueryKey(businessId, page, filters),
+    queryKey: [...salesInvoicesQueryKey(businessId, page, filters), pageSize],
     queryFn: async () => {
       const { data, error } = await apiClient.get<
         { data: SalesInvoice[]; pagination: PaginationInfo },

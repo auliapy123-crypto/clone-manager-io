@@ -8,10 +8,11 @@
  * faktur + jurnalnya — semua dalam SATU database transaction.
  *
  * Status (Paid/Unpaid/Overdue) dan balanceDue DIHITUNG real-time saat
- * GET. balanceDue SELALU = invoiceAmount sampai modul Receipts/Credit
- * Notes ada (belum ada yang mengurangi).
+ * GET. balanceDue = invoiceAmount − Σ(amount Withholding Tax Receipt
+ * aktif yang menunjuk faktur ini). Belum ada mekanisme lain yang
+ * mengurangi (Receipts/Credit Notes tidak terikat ke faktur tertentu).
  */
-import { and, asc, count, eq, ilike, isNull, or, sql } from "drizzle-orm";
+import { and, asc, count, eq, ilike, isNull, ne, or, sql } from "drizzle-orm";
 import db, { type Database } from "../db/index.js";
 import {
   chartOfAccounts,
@@ -20,6 +21,7 @@ import {
   journalEntryLines,
   salesInvoiceLines,
   salesInvoices,
+  withholdingTaxReceipts,
 } from "../db/schema.js";
 
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
@@ -417,13 +419,80 @@ function toRecord(
     updatedAt: Date;
   },
   invoiceAmount: number,
+  withheldAmount: number,
 ): SalesInvoiceRecord {
-  const balanceDue = invoiceAmount; // Belum ada Receipts/Credit Notes.
+  const balanceDue = Math.round((invoiceAmount - withheldAmount) * 100) / 100;
   return {
     ...header,
     invoiceAmount,
     balanceDue,
     status: computeInvoiceStatus(balanceDue, header.dueDate),
+  };
+}
+
+/**
+ * Total yang sudah dipotong lewat Withholding Tax Receipt aktif untuk satu
+ * Sales Invoice (receipt yang belum di-soft-delete). Dipakai buat
+ * balanceDue live. Cerminan getPaidAmount di PurchaseInvoiceRepository.
+ */
+async function getWithheldAmount(
+  tx: DbOrTx,
+  invoiceId: string,
+  excludeReceiptId?: string,
+): Promise<number> {
+  const conditions = [
+    eq(withholdingTaxReceipts.salesInvoiceId, invoiceId),
+    isNull(withholdingTaxReceipts.deletedAt),
+  ];
+  if (excludeReceiptId) {
+    conditions.push(ne(withholdingTaxReceipts.id, excludeReceiptId));
+  }
+  const [row] = await tx
+    .select({
+      withheld: sql<string>`COALESCE(SUM(${withholdingTaxReceipts.amount}), 0)`,
+    })
+    .from(withholdingTaxReceipts)
+    .where(and(...conditions));
+  return Number(row?.withheld ?? 0);
+}
+
+/**
+ * Info yang dibutuhkan WithholdingTaxReceiptRepository buat validasi:
+ * pemilik (customerId) dan balanceDue SAAT INI (opsional exclude satu
+ * receipt tertentu — dipakai saat update receipt itu sendiri, supaya
+ * potongan lama receipt ini tidak dihitung dobel).
+ */
+export async function getSalesInvoiceAllocationInfo(
+  businessId: string,
+  invoiceId: string,
+  opts: { tx?: DbOrTx; excludeReceiptId?: string } = {},
+): Promise<{ customerId: string; balanceDue: number } | null> {
+  const tx = opts.tx ?? db;
+  const [header] = await tx
+    .select({ customerId: salesInvoices.customerId })
+    .from(salesInvoices)
+    .where(
+      and(
+        eq(salesInvoices.businessId, businessId),
+        eq(salesInvoices.id, invoiceId),
+        isNull(salesInvoices.deletedAt),
+      ),
+    )
+    .limit(1);
+  if (!header) return null;
+
+  const [amountRow] = await tx
+    .select({
+      invoiceAmount: sql<string>`COALESCE(SUM(${salesInvoiceLines.lineTotal}), 0)`,
+    })
+    .from(salesInvoiceLines)
+    .where(eq(salesInvoiceLines.salesInvoiceId, invoiceId));
+  const invoiceAmount = Number(amountRow?.invoiceAmount ?? 0);
+  const withheld = await getWithheldAmount(tx, invoiceId, opts.excludeReceiptId);
+
+  return {
+    customerId: header.customerId,
+    balanceDue: Math.round((invoiceAmount - withheld) * 100) / 100,
   };
 }
 
@@ -446,6 +515,21 @@ export async function listSalesInvoices(
     .groupBy(salesInvoiceLines.salesInvoiceId)
     .as("t");
 
+  const withheldTotals = db
+    .select({
+      invoiceId: withholdingTaxReceipts.salesInvoiceId,
+      withheldAmount:
+        sql<string>`COALESCE(SUM(${withholdingTaxReceipts.amount}), 0)`.as(
+          "withheld_amount",
+        ),
+    })
+    .from(withholdingTaxReceipts)
+    .where(isNull(withholdingTaxReceipts.deletedAt))
+    .groupBy(withholdingTaxReceipts.salesInvoiceId)
+    .as("wt");
+
+  const balanceDueExpr = sql`(${totals.invoiceAmount} - COALESCE(${withheldTotals.withheldAmount}, 0))`;
+
   const conditions = [
     eq(salesInvoices.businessId, businessId),
     isNull(salesInvoices.deletedAt),
@@ -463,14 +547,14 @@ export async function listSalesInvoices(
   }
 
   if (opts.status === "Paid") {
-    conditions.push(sql`${totals.invoiceAmount} <= 0`);
+    conditions.push(sql`${balanceDueExpr} <= 0`);
   } else if (opts.status === "Overdue") {
     conditions.push(
-      sql`${totals.invoiceAmount} > 0 AND "sales_invoices"."due_date" IS NOT NULL AND "sales_invoices"."due_date" < ${todayString()}`,
+      sql`${balanceDueExpr} > 0 AND "sales_invoices"."due_date" IS NOT NULL AND "sales_invoices"."due_date" < ${todayString()}`,
     );
   } else if (opts.status === "Unpaid") {
     conditions.push(
-      sql`${totals.invoiceAmount} > 0 AND ("sales_invoices"."due_date" IS NULL OR "sales_invoices"."due_date" >= ${todayString()})`,
+      sql`${balanceDueExpr} > 0 AND ("sales_invoices"."due_date" IS NULL OR "sales_invoices"."due_date" >= ${todayString()})`,
     );
   }
 
@@ -489,12 +573,14 @@ export async function listSalesInvoices(
       description: salesInvoices.description,
       projectId: salesInvoices.projectId,
       invoiceAmount: totals.invoiceAmount,
+      withheldAmount: withheldTotals.withheldAmount,
       createdAt: salesInvoices.createdAt,
       updatedAt: salesInvoices.updatedAt,
     })
     .from(salesInvoices)
     .innerJoin(contacts, eq(salesInvoices.customerId, contacts.id))
     .leftJoin(totals, eq(totals.invoiceId, salesInvoices.id))
+    .leftJoin(withheldTotals, eq(withheldTotals.invoiceId, salesInvoices.id))
     .where(where);
 
   const [rows, [totalRow]] = await Promise.all([
@@ -507,13 +593,18 @@ export async function listSalesInvoices(
       .from(salesInvoices)
       .innerJoin(contacts, eq(salesInvoices.customerId, contacts.id))
       .leftJoin(totals, eq(totals.invoiceId, salesInvoices.id))
+    .leftJoin(withheldTotals, eq(withheldTotals.invoiceId, salesInvoices.id))
       .where(where),
   ]);
 
   return {
     data: rows.map((r) => {
-      const { invoiceAmount, ...header } = r;
-      return toRecord(header, Number(invoiceAmount ?? 0));
+      const { invoiceAmount, withheldAmount, ...header } = r;
+      return toRecord(
+        header,
+        Number(invoiceAmount ?? 0),
+        Number(withheldAmount ?? 0),
+      );
     }),
     total: totalRow?.total ?? 0,
   };
@@ -582,7 +673,8 @@ export async function getSalesInvoiceById(
 
   const lines = await getLinesWithAccounts(db, invoiceId);
   const invoiceAmount = lines.reduce((sum, l) => sum + l.lineTotal, 0);
-  return { ...toRecord(header, invoiceAmount), lines };
+  const withheldAmount = await getWithheldAmount(db, invoiceId);
+  return { ...toRecord(header, invoiceAmount, withheldAmount), lines };
 }
 
 // ---------------------------------------------------------------------

@@ -110,6 +110,11 @@ export const Permission = {
     BILLABLE_TIME_WRITE: "billable_time:write",
     BILLABLE_TIME_DELETE: "billable_time:delete",
 
+    // Bukti potong PPh (posting jurnal, mengurangi balanceDue Sales Invoice)
+    WITHHOLDING_TAX_RECEIPT_READ: "withholding_tax_receipt:read",
+    WITHHOLDING_TAX_RECEIPT_WRITE: "withholding_tax_receipt:write",
+    WITHHOLDING_TAX_RECEIPT_DELETE: "withholding_tax_receipt:delete",
+
     EXPENSE_CLAIM_READ: "expense_claim:read",
     EXPENSE_CLAIM_WRITE: "expense_claim:write",
     EXPENSE_CLAIM_DELETE: "expense_claim:delete",
@@ -147,6 +152,7 @@ const READ_ONLY: PermissionValue[] = [
     Permission.LATE_PAYMENT_FEE_READ,
     Permission.DELIVERY_NOTE_READ,
     Permission.BILLABLE_TIME_READ,
+    Permission.WITHHOLDING_TAX_RECEIPT_READ,
     Permission.PROJECT_READ,
 ];
 
@@ -189,6 +195,8 @@ export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> 
       Permission.DELIVERY_NOTE_DELETE,
       Permission.BILLABLE_TIME_WRITE,
       Permission.BILLABLE_TIME_DELETE,
+      Permission.WITHHOLDING_TAX_RECEIPT_WRITE,
+      Permission.WITHHOLDING_TAX_RECEIPT_DELETE,
       Permission.PROJECT_WRITE,
       Permission.PROJECT_DELETE,
     ],
