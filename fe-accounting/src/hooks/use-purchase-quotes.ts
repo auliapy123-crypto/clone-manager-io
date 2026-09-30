@@ -139,7 +139,7 @@ export function useCreatePurchaseQuote(businessId: string) {
         ApiErrorBody
       >({
         url: `/businesses/${businessId}/purchase-quotes`,
-        body: input,
+        body: { ...input },
       });
       if (error) throw new ApiError(error);
       return data.data;
