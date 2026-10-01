@@ -139,6 +139,11 @@ export const Permission = {
     PROJECT_WRITE: "project:write",
     PROJECT_DELETE: "project:delete",
 
+    // Divisi/Departemen (label/tag, non-posting)
+    DIVISION_READ: "division:read",
+    DIVISION_WRITE: "division:write",
+    DIVISION_DELETE: "division:delete",
+
     // Audit
     AUDIT_READ: "audit:read",
 
@@ -175,6 +180,7 @@ const READ_ONLY: PermissionValue[] = [
     Permission.BILLABLE_TIME_READ,
     Permission.WITHHOLDING_TAX_RECEIPT_READ,
     Permission.PROJECT_READ,
+    Permission.DIVISION_READ,
     Permission.HISTORY_READ,
 ];
 
@@ -227,6 +233,8 @@ export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> 
       Permission.WITHHOLDING_TAX_RECEIPT_DELETE,
       Permission.PROJECT_WRITE,
       Permission.PROJECT_DELETE,
+      Permission.DIVISION_WRITE,
+      Permission.DIVISION_DELETE,
     ],
     viewer: READ_ONLY,
   };

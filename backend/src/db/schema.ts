@@ -1153,6 +1153,42 @@ export const projects = pgTable(
 );
 
 // =====================================================================
+// 24. DIVISIONS (Departemen/Cabang — label/tag pengelompokan)
+//
+// MIRROR modul Projects (Bagian A CRUD dasar), TANPA perhitungan
+// keuangan: divisi murni penanda untuk pengelompokan transaksi per
+// unit bisnis internal. Checkpoint 2 menambah kolom division_id
+// (nullable, FK ke sini) ke 6 tabel transaksi yang sama dengan
+// project_id.
+// =====================================================================
+export const DIVISION_STATUSES = ["active", "inactive"] as const;
+export type DivisionStatus = (typeof DIVISION_STATUSES)[number];
+
+export const divisions = pgTable(
+  "divisions",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    name: varchar({ length: 255 }).notNull(),
+    code: varchar({ length: 50 }),
+    status: varchar({ length: 20 }).$type<DivisionStatus>().notNull().default("active"),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+    deletedAt: timestamp(),
+  },
+  (t) => [
+    index("idx_divisions_business").on(t.businessId),
+    index("idx_divisions_status").on(t.businessId, t.status),
+    check(
+      "divisions_status_check",
+      sql`${t.status} IN ('active', 'inactive')`,
+    ),
+  ],
+);
+
+// =====================================================================
 // 23. AUDIT_LOGS
 // =====================================================================
 export const auditLogs = pgTable(
@@ -1206,6 +1242,7 @@ export const businessesRelations = relations(businesses, ({ many }) => ({
   deliveryNotes: many(deliveryNotes),
   billableTimeEntries: many(billableTimeEntries),
   projects: many(projects),
+  divisions: many(divisions),
   auditLogs: many(auditLogs),
 }));
 
@@ -1801,6 +1838,13 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   journalEntries: many(journalEntries),
 }));
 
+export const divisionsRelations = relations(divisions, ({ one }) => ({
+  business: one(businesses, {
+    fields: [divisions.businessId],
+    references: [businesses.id],
+  }),
+}));
+
 // =====================================================================
 // TIPE TURUNAN (dipakai repository & route)
 // =====================================================================
@@ -1843,3 +1887,5 @@ export type BankReconciliation = typeof bankReconciliations.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type NewProject = typeof projects.$inferInsert;
 export type AuditLog = typeof auditLogs.$inferSelect;
+export type Division = typeof divisions.$inferSelect;
+export type NewDivision = typeof divisions.$inferInsert;
