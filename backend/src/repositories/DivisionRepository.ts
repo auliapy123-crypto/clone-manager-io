@@ -13,7 +13,17 @@
  */
 import { and, asc, count, eq, ilike, isNull, or } from "drizzle-orm";
 import db from "../db/index.js";
-import { divisions, type DivisionStatus } from "../db/schema.js";
+import {
+  divisions,
+  expenseClaims,
+  journalEntries,
+  payments,
+  purchaseInvoices,
+  receipts,
+  salesInvoices,
+  type DivisionStatus,
+} from "../db/schema.js";
+import { MANUAL_JOURNAL_SOURCE_MODULE } from "./JournalEntryRepository.js";
 
 /** Error validasi Division (lock delete, tag divisi tidak valid) -> 400. */
 export class DivisionValidationError extends Error {
@@ -184,25 +194,118 @@ export async function updateDivision(
 }
 
 /**
- * Checkpoint 1: delete sementara BEBAS tanpa lock. Checkpoint 2 (setelah
- * kolom division_id ada di 6 tabel) mengganti implementasi ini dengan
- * versi yang menolak hapus kalau masih ada dokumen aktif bertag.
+ * Checkpoint 1: delete sementara BEBAS tanpa lock. Checkpoint 2: diganti
+ * implementasi ber-lock di bawah (menolak kalau masih ada dokumen aktif
+ * bertag division_id di 6 tabel).
  */
 export async function deleteDivision(
   businessId: string,
   id: string,
 ): Promise<boolean> {
-  const rows = await db
-    .update(divisions)
-    .set({ deletedAt: new Date(), updatedAt: new Date() })
-    .where(
-      and(
-        eq(divisions.id, id),
-        eq(divisions.businessId, businessId),
-        isNull(divisions.deletedAt),
-      ),
-    )
-    .returning({ id: divisions.id });
+  return deleteDivisionWithLock(businessId, id);
+}
 
-  return rows.length > 0;
+/**
+ * Validasi penandaan divisi pada dokumen transaksi (MIRROR PERSIS
+ * validateProjectAssignment; dipanggil dari repository/routes 6 modul).
+ * `divisionId` = nilai yang dikirim body (undefined = tidak dikirim,
+ * tidak divalidasi; null = lepas tag, selalu boleh). `currentDivisionId` =
+ * tag yang SUDAH tersimpan di dokumen ini (khusus update) — kalau
+ * divisionId baru SAMA dengan yang lama, boleh lolos walau divisinya
+ * sekarang inactive (dokumen lama tidak boleh gagal diedit gara-gara
+ * divisinya sudah tidak aktif).
+ */
+export async function validateDivisionAssignment(
+  businessId: string,
+  divisionId: string | null | undefined,
+  currentDivisionId: string | null | undefined = null,
+): Promise<string | null> {
+  if (divisionId === undefined || divisionId === null) return null;
+
+  const division = await getDivisionById(businessId, divisionId);
+  if (!division) {
+    return "Divisi tidak ditemukan atau bukan milik bisnis ini.";
+  }
+  if (division.status !== "active" && divisionId !== currentDivisionId) {
+    return "Divisi harus berstatus aktif untuk ditandai pada dokumen ini.";
+  }
+  return null;
+}
+
+/** 6 tabel transaksi dokumen Divisions.md §4.2 yang punya kolom division_id. */
+const DIVISION_TAGGED_TABLES = [
+  { table: salesInvoices, label: "Sales Invoice" },
+  { table: purchaseInvoices, label: "Purchase Invoice" },
+  { table: receipts, label: "Receipt" },
+  { table: payments, label: "Payment" },
+  { table: expenseClaims, label: "Expense Claim" },
+] as const;
+
+/**
+ * Checkpoint 2: soft-delete DENGAN lock — menolak (400) kalau masih ada
+ * dokumen AKTIF di salah satu 6 tabel yang division_id-nya divisi ini,
+ * termasuk jurnal manual aktif. MIRROR PERSIS deleteProject.
+ */
+export async function deleteDivisionWithLock(
+  businessId: string,
+  id: string,
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({ id: divisions.id })
+      .from(divisions)
+      .where(
+        and(
+          eq(divisions.id, id),
+          eq(divisions.businessId, businessId),
+          isNull(divisions.deletedAt),
+        ),
+      )
+      .limit(1);
+    if (!existing) return false;
+
+    for (const { table, label } of DIVISION_TAGGED_TABLES) {
+      const [row] = await tx
+        .select({ id: table.id })
+        .from(table)
+        .where(and(eq(table.divisionId, id), isNull(table.deletedAt)))
+        .limit(1);
+      if (row) {
+        throw new DivisionValidationError(
+          `Divisi masih punya dokumen aktif (${label}), tidak bisa dihapus.`,
+        );
+      }
+    }
+
+    const [manualJournal] = await tx
+      .select({ id: journalEntries.id })
+      .from(journalEntries)
+      .where(
+        and(
+          eq(journalEntries.divisionId, id),
+          eq(journalEntries.sourceModule, MANUAL_JOURNAL_SOURCE_MODULE),
+          isNull(journalEntries.deletedAt),
+        ),
+      )
+      .limit(1);
+    if (manualJournal) {
+      throw new DivisionValidationError(
+        "Divisi masih punya jurnal manual aktif, tidak bisa dihapus.",
+      );
+    }
+
+    const rows = await tx
+      .update(divisions)
+      .set({ deletedAt: new Date(), updatedAt: new Date() })
+      .where(
+        and(
+          eq(divisions.id, id),
+          eq(divisions.businessId, businessId),
+          isNull(divisions.deletedAt),
+        ),
+      )
+      .returning({ id: divisions.id });
+
+    return rows.length > 0;
+  });
 }

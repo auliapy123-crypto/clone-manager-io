@@ -31,6 +31,7 @@ export interface Receipt {
   contactName: string | null;
   description: string | null;
   projectId: string | null;
+  divisionId: string | null;
   totalAmount: number;
   createdAt: string;
   updatedAt: string;
@@ -51,6 +52,7 @@ export interface CreateReceiptInput {
   contactId?: string | null;
   description?: string | null;
   projectId?: string | null;
+  divisionId?: string | null;
   lines: ReceiptLineInput[];
 }
 
@@ -62,6 +64,7 @@ export interface UpdateReceiptInput {
   contactId?: string | null;
   description?: string | null;
   projectId?: string | null;
+  divisionId?: string | null;
   lines?: ReceiptLineInput[];
 }
 

@@ -19,6 +19,7 @@ export const CreateReceiptSchema = z.object({
   contactId: z.string().uuid().optional().nullable(),
   description: z.string().trim().max(2000).optional().nullable(),
   projectId: z.string().uuid().optional().nullable(),
+  divisionId: z.string().uuid().optional().nullable(),
   lines: z
     .array(ReceiptLineInputSchema)
     .min(1, "Penerimaan wajib punya minimal 1 baris item"),
@@ -31,6 +32,7 @@ export const UpdateReceiptSchema = z.object({
   contactId: z.string().uuid().optional().nullable(),
   description: z.string().trim().max(2000).optional().nullable(),
   projectId: z.string().uuid().optional().nullable(),
+  divisionId: z.string().uuid().optional().nullable(),
   lines: z
     .array(ReceiptLineInputSchema)
     .min(1, "Penerimaan wajib punya minimal 1 baris item")
@@ -64,6 +66,7 @@ export const ReceiptResponseSchema = z.object({
   contactName: z.string().nullable(),
   description: z.string().nullable(),
   projectId: z.string().nullable(),
+  divisionId: z.string().nullable(),
   totalAmount: z.number(),
   createdAt: z.date(),
   updatedAt: z.date(),

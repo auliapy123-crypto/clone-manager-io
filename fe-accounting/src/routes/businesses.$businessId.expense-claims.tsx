@@ -12,6 +12,7 @@ import { useBusinesses } from "@/hooks/use-businesses";
 import { useContacts } from "@/hooks/use-contacts";
 import { getTodayDateString, useExpenseClaims, useExpenseClaim, useCreateExpenseClaim, useUpdateExpenseClaim, useDeleteExpenseClaim, type ExpenseClaim } from "@/hooks/use-expense-claims";
 import { useProjectOptions } from "@/hooks/use-projects";
+import { useDivisionOptions } from "@/hooks/use-divisions";
 import { getApiErrorMessage } from "@/lib/errors";
 
 export const Route = createFileRoute("/businesses/$businessId/expense-claims")({ component: ExpenseClaimsPage });
@@ -76,12 +77,15 @@ function ClaimForm({ businessId, id, canWrite, onClose }: { businessId: string; 
   const [payee, setPayee] = useState("");
   const [description, setDescription] = useState("");
   const [projectId, setProjectId] = useState("");
+  const [divisionId, setDivisionId] = useState("");
   const [lines, setLines] = useState<FormLine[]>([emptyLine()]);
   const [formError, setFormError] = useState<string | null>(null);
   const { options: projectOptions } = useProjectOptions(businessId, existing?.projectId);
+  const { options: divisionOptions } = useDivisionOptions(businessId, existing?.divisionId);
   useEffect(() => { if (existing) {
     setDate(existing.date); setReference(existing.reference ?? ""); setPayer(existing.payerContactId); setPayee(existing.payee ?? ""); setDescription(existing.description ?? "");
     setProjectId(existing.projectId ?? "");
+    setDivisionId(existing.divisionId ?? "");
     setLines(existing.lines.map(l => ({ id: l.id, accountId: l.accountId, description: l.description ?? "", amount: String(l.amount) })));
   } }, [existing]);
   const busy = create.isPending || update.isPending;
@@ -90,7 +94,7 @@ function ClaimForm({ businessId, id, canWrite, onClose }: { businessId: string; 
   async function submit(event: React.FormEvent) {
     event.preventDefault(); setFormError(null);
     if (!payerContactId || !lines.length || lines.some(l => !l.accountId || !Number.isFinite(Number(l.amount)) || Number(l.amount) <= 0)) { setFormError("Payer, akun, dan nominal positif tiap baris wajib diisi."); return; }
-    const body = { date, payerContactId, reference: reference.trim() || null, payee: payee.trim() || null, description: description.trim() || null, projectId: projectId || null, lines: lines.map(l => ({ accountId: l.accountId, description: l.description.trim() || null, amount: Number(l.amount) })) };
+    const body = { date, payerContactId, reference: reference.trim() || null, payee: payee.trim() || null, description: description.trim() || null, projectId: projectId || null, divisionId: divisionId || null, lines: lines.map(l => ({ accountId: l.accountId, description: l.description.trim() || null, amount: Number(l.amount) })) };
     try {
       if (isNew) await create.mutateAsync({ ...body, reference: body.reference ?? undefined });
       else await update.mutateAsync({ ...body, expenseClaimId: id });
@@ -112,6 +116,7 @@ function ClaimForm({ businessId, id, canWrite, onClose }: { businessId: string; 
           <label className="text-sm">Payee<Input maxLength={255} placeholder="Nama toko / penerima" value={payee} onChange={e => setPayee(e.target.value)} /></label>
           <label className="text-sm md:col-span-2">Description<Input maxLength={2000} value={description} onChange={e => setDescription(e.target.value)} /></label>
           <label className="text-sm">Project<select className={selectClass} value={projectId} onChange={e => setProjectId(e.target.value)}><option value="">-- Tanpa Proyek --</option>{projectOptions.map(p => <option key={p.id} value={p.id}>{p.name} {p.code ? `(${p.code})` : ""}</option>)}</select></label>
+          <label className="text-sm">Division<select className={selectClass} value={divisionId} onChange={e => setDivisionId(e.target.value)}><option value="">-- Tanpa Divisi --</option>{divisionOptions.map(d => <option key={d.id} value={d.id}>{d.name} {d.code ? `(${d.code})` : ""}</option>)}</select></label>
         </div>
         <div className="flex items-center justify-between"><h3 className="font-semibold">Baris Item</h3>{canWrite && <Button type="button" variant="outline" size="sm" onClick={() => setLines(prev => [...prev, emptyLine()])}>+ Tambah Baris</Button>}</div>
         <div className="overflow-x-auto border rounded-md"><table className="w-full text-sm"><thead className="bg-gray-50 text-left"><tr><th className="p-2 min-w-56">Account (Expense/Asset) *</th><th className="p-2 min-w-44">Description</th><th className="p-2 min-w-36">Amount *</th>{canWrite && <th className="p-2">Hapus</th>}</tr></thead><tbody>{lines.map((l, i) => <tr key={l.id}>

@@ -35,6 +35,7 @@ const columns = {
   reference: expenseClaims.reference, payerContactId: expenseClaims.payerContactId, payerName: contacts.name,
   payee: expenseClaims.payee, description: expenseClaims.description,
   projectId: expenseClaims.projectId,
+  divisionId: expenseClaims.divisionId,
   createdAt: expenseClaims.createdAt, updatedAt: expenseClaims.updatedAt,
   claimAmount: claimAmount.as("claim_amount"), balanceDue: balance.as("balance_due"),
 };

@@ -33,6 +33,7 @@ export interface JournalEntry {
   sourceId: string | null;
   description: string | null;
   projectId: string | null;
+  divisionId: string | null;
   isManual: boolean;
   totalDebit: number;
   totalCredit: number;
@@ -54,6 +55,7 @@ export interface CreateJournalEntryInput {
   reference?: string;
   description?: string | null;
   projectId?: string | null;
+  divisionId?: string | null;
   lines: JournalEntryLineInput[];
 }
 
@@ -63,6 +65,7 @@ export interface UpdateJournalEntryInput {
   reference?: string | null;
   description?: string | null;
   projectId?: string | null;
+  divisionId?: string | null;
   lines?: JournalEntryLineInput[];
 }
 

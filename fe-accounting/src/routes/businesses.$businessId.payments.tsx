@@ -19,6 +19,7 @@ import { useBusinesses } from "@/hooks/use-businesses";
 import { useContacts } from "@/hooks/use-contacts";
 import { useExpenseClaimOptions } from "@/hooks/use-expense-claims";
 import { useProjectOptions } from "@/hooks/use-projects";
+import { useDivisionOptions } from "@/hooks/use-divisions";
 import {
   getTodayDateString,
   type Payment,
@@ -299,8 +300,14 @@ function PaymentFormDialog({
   const { data: claimOptions = [], isPending: isClaimsLoading, error: claimsError } = useExpenseClaimOptions(businessId, contactId);
   const [description, setDescription] = useState("");
   const [projectId, setProjectId] = useState("");
+  const [divisionId, setDivisionId] = useState("");
   const [lines, setLines] = useState<FormLine[]>([createEmptyLine()]);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const { options: divisionOptions } = useDivisionOptions(
+    businessId,
+    existingPayment?.divisionId,
+  );
 
   const { options: projectOptions } = useProjectOptions(
     businessId,
@@ -315,6 +322,7 @@ function PaymentFormDialog({
       setContactId(existingPayment.contactId);
       setDescription(existingPayment.description ?? "");
       setProjectId(existingPayment.projectId ?? "");
+      setDivisionId(existingPayment.divisionId ?? "");
 
       if (existingPayment.lines && existingPayment.lines.length > 0) {
         setLines(
@@ -481,6 +489,7 @@ function PaymentFormDialog({
           contactId,
           description: description.trim() || undefined,
           projectId: projectId || null,
+          divisionId: divisionId || null,
           lines: formattedLines,
         });
       } else {
@@ -492,6 +501,7 @@ function PaymentFormDialog({
           contactId,
           description: description.trim() || null,
           projectId: projectId || null,
+          divisionId: divisionId || null,
           lines: formattedLines,
         });
       }
@@ -636,6 +646,25 @@ function PaymentFormDialog({
                     {projectOptions.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name} {p.code ? `(${p.code})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
+                    Division
+                  </label>
+                  <select
+                    className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
+                    value={divisionId}
+                    disabled={!canWrite}
+                    onChange={(event) => setDivisionId(event.target.value)}
+                  >
+                    <option value="">-- Tanpa Divisi --</option>
+                    {divisionOptions.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name} {d.code ? `(${d.code})` : ""}
                       </option>
                     ))}
                   </select>

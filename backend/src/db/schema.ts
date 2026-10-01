@@ -185,12 +185,14 @@ export const journalEntries = pgTable(
     sourceId: uuid(),
     description: text(),
     projectId: uuid().references(() => projects.id),
+    divisionId: uuid().references(() => divisions.id),
     deletedAt: timestamp(),
   },
   (t) => [
     index("idx_je_business").on(t.businessId),
     index("idx_je_source").on(t.sourceModule, t.sourceId),
     index("idx_je_project").on(t.projectId),
+    index("idx_je_division").on(t.divisionId),
   ],
 );
 
@@ -297,6 +299,7 @@ export const salesInvoices = pgTable("sales_invoices", {
   billingAddress: text(),
   description: text(),
   projectId: uuid().references(() => projects.id),
+  divisionId: uuid().references(() => divisions.id),
   createdAt: timestamp().notNull().defaultNow(),
   updatedAt: timestamp().notNull().defaultNow(),
   deletedAt: timestamp(),
@@ -304,6 +307,7 @@ export const salesInvoices = pgTable("sales_invoices", {
   index("idx_sales_invoices_business").on(t.businessId),
   index("idx_sales_invoices_customer").on(t.customerId),
   index("idx_sales_invoices_project").on(t.projectId),
+  index("idx_sales_invoices_division").on(t.divisionId),
 ]);
 
 // =====================================================================
@@ -473,6 +477,7 @@ export const purchaseInvoices = pgTable("purchase_invoices", {
   orderNumber: varchar({ length: 50 }),
   purchaseOrderId: uuid().references(() => purchaseOrders.id),
   projectId: uuid().references(() => projects.id),
+  divisionId: uuid().references(() => divisions.id),
   createdAt: timestamp().notNull().defaultNow(),
   updatedAt: timestamp().notNull().defaultNow(),
   deletedAt: timestamp(),
@@ -481,6 +486,7 @@ export const purchaseInvoices = pgTable("purchase_invoices", {
   index("idx_purchase_invoices_supplier").on(t.supplierId),
   index("idx_purchase_invoices_purchase_order").on(t.purchaseOrderId),
   index("idx_purchase_invoices_project").on(t.projectId),
+  index("idx_purchase_invoices_division").on(t.divisionId),
 ]);
 
 // =====================================================================
@@ -530,6 +536,7 @@ export const receipts = pgTable(
     contactId: uuid().references(() => contacts.id),
     description: text(),
     projectId: uuid().references(() => projects.id),
+    divisionId: uuid().references(() => divisions.id),
     createdAt: timestamp().notNull().defaultNow(),
     updatedAt: timestamp().notNull().defaultNow(),
     deletedAt: timestamp(),
@@ -539,6 +546,7 @@ export const receipts = pgTable(
     index("idx_receipts_bank_account").on(t.bankAccountId),
     index("idx_receipts_contact").on(t.contactId),
     index("idx_receipts_project").on(t.projectId),
+    index("idx_receipts_division").on(t.divisionId),
   ],
 );
 
@@ -592,6 +600,7 @@ export const payments = pgTable(
       .references(() => contacts.id),
     description: text(),
     projectId: uuid().references(() => projects.id),
+    divisionId: uuid().references(() => divisions.id),
     createdAt: timestamp().notNull().defaultNow(),
     updatedAt: timestamp().notNull().defaultNow(),
     deletedAt: timestamp(),
@@ -601,6 +610,7 @@ export const payments = pgTable(
     index("idx_payments_bank_account").on(t.bankAccountId),
     index("idx_payments_contact").on(t.contactId),
     index("idx_payments_project").on(t.projectId),
+    index("idx_payments_division").on(t.divisionId),
   ],
 );
 
@@ -619,8 +629,9 @@ export const expenseClaims = pgTable("expense_claims", {
   payerContactId: uuid().notNull().references(() => contacts.id),
   payee: varchar({ length: 255 }), description: text(), deletedAt: timestamp(),
   projectId: uuid().references(() => projects.id),
+  divisionId: uuid().references(() => divisions.id),
   createdAt: timestamp().notNull().defaultNow(), updatedAt: timestamp().notNull().defaultNow(),
-}, (t) => [index("idx_expense_claims_business").on(t.businessId), index("idx_expense_claims_payer").on(t.payerContactId), index("idx_expense_claims_project").on(t.projectId)]);
+}, (t) => [index("idx_expense_claims_business").on(t.businessId), index("idx_expense_claims_payer").on(t.payerContactId), index("idx_expense_claims_project").on(t.projectId), index("idx_expense_claims_division").on(t.divisionId)]);
 
 export const expenseClaimLines = pgTable("expense_claim_lines", {
   id: uuid().primaryKey().defaultRandom(),
@@ -1838,11 +1849,17 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   journalEntries: many(journalEntries),
 }));
 
-export const divisionsRelations = relations(divisions, ({ one }) => ({
+export const divisionsRelations = relations(divisions, ({ one, many }) => ({
   business: one(businesses, {
     fields: [divisions.businessId],
     references: [businesses.id],
   }),
+  salesInvoices: many(salesInvoices),
+  purchaseInvoices: many(purchaseInvoices),
+  receipts: many(receipts),
+  payments: many(payments),
+  expenseClaims: many(expenseClaims),
+  journalEntries: many(journalEntries),
 }));
 
 // =====================================================================

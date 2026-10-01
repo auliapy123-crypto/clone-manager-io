@@ -29,6 +29,7 @@ export interface ReceiptCreateInput {
   contactId?: string | null;
   description?: string | null;
   projectId?: string | null;
+  divisionId?: string | null;
   lines: ReceiptLineInput[];
 }
 
@@ -39,6 +40,7 @@ export interface ReceiptUpdateInput {
   contactId?: string | null;
   description?: string | null;
   projectId?: string | null;
+  divisionId?: string | null;
   lines?: ReceiptLineInput[];
 }
 
@@ -76,6 +78,7 @@ export interface ReceiptRecord {
   contactName: string | null;
   description: string | null;
   projectId: string | null;
+  divisionId: string | null;
   totalAmount: number;
   createdAt: Date;
   updatedAt: Date;
@@ -263,6 +266,7 @@ function toRecord(header: {
   contactName: string | null;
   description: string | null;
   projectId: string | null;
+  divisionId: string | null;
   createdAt: Date;
   updatedAt: Date;
   totalAmount: string | number | null;
@@ -318,6 +322,7 @@ export async function listReceipts(
       contactName: paidBy.name,
       description: receipts.description,
       projectId: receipts.projectId,
+      divisionId: receipts.divisionId,
       totalAmount: totals.totalAmount,
       createdAt: receipts.createdAt,
       updatedAt: receipts.updatedAt,
@@ -385,6 +390,7 @@ export async function getReceiptById(
       contactName: paidBy.name,
       description: receipts.description,
       projectId: receipts.projectId,
+      divisionId: receipts.divisionId,
       createdAt: receipts.createdAt,
       updatedAt: receipts.updatedAt,
     })
@@ -430,6 +436,7 @@ export async function createReceipt(
         contactId: input.contactId ?? null,
         description: input.description,
         projectId: input.projectId ?? null,
+        divisionId: input.divisionId ?? null,
       })
       .returning({ id: receipts.id });
 
@@ -552,6 +559,7 @@ export async function updateReceipt(
     if (input.contactId !== undefined) patch.contactId = input.contactId;
     if (input.description !== undefined) patch.description = input.description;
     if (input.projectId !== undefined) patch.projectId = input.projectId;
+    if (input.divisionId !== undefined) patch.divisionId = input.divisionId;
 
     await tx
       .update(receipts)

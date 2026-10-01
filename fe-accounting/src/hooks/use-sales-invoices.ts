@@ -40,6 +40,7 @@ export interface SalesInvoice {
   billingAddress: string | null;
   description: string | null;
   projectId: string | null;
+  divisionId: string | null;
   invoiceAmount: number;
   balanceDue: number;
   status: SalesInvoiceStatus;
@@ -64,6 +65,7 @@ export interface CreateSalesInvoiceInput {
   billingAddress?: string | null;
   description?: string | null;
   projectId?: string | null;
+  divisionId?: string | null;
   lines: SalesInvoiceLineInput[];
 }
 
@@ -76,6 +78,7 @@ export interface UpdateSalesInvoiceInput {
   billingAddress?: string | null;
   description?: string | null;
   projectId?: string | null;
+  divisionId?: string | null;
   lines?: SalesInvoiceLineInput[];
 }
 

@@ -35,6 +35,7 @@ export interface Payment {
   contactName: string;
   description: string | null;
   projectId: string | null;
+  divisionId: string | null;
   totalAmount: number;
   createdAt: string;
   updatedAt: string;
@@ -55,6 +56,7 @@ export interface CreatePaymentInput {
   contactId: string;
   description?: string | null;
   projectId?: string | null;
+  divisionId?: string | null;
   lines: PaymentLineInput[];
 }
 
@@ -66,6 +68,7 @@ export interface UpdatePaymentInput {
   contactId?: string;
   description?: string | null;
   projectId?: string | null;
+  divisionId?: string | null;
   lines?: PaymentLineInput[];
 }
 

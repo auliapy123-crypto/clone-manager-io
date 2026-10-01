@@ -7,6 +7,7 @@ import { getBankAccountById } from "../repositories/BankAccountRepository.js";
 import { getAccountById } from "../repositories/ChartOfAccountRepository.js";
 import { getContactById } from "../repositories/ContactRepository.js";
 import { validateProjectAssignment } from "../repositories/ProjectRepository.js";
+import { validateDivisionAssignment } from "../repositories/DivisionRepository.js";
 import {
   createPayment,
   getPaymentById,
@@ -149,6 +150,9 @@ export async function paymentRoutesPlugin(fastify: FastifyInstance) {
       const projectError = await validateProjectAssignment(businessId, body.projectId);
       if (projectError) return sendError(reply, 400, ErrorCode.BAD_REQUEST, projectError);
 
+      const divisionError = await validateDivisionAssignment(businessId, body.divisionId);
+      if (divisionError) return sendError(reply, 400, ErrorCode.BAD_REQUEST, divisionError);
+
       const payment = await createPayment(businessId, body);
 
       request.audit = {
@@ -218,6 +222,12 @@ export async function paymentRoutesPlugin(fastify: FastifyInstance) {
         existing.projectId,
       );
       if (projectError) return sendError(reply, 400, ErrorCode.BAD_REQUEST, projectError);
+      const divisionError = await validateDivisionAssignment(
+        businessId,
+        body.divisionId,
+        existing.divisionId,
+      );
+      if (divisionError) return sendError(reply, 400, ErrorCode.BAD_REQUEST, divisionError);
 
       const updated = await updatePayment(businessId, paymentId, body);
       if (!updated) {

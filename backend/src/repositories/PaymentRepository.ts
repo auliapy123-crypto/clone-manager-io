@@ -44,6 +44,7 @@ export interface PaymentCreateInput {
   contactId: string;
   description?: string | null;
   projectId?: string | null;
+  divisionId?: string | null;
   lines: PaymentLineInput[];
 }
 
@@ -54,6 +55,7 @@ export interface PaymentUpdateInput {
   contactId?: string;
   description?: string | null;
   projectId?: string | null;
+  divisionId?: string | null;
   lines?: PaymentLineInput[];
 }
 
@@ -95,6 +97,7 @@ export interface PaymentRecord {
   contactName: string;
   description: string | null;
   projectId: string | null;
+  divisionId: string | null;
   totalAmount: number;
   createdAt: Date;
   updatedAt: Date;
@@ -361,6 +364,7 @@ function toRecord(header: {
   contactName: string;
   description: string | null;
   projectId: string | null;
+  divisionId: string | null;
   createdAt: Date;
   updatedAt: Date;
   totalAmount: string | number | null;
@@ -416,6 +420,7 @@ export async function listPayments(
       contactName: contacts.name,
       description: payments.description,
       projectId: payments.projectId,
+      divisionId: payments.divisionId,
       totalAmount: totals.totalAmount,
       createdAt: payments.createdAt,
       updatedAt: payments.updatedAt,
@@ -485,6 +490,7 @@ export async function getPaymentById(
       contactName: contacts.name,
       description: payments.description,
       projectId: payments.projectId,
+      divisionId: payments.divisionId,
       createdAt: payments.createdAt,
       updatedAt: payments.updatedAt,
     })
@@ -536,6 +542,7 @@ export async function createPayment(
         contactId: input.contactId,
         description: input.description,
         projectId: input.projectId ?? null,
+        divisionId: input.divisionId ?? null,
       })
       .returning({ id: payments.id });
 
@@ -683,6 +690,7 @@ export async function updatePayment(
     if (input.contactId) patch.contactId = input.contactId;
     if (input.description !== undefined) patch.description = input.description;
     if (input.projectId !== undefined) patch.projectId = input.projectId;
+    if (input.divisionId !== undefined) patch.divisionId = input.divisionId;
 
     await tx
       .update(payments)

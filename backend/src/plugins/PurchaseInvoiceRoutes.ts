@@ -6,6 +6,7 @@ import { sendData, sendError, sendPaginated } from "../libs/reply.js";
 import { getAccountById } from "../repositories/ChartOfAccountRepository.js";
 import { getSupplierById } from "../repositories/ContactRepository.js";
 import { validateProjectAssignment } from "../repositories/ProjectRepository.js";
+import { validateDivisionAssignment } from "../repositories/DivisionRepository.js";
 import {
   createPurchaseInvoice,
   findApControlAccount,
@@ -146,6 +147,9 @@ export async function purchaseInvoiceRoutesPlugin(fastify: FastifyInstance) {
       const projectError = await validateProjectAssignment(businessId, body.projectId);
       if (projectError) return sendError(reply, 400, ErrorCode.BAD_REQUEST, projectError);
 
+      const divisionError = await validateDivisionAssignment(businessId, body.divisionId);
+      if (divisionError) return sendError(reply, 400, ErrorCode.BAD_REQUEST, divisionError);
+
       const invoice = await createPurchaseInvoice(businessId, {
         ...body,
         supplierName: supplier.name,
@@ -216,6 +220,12 @@ export async function purchaseInvoiceRoutesPlugin(fastify: FastifyInstance) {
         existing.projectId,
       );
       if (projectError) return sendError(reply, 400, ErrorCode.BAD_REQUEST, projectError);
+      const divisionError = await validateDivisionAssignment(
+        businessId,
+        body.divisionId,
+        existing.divisionId,
+      );
+      if (divisionError) return sendError(reply, 400, ErrorCode.BAD_REQUEST, divisionError);
 
       const updated = await updatePurchaseInvoice(businessId, invoiceId, {
         ...body,

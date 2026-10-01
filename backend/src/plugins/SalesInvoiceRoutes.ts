@@ -7,6 +7,7 @@ import { sendData, sendError, sendPaginated } from "../libs/reply.js";
 import { getAccountById } from "../repositories/ChartOfAccountRepository.js";
 import { getCustomerById } from "../repositories/ContactRepository.js";
 import { validateProjectAssignment } from "../repositories/ProjectRepository.js";
+import { validateDivisionAssignment } from "../repositories/DivisionRepository.js";
 import {
   createSalesInvoice,
   findArControlAccount,
@@ -159,6 +160,9 @@ export async function salesInvoiceRoutesPlugin(fastify: FastifyInstance) {
       const projectError = await validateProjectAssignment(businessId, body.projectId);
       if (projectError) return sendError(reply, 400, ErrorCode.BAD_REQUEST, projectError);
 
+      const divisionError = await validateDivisionAssignment(businessId, body.divisionId);
+      if (divisionError) return sendError(reply, 400, ErrorCode.BAD_REQUEST, divisionError);
+
       const { dueDate, billingAddress } = resolveInvoiceDefaults(
         body.issueDate,
         body.dueDate,
@@ -248,6 +252,12 @@ export async function salesInvoiceRoutesPlugin(fastify: FastifyInstance) {
         existing.projectId,
       );
       if (projectError) return sendError(reply, 400, ErrorCode.BAD_REQUEST, projectError);
+      const divisionError = await validateDivisionAssignment(
+        businessId,
+        body.divisionId,
+        existing.divisionId,
+      );
+      if (divisionError) return sendError(reply, 400, ErrorCode.BAD_REQUEST, divisionError);
 
       // Ganti customer -> due date & alamat ikut syarat customer baru
       // (kecuali dikirim eksplisit). Selain itu nilai lama dipertahankan.

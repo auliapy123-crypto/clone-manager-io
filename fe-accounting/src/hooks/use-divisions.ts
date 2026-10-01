@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { apiClient } from "@/integrations/setup";
 import type { PaginationInfo } from "@/hooks/use-members";
 import { ApiError, type ApiErrorBody } from "@/lib/errors";
@@ -155,4 +156,42 @@ export function useDeleteDivision(businessId: string) {
       void queryClient.invalidateQueries({ queryKey: ["divisions", businessId] });
     },
   });
+}
+
+/**
+ * Opsi dropdown "Division" untuk form transaksi 6 modul (dokumen
+ * Divisions.md §10): daftar divisi berstatus active, DITAMBAH divisi
+ * yang sedang tertandai pada dokumen ini (`currentDivisionId`) walau
+ * statusnya sekarang inactive — supaya tag lama tidak hilang diam-diam
+ * saat form edit dibuka. Mirror useProjectOptions.
+ */
+export function useDivisionOptions(
+  businessId: string,
+  currentDivisionId?: string | null,
+) {
+  const { data: activeData, isPending } = useDivisions(
+    businessId,
+    1,
+    { status: "active" },
+    100,
+  );
+
+  const needsCurrentLookup =
+    !!currentDivisionId &&
+    !(activeData?.data ?? []).some((d) => d.id === currentDivisionId);
+
+  const { data: currentDivision } = useDivision(
+    businessId,
+    needsCurrentLookup ? currentDivisionId : null,
+  );
+
+  const options = useMemo(() => {
+    const list = activeData?.data ?? [];
+    if (currentDivision && !list.some((d) => d.id === currentDivision.id)) {
+      return [...list, currentDivision];
+    }
+    return list;
+  }, [activeData, currentDivision]);
+
+  return { options, isPending };
 }

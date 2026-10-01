@@ -30,6 +30,7 @@ export interface ExpenseClaim {
   payee: string | null;
   description: string | null;
   projectId: string | null;
+  divisionId: string | null;
   claimAmount: number;
   balanceDue: number;
   status: "Paid" | "Unpaid";
@@ -54,6 +55,7 @@ export interface CreateExpenseClaimInput {
   payee?: string | null;
   description?: string | null;
   projectId?: string | null;
+  divisionId?: string | null;
   lines: ExpenseClaimLineInput[];
 }
 
@@ -65,6 +67,7 @@ export interface UpdateExpenseClaimInput {
   payee?: string | null;
   description?: string | null;
   projectId?: string | null;
+  divisionId?: string | null;
   lines?: ExpenseClaimLineInput[];
 }
 
