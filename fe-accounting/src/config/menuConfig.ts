@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeftRight, ArrowUpFromLine, BadgePercent, BookMarked, BookOpen, Building2, ClipboardList, FileMinus, FileText, FolderKanban, Hourglass, Landmark, LayoutDashboard, PackageCheck, Quote, Receipt, Scale, ShoppingCart, Stamp, Timer, Truck, User, UserRound, Users, Wallet } from "lucide-react";
+import { ArrowLeftRight, ArrowUpFromLine, BadgePercent, BookMarked, BookOpen, Building2, ClipboardList, FileMinus, FileText, FolderKanban, History, Hourglass, Landmark, LayoutDashboard, PackageCheck, Quote, Receipt, Scale, ShoppingCart, Stamp, Timer, Truck, User, UserRound, Users, Wallet } from "lucide-react";
 
 /** Role bisnis (Guide §7 RBAC) -- harus sinkron dgn BusinessRoleSchema backend. */
 export type BusinessRole = "admin" | "accountant" | "viewer";
@@ -166,6 +166,14 @@ export const businessMenuItems: MenuItem[] = [
     to: "/businesses/$businessId/projects",
     icon: FolderKanban,
     allowedRoles: ["admin", "accountant"],
+  },
+  {
+    // Fitur observasi (read-only) -- satu-satunya modul yang viewer juga
+    // boleh selain Jurnal Umum.
+    label: "Riwayat",
+    to: "/businesses/$businessId/history",
+    icon: History,
+    allowedRoles: ["admin", "accountant", "viewer"],
   },
 ];
 

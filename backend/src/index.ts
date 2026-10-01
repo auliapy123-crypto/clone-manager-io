@@ -54,6 +54,7 @@ import latePaymentFeeRoutesPlugin from "./plugins/LatePaymentFeeRoutes.js";
 import withholdingTaxReceiptRoutesPlugin from "./plugins/WithholdingTaxReceiptRoutes.js";
 import expenseClaimRoutesPlugin from "./plugins/ExpenseClaimRoutes.js";
 import contactRoutesPlugin from "./plugins/ContactRoutes.js";
+import historyRoutesPlugin from "./plugins/HistoryRoutes.js";
 import paymentRoutesPlugin from "./plugins/PaymentRoutes.js";
 import projectRoutesPlugin from "./plugins/ProjectRoutes.js";
 import purchaseInvoiceRoutesPlugin from "./plugins/PurchaseInvoiceRoutes.js";
@@ -340,6 +341,7 @@ export async function buildApp() {
             { name: "PurchaseOrders", description: "Pesanan pembelian non-posting + status penagihan per bisnis" },
            { name: "PurchaseQuotes", description: "Penawaran pembelian non-posting dengan status tersimpan per bisnis" },
             { name: "Projects", description: "Pelacakan proyek dan ringkasan keuangan per bisnis" },
+            { name: "History", description: "Jejak audit read-only per bisnis (siapa ubah apa, kapan)" },
          ],
       },
       transform: jsonSchemaTransform,
@@ -382,6 +384,7 @@ export async function buildApp() {
   await app.register(purchaseOrderRoutesPlugin);
   await app.register(purchaseQuoteRoutesPlugin);
   await app.register(projectRoutesPlugin);
+  await app.register(historyRoutesPlugin);
 
   return app;
 }

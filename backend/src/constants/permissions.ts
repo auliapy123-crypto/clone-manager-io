@@ -141,6 +141,9 @@ export const Permission = {
 
     // Audit
     AUDIT_READ: "audit:read",
+
+    // History (jejak audit, read-only, semua role)
+    HISTORY_READ: "history:read",
 } as const;
 
 export type PermissionValue = (typeof Permission)[keyof typeof Permission];
@@ -172,6 +175,7 @@ const READ_ONLY: PermissionValue[] = [
     Permission.BILLABLE_TIME_READ,
     Permission.WITHHOLDING_TAX_RECEIPT_READ,
     Permission.PROJECT_READ,
+    Permission.HISTORY_READ,
 ];
 
 export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> =
