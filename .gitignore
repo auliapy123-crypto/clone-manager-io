@@ -16,6 +16,12 @@ fe-accounting/.tanstack/
 # Bukti screenshot verifikasi GUI (artikel sesi testing, bukan bagian app)
 gui-test-screenshots/
 
+# File contoh uji manual (mis. .exe percobaan) -- TIDAK di-commit ke repo,
+# dibuat ulang lewat perintah di panduan di bawah ini. Panduannya sendiri
+# tetap di-track supaya bisa dibaca ulang sesi berikutnya.
+uji-manual/*
+!uji-manual/PANDUAN-UJI-ATTACHMENTS.md
+
 # Jaring pengaman umum — node_modules di folder mana pun, kalau sampai
 # ada folder baru lain nanti yang lupa dikasih .gitignore sendiri
 **/node_modules/

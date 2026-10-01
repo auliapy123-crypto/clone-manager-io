@@ -99,7 +99,7 @@ function CustomersPage() {
         />
       )}
 
-      {canWrite && <CustomerFormDialog mode="create" open={addOpen} onOpenChange={setAddOpen} businessId={businessId} />}
+      {canWrite && <CustomerFormDialog mode="create" open={addOpen} onOpenChange={setAddOpen} businessId={businessId} canWrite={canWrite} />}
     </div>
   );
 }
@@ -120,12 +120,12 @@ function CustomerRow({ businessId, customer, canWrite }: { businessId: string; c
     <td className="px-6 py-3 text-right text-gray-900">{formatAmount(customer.accountsReceivable)}</td>
     <td className="px-6 py-3"><span className={inactive ? "rounded bg-gray-100 px-2 py-1 text-xs text-gray-600" : "rounded bg-green-100 px-2 py-1 text-xs text-green-700"}>{inactive ? "Inactive" : "Aktif"}</span></td>
     {canWrite && <td className="px-6 py-3"><div className="flex items-center gap-2"><Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>Edit</Button><Button variant="destructive" size="sm" disabled={deleteCustomer.isPending} onClick={() => void handleDelete()}>Hapus</Button></div>{rowError && <p className="mt-1 text-xs text-red-600">{rowError}</p>}</td>}
-  </tr>{canWrite && <CustomerFormDialog mode="edit" open={editOpen} onOpenChange={setEditOpen} businessId={businessId} customer={customer} />}</>;
+  </tr>{canWrite && <CustomerFormDialog mode="edit" open={editOpen} onOpenChange={setEditOpen} businessId={businessId} customer={customer} canWrite={canWrite} />}</>;
 }
 
 type CustomerFormValues = { name: string; code: string; email: string; creditLimit: string; billingAddress: string; deliveryAddress: string; salesInvoiceDueDateDays: string };
 
-function CustomerFormDialog({ mode, open, onOpenChange, businessId, customer }: { mode: "create" | "edit"; open: boolean; onOpenChange: (open: boolean) => void; businessId: string; customer?: Customer }) {
+function CustomerFormDialog({ mode, open, onOpenChange, businessId, customer, canWrite }: { mode: "create" | "edit"; open: boolean; onOpenChange: (open: boolean) => void; businessId: string; customer?: Customer; canWrite: boolean }) {
   const createCustomer = useCreateCustomer(businessId);
   const updateCustomer = useUpdateCustomer(businessId);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -154,7 +154,7 @@ function CustomerFormDialog({ mode, open, onOpenChange, businessId, customer }: 
       <FormInput form={form} name="salesInvoiceDueDateDays" label="Sales Invoice Due Date Days (opsional)" validator={dueDaysSchema} type="number" min="0" step="1" />
       {serverError && <p role="alert" className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">{serverError}</p>}
       {/* Lampiran hanya di mode edit -- record create belum punya id. */}
-      {mode === "edit" && customer && <AttachmentsWidget businessId={businessId} entityType="customer" entityId={customer.id} canWrite />}
+      {mode === "edit" && customer && <AttachmentsWidget businessId={businessId} entityType="customer" entityId={customer.id} canWrite={canWrite} />}
       <DialogFooter><Button type="button" variant="outline" onClick={close}>Batal</Button><form.Subscribe selector={(state) => state.isSubmitting}>{(isSubmitting) => <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Menyimpan..." : mode === "create" ? "Tambah" : "Simpan"}</Button>}</form.Subscribe></DialogFooter>
     </form></DialogContent></Dialog>;
 }
