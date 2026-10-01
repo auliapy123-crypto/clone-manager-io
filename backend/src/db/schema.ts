@@ -390,6 +390,64 @@ export const creditNoteLines = pgTable("credit_note_lines", {
 ]);
 
 // =====================================================================
+// 10.7 DEBIT_NOTES  (header nota debet / retur pembelian)
+//
+// - Modul TRANSAKSI yang posting jurnal otomatis saat create.
+// - KEBALIKAN PERSIS credit_notes: jurnal mengurangi Utang Usaha
+//   (Debit akun kontrol AP, Kredit akun Expense per baris).
+// - TANPA status, TANPA pajak (nota debet yang tersimpan langsung final).
+// - Terhubung ke Supplier (contacts.is_supplier=true).
+// - purchase_invoice_id NULLABLE & murni informatif (TIDAK mempengaruhi
+//   balanceDue faktur itu) — dropdown difilter per Supplier saja.
+// - Jurnal dilacak via journal_entries(source_module='debit_note',
+//   source_id=debit_note_id).
+// =====================================================================
+export const debitNotes = pgTable("debit_notes", {
+  id: uuid().primaryKey().defaultRandom(),
+  businessId: uuid()
+    .notNull()
+    .references(() => businesses.id, { onDelete: "cascade" }),
+  date: date().notNull(),
+  debitNoteNumber: varchar("debit_note_number", { length: 50 }),
+  supplierId: uuid()
+    .notNull()
+    .references(() => contacts.id),
+  purchaseInvoiceId: uuid().references(() => purchaseInvoices.id),
+  description: text(),
+  createdAt: timestamp().notNull().defaultNow(),
+  updatedAt: timestamp().notNull().defaultNow(),
+  deletedAt: timestamp(),
+}, (t) => [
+  index("idx_debit_notes_business").on(t.businessId),
+  index("idx_debit_notes_supplier").on(t.supplierId),
+]);
+
+// =====================================================================
+// 10.8 DEBIT_NOTE_LINES  (baris item nota debet)
+//
+// Anak dari debit_notes (ON DELETE CASCADE), ikut lewat header-nya.
+// account_id WAJIB kategori Expense (divalidasi di route).
+// line_total = quantity × unit_price, dihitung backend.
+// =====================================================================
+export const debitNoteLines = pgTable("debit_note_lines", {
+  id: uuid().primaryKey().defaultRandom(),
+  debitNoteId: uuid()
+    .notNull()
+    .references(() => debitNotes.id, { onDelete: "cascade" }),
+  accountId: uuid()
+    .notNull()
+    .references(() => chartOfAccounts.id),
+  description: varchar({ length: 255 }),
+  quantity: numeric({ precision: 18, scale: 4 }).notNull().default("1.0000"),
+  unitPrice: numeric({ precision: 18, scale: 2 }).notNull(),
+  lineTotal: numeric({ precision: 18, scale: 2 }).notNull(),
+  sortOrder: integer().notNull().default(0),
+}, (t) => [
+  index("idx_debit_note_lines_note").on(t.debitNoteId),
+  index("idx_debit_note_lines_account").on(t.accountId),
+]);
+
+// =====================================================================
 // 11. PURCHASE_INVOICES  (header faktur pembelian)
 //
 // - Cerminan Sales Invoices dengan arah jurnal berlawanan.
@@ -1142,6 +1200,7 @@ export const businessesRelations = relations(businesses, ({ many }) => ({
   salesQuotes: many(salesQuotes),
   salesOrders: many(salesOrders),
   creditNotes: many(creditNotes),
+  debitNotes: many(debitNotes),
   latePaymentFees: many(latePaymentFees),
   deliveryNotes: many(deliveryNotes),
   billableTimeEntries: many(billableTimeEntries),
@@ -1196,6 +1255,7 @@ export const contactsRelations = relations(contacts, ({ one, many }) => ({
   salesQuotes: many(salesQuotes),
   salesOrders: many(salesOrders),
   creditNotes: many(creditNotes),
+  debitNotes: many(debitNotes),
   latePaymentFees: many(latePaymentFees),
   deliveryNotes: many(deliveryNotes),
   billableTimeEntriesAsCustomer: many(billableTimeEntries, {
@@ -1317,6 +1377,36 @@ export const creditNoteLinesRelations = relations(
   }),
 );
 
+export const debitNotesRelations = relations(debitNotes, ({ one, many }) => ({
+  business: one(businesses, {
+    fields: [debitNotes.businessId],
+    references: [businesses.id],
+  }),
+  supplier: one(contacts, {
+    fields: [debitNotes.supplierId],
+    references: [contacts.id],
+  }),
+  purchaseInvoice: one(purchaseInvoices, {
+    fields: [debitNotes.purchaseInvoiceId],
+    references: [purchaseInvoices.id],
+  }),
+  lines: many(debitNoteLines),
+}));
+
+export const debitNoteLinesRelations = relations(
+  debitNoteLines,
+  ({ one }) => ({
+    note: one(debitNotes, {
+      fields: [debitNoteLines.debitNoteId],
+      references: [debitNotes.id],
+    }),
+    account: one(chartOfAccounts, {
+      fields: [debitNoteLines.accountId],
+      references: [chartOfAccounts.id],
+    }),
+  }),
+);
+
 export const purchaseInvoicesRelations = relations(
   purchaseInvoices,
   ({ one, many }) => ({
@@ -1338,6 +1428,7 @@ export const purchaseInvoicesRelations = relations(
     }),
     lines: many(purchaseInvoiceLines),
     paymentLines: many(paymentLines),
+    debitNotes: many(debitNotes),
   }),
 );
 
