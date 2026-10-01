@@ -39,9 +39,13 @@ function ExpenseClaimsPage() {
     setActionError(null);
     try { await remove.mutateAsync(claim.id); } catch (e) { setActionError(getApiErrorMessage(e)); }
   }
-  return <div className="flex flex-col gap-4">
-    <div className="flex items-center justify-between"><h1 className="text-2xl font-semibold">Expense Claims</h1>{canWrite && <Button onClick={() => setActiveId("new")}>Klaim Baru</Button>}</div>
-    <div className="flex gap-3"><Input aria-label="Cari klaim" placeholder="Cari referensi, payer, payee, atau deskripsi..." value={search} onChange={e => setSearch(e.target.value)} />
+  return (
+    <div className="flex flex-col gap-6 p-6">
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-lg font-semibold text-gray-900">Expense Claims</h1>
+        {canWrite && <Button onClick={() => setActiveId("new")}>Klaim Baru</Button>}
+      </div>
+      <div className="flex gap-3"><Input aria-label="Cari klaim" placeholder="Cari referensi, payer, payee, atau deskripsi..." value={search} onChange={e => setSearch(e.target.value)} />
       <select aria-label="Filter status" className={`${selectClass} max-w-40`} value={status} onChange={e => { setStatus(e.target.value as typeof status); setPage(1); }}><option value="">Semua status</option><option>Unpaid</option><option>Paid</option></select></div>
     {(error || actionError) && <p role="alert" className="text-sm text-red-700">{actionError || getApiErrorMessage(error)}</p>}
     <Card><CardContent className="p-0 overflow-x-auto"><table className="w-full text-left text-sm">
@@ -54,7 +58,8 @@ function ExpenseClaimsPage() {
     </table></CardContent></Card>
     {data && <Pagination page={page} totalPages={data.pagination.totalPages} onPageChange={setPage} />}
     {activeId && <ClaimForm key={activeId} businessId={businessId} id={activeId} canWrite={canWrite} onClose={() => setActiveId(null)} />}
-  </div>;
+  </div>
+  );
 }
 interface FormLine { id: string; accountId: string; description: string; amount: string }
 const emptyLine = (): FormLine => ({ id: crypto.randomUUID(), accountId: "", description: "", amount: "" });

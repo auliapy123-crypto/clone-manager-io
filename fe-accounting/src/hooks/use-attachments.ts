@@ -125,11 +125,11 @@ export function useUploadAttachment(
       >({
         url: `/businesses/${businessId}/attachments`,
         body: { file, entityType, entityId },
-        // Client ini mengetik `bodySerializer` sebagai (body:any)=>any;
-        // tipe serializer resmi lebih sempit, jadi di-cast eksplisit.
-        bodySerializer: formDataBodySerializer as unknown as (
-          body: unknown,
-        ) => BodyInit,
+        // `formDataBodySerializer` dari @hey-api/client-fetch berbentuk OBJEK
+        // `{ bodySerializer }`, bukan fungsi -- jadi propertinya yang diambil.
+        // Salah pakai (memberi objeknya langsung) memunculkan error runtime
+        // "s.bodySerializer is not a function" dan upload selalu gagal.
+        bodySerializer: formDataBodySerializer.bodySerializer,
         // Buang default `application/json` supaya boundary multipart ditulis
         // browser sendiri (nilai null = hapus header di client ini).
         headers: { "Content-Type": null },
