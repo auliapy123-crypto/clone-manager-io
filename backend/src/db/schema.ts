@@ -1201,6 +1201,7 @@ export const businessesRelations = relations(businesses, ({ many }) => ({
   salesOrders: many(salesOrders),
   creditNotes: many(creditNotes),
   debitNotes: many(debitNotes),
+  attachments: many(attachments),
   latePaymentFees: many(latePaymentFees),
   deliveryNotes: many(deliveryNotes),
   billableTimeEntries: many(billableTimeEntries),
@@ -1406,6 +1407,51 @@ export const debitNoteLinesRelations = relations(
     }),
   }),
 );
+
+
+// =====================================================================
+// 10.9 ATTACHMENTS  (lampiran file generik, 1 tabel buat SEMUA modul)
+//
+// - BUKAN modul transaksi: TIDAK menyentuh jurnal sama sekali.
+// - Generik/"polymorphic": entity_type (nama modul, penamaan yang sama
+//   dengan source_module di journal_entries) + entity_id (baris spesifik).
+// - File fisik disimpan di disk (uploads/<business_id>/<id>.<ext>);
+//   kolom storage_path hanya menyimpan path relatifnya.
+// - TANPA updated_at: lampiran tidak pernah diedit, cuma upload/hapus.
+// - Saat soft-delete file fisik SENGAJA dibiarkan di disk (bisa dipulihkan
+//   oleh proses cleanup terpisah nanti, di luar cakupan modul ini).
+// =====================================================================
+export const attachments = pgTable("attachments", {
+  id: uuid().primaryKey().defaultRandom(),
+  businessId: uuid()
+    .notNull()
+    .references(() => businesses.id, { onDelete: "cascade" }),
+  entityType: varchar("entity_type", { length: 50 }).notNull(),
+  entityId: uuid("entity_id").notNull(),
+  originalFilename: varchar("original_filename", { length: 255 }).notNull(),
+  mimeType: varchar("mime_type", { length: 100 }).notNull(),
+  sizeBytes: integer("size_bytes").notNull(),
+  storagePath: varchar("storage_path", { length: 500 }).notNull(),
+  uploadedBy: uuid("uploaded_by")
+    .notNull()
+    .references(() => users.id),
+  deletedAt: timestamp(),
+  createdAt: timestamp().notNull().defaultNow(),
+}, (t) => [
+  index("idx_attachments_entity").on(t.businessId, t.entityType, t.entityId),
+  index("idx_attachments_business").on(t.businessId),
+]);
+
+export const attachmentsRelations = relations(attachments, ({ one }) => ({
+  business: one(businesses, {
+    fields: [attachments.businessId],
+    references: [businesses.id],
+  }),
+  uploader: one(users, {
+    fields: [attachments.uploadedBy],
+    references: [users.id],
+  }),
+}));
 
 export const purchaseInvoicesRelations = relations(
   purchaseInvoices,

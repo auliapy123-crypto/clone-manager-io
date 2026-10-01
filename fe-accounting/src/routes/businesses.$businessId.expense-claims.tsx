@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Combobox } from "@/components/ui/combobox";
+import { AttachmentsWidget } from "@/components/attachments-widget";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { useAccounts } from "@/hooks/use-accounts";
@@ -116,6 +117,9 @@ function ClaimForm({ businessId, id, canWrite, onClose }: { businessId: string; 
         </tr>)}</tbody></table></div>
       </fieldset>
       <p className="text-right text-lg font-semibold">Total: {formatAmount(lines.reduce((sum, l) => sum + Math.round((Number(l.amount) || 0) * 100), 0) / 100)}</p>
+      {/* Lampiran hanya untuk record yang SUDAH tersimpan (form edit/detail),
+          bukan form "Klaim Baru" yang belum punya id. */}
+      {!isNew && <AttachmentsWidget businessId={businessId} entityType="expense_claim" entityId={id} canWrite={canWrite} />}
       <DialogFooter><Button type="button" variant="outline" disabled={busy} onClick={onClose}>Tutup</Button>{canWrite && <Button type="submit" disabled={busy || Boolean(loadError)}>{busy ? "Menyimpan..." : "Simpan Klaim"}</Button>}</DialogFooter>
     </form>}
   </DialogContent></Dialog>;

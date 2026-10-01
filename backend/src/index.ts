@@ -13,6 +13,7 @@
 import "dotenv/config";
 
 import cors from "@fastify/cors";
+import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
@@ -43,6 +44,7 @@ import businessRoutesPlugin from "./plugins/BusinessRoutes.js";
 import chartOfAccountRoutesPlugin from "./plugins/ChartOfAccountRoutes.js";
 import creditNoteRoutesPlugin from "./plugins/CreditNoteRoutes.js";
 import debitNoteRoutesPlugin from "./plugins/DebitNoteRoutes.js";
+import attachmentRoutesPlugin from "./plugins/AttachmentRoutes.js";
 import customerRoutesPlugin from "./plugins/CustomerRoutes.js";
 import deliveryNoteRoutesPlugin from "./plugins/DeliveryNoteRoutes.js";
 import healthPlugin from "./plugins/HealthPlugin.js";
@@ -227,12 +229,23 @@ export async function buildApp() {
   // 3. Rate limit
   // -------------------------------------------------------------------
   await app.register(rateLimit, {
+    
     max: env.RATE_LIMIT_MAX,
     timeWindow: env.RATE_LIMIT_TIME_WINDOW_MS,
     allowList: env.RATE_LIMIT_ALLOW_LIST,
     keyGenerator: (request) => request.ip,
   });
-
+  // -------------------------------------------------------------------
+  // 3b. Multipart — unggahan file (modul Attachments)
+  // -------------------------------------------------------------------
+  await app.register(multipart, {
+    limits: {
+      // Batas keras 10MB di level parser. Route memvalidasi ulang dan
+      // memotong stream lebih awal supaya bisa membalas pesan yang jelas.
+      fileSize: 10 * 1024 * 1024,
+      files: 1,
+    },
+  });
   // -------------------------------------------------------------------
   // 4. Security headers
   // -------------------------------------------------------------------
@@ -312,6 +325,7 @@ export async function buildApp() {
             { name: "SalesOrders", description: "Pesanan penjualan non-posting per bisnis" },
             { name: "CreditNotes", description: "Nota kredit (retur penjualan) + posting jurnal per bisnis" },
             { name: "DebitNotes", description: "Nota debet (retur pembelian) + posting jurnal per bisnis — mengurangi Utang Usaha" },
+            { name: "Attachments", description: "Lampiran file generik untuk record apa pun (tanpa jurnal)" },
             { name: "PurchaseInvoices", description: "Faktur pembelian + posting jurnal per bisnis" },
             { name: "Receipts", description: "Penerimaan kas/bank + posting jurnal per bisnis" },
             { name: "ExpenseClaims", description: "Klaim biaya dan saldo reimbursement" },
@@ -354,6 +368,7 @@ export async function buildApp() {
   await app.register(salesOrderRoutesPlugin);
   await app.register(creditNoteRoutesPlugin);
   await app.register(debitNoteRoutesPlugin);
+  await app.register(attachmentRoutesPlugin);
   await app.register(purchaseInvoiceRoutesPlugin);
   await app.register(receiptRoutesPlugin);
   await app.register(paymentRoutesPlugin);

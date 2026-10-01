@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
+import { AttachmentsWidget } from "@/components/attachments-widget";
 import { useBusinesses } from "@/hooks/use-businesses";
 import {
   type CreateCustomerInput,
@@ -152,6 +153,8 @@ function CustomerFormDialog({ mode, open, onOpenChange, businessId, customer }: 
       <FormTextarea form={form} name="deliveryAddress" label="Delivery Address (opsional)" className={textAreaClass} />
       <FormInput form={form} name="salesInvoiceDueDateDays" label="Sales Invoice Due Date Days (opsional)" validator={dueDaysSchema} type="number" min="0" step="1" />
       {serverError && <p role="alert" className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">{serverError}</p>}
+      {/* Lampiran hanya di mode edit -- record create belum punya id. */}
+      {mode === "edit" && customer && <AttachmentsWidget businessId={businessId} entityType="customer" entityId={customer.id} canWrite />}
       <DialogFooter><Button type="button" variant="outline" onClick={close}>Batal</Button><form.Subscribe selector={(state) => state.isSubmitting}>{(isSubmitting) => <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Menyimpan..." : mode === "create" ? "Tambah" : "Simpan"}</Button>}</form.Subscribe></DialogFooter>
     </form></DialogContent></Dialog>;
 }

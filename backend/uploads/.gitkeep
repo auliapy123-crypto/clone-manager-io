@@ -1,0 +1,4 @@
+Folder ini menyimpan file lampiran (modul Attachments).
+
+File di dalamnya DIABAIKAN Git (lihat `uploads/` di backend/.gitignore).
+File .gitkeep ini ada supaya folder-nya tetap ikut ter-commit walau kosong.

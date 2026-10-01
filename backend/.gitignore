@@ -1,3 +1,10 @@
 node_modules/
 dist/
 .env
+
+# Folder unggahan lampiran (modul Attachments) -- file fisik milik user,
+# JANGAN pernah ikut ke-commit. Pola `uploads/*` + negasi dipakai (bukan
+# `uploads/`) supaya file .gitkeep di dalamnya tetap bisa di-track:
+# Git menolak re-include file kalau direktori induknya sudah dikecualikan.
+uploads/*
+!uploads/.gitkeep

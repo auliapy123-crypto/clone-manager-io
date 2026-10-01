@@ -105,6 +105,11 @@ export const Permission = {
     DEBIT_NOTE_WRITE: "debit_note:write",
     DEBIT_NOTE_DELETE: "debit_note:delete",
 
+    // Lampiran file (generik, tanpa jurnal — menempel ke record apa pun)
+    ATTACHMENT_READ: "attachment:read",
+    ATTACHMENT_WRITE: "attachment:write",
+    ATTACHMENT_DELETE: "attachment:delete",
+
     // Denda keterlambatan pembayaran (non-posting)
     LATE_PAYMENT_FEE_READ: "late_payment_fee:read",
     LATE_PAYMENT_FEE_WRITE: "late_payment_fee:write",
@@ -161,6 +166,7 @@ const READ_ONLY: PermissionValue[] = [
     Permission.SALES_ORDER_READ,
     Permission.CREDIT_NOTE_READ,
     Permission.DEBIT_NOTE_READ,
+    Permission.ATTACHMENT_READ,
     Permission.LATE_PAYMENT_FEE_READ,
     Permission.DELIVERY_NOTE_READ,
     Permission.BILLABLE_TIME_READ,
@@ -205,6 +211,8 @@ export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> 
       Permission.CREDIT_NOTE_DELETE,
       Permission.DEBIT_NOTE_WRITE,
       Permission.DEBIT_NOTE_DELETE,
+      Permission.ATTACHMENT_WRITE,
+      Permission.ATTACHMENT_DELETE,
       Permission.LATE_PAYMENT_FEE_WRITE,
       Permission.LATE_PAYMENT_FEE_DELETE,
       Permission.DELIVERY_NOTE_WRITE,
