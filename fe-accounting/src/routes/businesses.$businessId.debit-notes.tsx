@@ -111,7 +111,7 @@ function DebitNotesPage() {
     <div className="flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Debit Notes</h1>
+          <h1 className="text-lg font-semibold text-gray-900">Nota Debet</h1>
           {data && (
             <p className="text-sm text-gray-500">{data.pagination.total} nota debet</p>
           )}
@@ -155,11 +155,11 @@ function DebitNotesPage() {
               <table className="w-full text-left text-sm">
                 <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Date</th>
-                    <th className="px-6 py-3 font-medium">Debit Note Number</th>
+                    <th className="px-6 py-3 font-medium">Tanggal</th>
+                    <th className="px-6 py-3 font-medium">Nomor Nota Debet</th>
                     <th className="px-6 py-3 font-medium">Supplier</th>
-                    <th className="px-6 py-3 font-medium">Purchase Invoice</th>
-                    <th className="px-6 py-3 text-right font-medium">Total Amount</th>
+                    <th className="px-6 py-3 font-medium">Faktur Pembelian</th>
+                    <th className="px-6 py-3 text-right font-medium">Total</th>
                     <th className="px-6 py-3 font-medium">Aksi</th>
                   </tr>
                 </thead>
@@ -407,7 +407,7 @@ function DebitNoteFormDialog({
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>{noteId ? "Edit Nota Debet" : "Buat Nota Debet"}</DialogTitle>
           <DialogDescription>
@@ -430,7 +430,7 @@ function DebitNoteFormDialog({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Date *
+                  Tanggal *
                 </label>
                 <input
                   type="date"
@@ -445,7 +445,7 @@ function DebitNoteFormDialog({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Debit Note Number
+                  Nomor Nota Debet
                 </label>
                 <input
                   type="text"
@@ -476,8 +476,7 @@ function DebitNoteFormDialog({
                   }
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 disabled:bg-gray-100"
                 >
-                  <option value="">-- Pilih Supplier --</option>
-                  {suppliers?.data.map((s) => (
+                  <option value="">-- Pilih Supplier --</option>                  {suppliers?.data.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
                     </option>
@@ -487,7 +486,7 @@ function DebitNoteFormDialog({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Purchase Invoice
+                  Faktur Pembelian
                 </label>
                 <select
                   disabled={!canWrite || isSaving || !formData.supplierId}
@@ -517,7 +516,7 @@ function DebitNoteFormDialog({
 
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700">
-                  Summary Description
+                  Ringkasan Deskripsi
                 </label>
                 <textarea
                   disabled={!canWrite || isSaving}
@@ -553,10 +552,10 @@ function DebitNoteFormDialog({
                 <table className="w-full text-left text-sm">
                   <thead className="border-b bg-gray-50">
                     <tr>
-                      <th className="px-3 py-2">Account</th>
-                      <th className="px-3 py-2">Description</th>
+                      <th className="min-w-[200px] px-3 py-2 whitespace-nowrap">Akun</th>
+                      <th className="min-w-[150px] px-3 py-2">Deskripsi</th>
                       <th className="px-3 py-2 text-right">Qty</th>
-                      <th className="px-3 py-2 text-right">Unit Price</th>
+                      <th className="px-3 py-2 text-right whitespace-nowrap">Harga Satuan</th>
                       <th className="px-3 py-2 text-right">Total</th>
                       {canWrite && <th className="px-3 py-2">Aksi</th>}
                     </tr>
@@ -571,7 +570,7 @@ function DebitNoteFormDialog({
                             value={line.accountId}
                             disabled={!canWrite || isSaving}
                             onChange={(value) => updateLine(idx, "accountId", value)}
-                            placeholder="-- Account --"
+                            placeholder="-- Pilih Akun --"
                             options={expenseAccounts.map((a) => ({
                               value: a.id,
                               label: `${a.code} - ${a.name}`,
@@ -635,7 +634,7 @@ function DebitNoteFormDialog({
                               onClick={() => removeLine(idx)}
                               disabled={formData.lines.length === 1 || isSaving}
                             >
-                              Remove
+                              Hapus Baris
                             </Button>
                           </td>
                         )}
@@ -659,7 +658,7 @@ function DebitNoteFormDialog({
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
-                Cancel
+                Batal
               </Button>
               {canWrite && (
                 <Button type="submit" disabled={isSaving}>
