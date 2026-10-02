@@ -512,7 +512,7 @@ function CreditNoteFormDialog({
                             }
                             step="0.0001"
                             min="0"
-                            className="w-24 rounded border border-gray-300 px-2 py-1 text-right text-sm disabled:bg-gray-100"
+                            className="w-24 rounded border border-gray-300 px-2 py-1 text-right text-sm disabled:bg-gray-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           />
                         </td>
                         <td className="px-3 py-2 text-right">
@@ -525,7 +525,7 @@ function CreditNoteFormDialog({
                             }
                             step="0.01"
                             min="0"
-                            className="w-24 rounded border border-gray-300 px-2 py-1 text-right text-sm disabled:bg-gray-100"
+                            className="w-24 rounded border border-gray-300 px-2 py-1 text-right text-sm disabled:bg-gray-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           />
                         </td>
                         <td className="px-3 py-2 text-right">

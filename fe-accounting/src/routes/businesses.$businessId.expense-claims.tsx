@@ -122,7 +122,7 @@ function ClaimForm({ businessId, id, canWrite, onClose }: { businessId: string; 
         <div className="overflow-x-auto border rounded-md"><table className="w-full text-sm"><thead className="bg-gray-50 text-left"><tr><th className="p-2 min-w-56">Account (Expense/Asset) *</th><th className="p-2 min-w-44">Description</th><th className="p-2 min-w-36">Amount *</th>{canWrite && <th className="p-2">Hapus</th>}</tr></thead><tbody>{lines.map((l, i) => <tr key={l.id}>
           <td className="p-2"><Combobox ariaLabel={`Account baris ${i + 1}`} value={l.accountId} onChange={v => editLine(i, "accountId", v)} placeholder="-- Pilih Akun --" options={accountOptions.map(a => ({ value: a.id, label: `${a.code} - ${a.name}` }))} /></td>
           <td className="p-2"><Input aria-label={`Description baris ${i + 1}`} maxLength={255} value={l.description} onChange={e => editLine(i, "description", e.target.value)} /></td>
-          <td className="p-2"><Input aria-label={`Amount baris ${i + 1}`} type="number" min="0.01" step="0.01" required value={l.amount} onChange={e => editLine(i, "amount", e.target.value)} /></td>
+          <td className="p-2"><Input aria-label={`Amount baris ${i + 1}`} type="number" min="0.01" step="0.01" required value={l.amount} onChange={e => editLine(i, "amount", e.target.value)} className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" /></td>
           {canWrite && <td className="p-2"><Button aria-label={`Hapus baris ${i + 1}`} type="button" variant="outline" size="sm" disabled={lines.length <= 1} onClick={() => setLines(prev => prev.filter((_, j) => i !== j))}>✕</Button></td>}
         </tr>)}</tbody></table></div>
       </fieldset>

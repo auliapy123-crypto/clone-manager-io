@@ -572,7 +572,7 @@ function SalesInvoiceFormDialog({
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        className="max-w-5xl max-h-[90vh] flex flex-col overflow-hidden"
+        className="max-w-7xl max-h-[90vh] flex flex-col overflow-hidden"
         onClose={onClose}
       >
         <DialogHeader>
@@ -760,11 +760,11 @@ function SalesInvoiceFormDialog({
                         <th className="px-3 py-2 font-medium min-w-[180px]">
                           Description
                         </th>
-                        <th className="px-3 py-2 font-medium w-24">Qty *</th>
-                        <th className="px-3 py-2 font-medium w-36">Unit Price *</th>
-                        <th className="px-3 py-2 font-medium w-36">Tax Code</th>
-                        <th className="px-3 py-2 font-medium w-28">Tax Rate %</th>
-                        <th className="px-3 py-2 text-right font-medium w-36">
+                        <th className="px-3 py-2 font-medium min-w-24">Qty *</th>
+                        <th className="px-3 py-2 font-medium min-w-36">Unit Price *</th>
+                        <th className="px-3 py-2 font-medium min-w-36">Tax Code</th>
+                        <th className="px-3 py-2 font-medium min-w-28">Tax Rate %</th>
+                        <th className="px-3 py-2 text-right font-medium min-w-36">
                           Subtotal Baris
                         </th>
                         {canWrite && (
@@ -818,7 +818,7 @@ function SalesInvoiceFormDialog({
                                 type="number"
                                 step="any"
                                 min="0.0001"
-                                className="w-full h-8 rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 text-right"
+                                className="w-full h-8 rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 value={line.quantity}
                                 disabled={!canWrite}
                                 onChange={(event) =>
@@ -832,7 +832,7 @@ function SalesInvoiceFormDialog({
                                 type="number"
                                 step="any"
                                 min="0"
-                                className="w-full h-8 rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 text-right"
+                                className="w-full h-8 rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 value={line.unitPrice}
                                 disabled={!canWrite}
                                 onChange={(event) =>
