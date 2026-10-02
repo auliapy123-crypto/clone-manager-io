@@ -144,6 +144,11 @@ export const Permission = {
     DIVISION_WRITE: "division:write",
     DIVISION_DELETE: "division:delete",
 
+    // Kode Pajak (master tarif pajak)
+    TAX_CODE_READ: "tax_code:read",
+    TAX_CODE_WRITE: "tax_code:write",
+    TAX_CODE_DELETE: "tax_code:delete",
+
     // Audit
     AUDIT_READ: "audit:read",
 
@@ -181,6 +186,7 @@ const READ_ONLY: PermissionValue[] = [
     Permission.WITHHOLDING_TAX_RECEIPT_READ,
     Permission.PROJECT_READ,
     Permission.DIVISION_READ,
+    Permission.TAX_CODE_READ,
     Permission.HISTORY_READ,
 ];
 
@@ -235,6 +241,8 @@ export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> 
       Permission.PROJECT_DELETE,
       Permission.DIVISION_WRITE,
       Permission.DIVISION_DELETE,
+      Permission.TAX_CODE_WRITE,
+      Permission.TAX_CODE_DELETE,
     ],
     viewer: READ_ONLY,
   };

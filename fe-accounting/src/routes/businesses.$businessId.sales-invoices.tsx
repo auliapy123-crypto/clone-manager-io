@@ -18,6 +18,7 @@ import { useBusinesses } from "@/hooks/use-businesses";
 import { useCustomers } from "@/hooks/use-customers";
 import { useProjectOptions } from "@/hooks/use-projects";
 import { useDivisionOptions } from "@/hooks/use-divisions";
+import { useTaxCodeOptions } from "@/hooks/use-tax-codes";
 import {
   getTodayDateString,
   type SalesInvoice,
@@ -297,6 +298,8 @@ interface FormLine {
   quantity: string;
   unitPrice: string;
   taxRatePercent: string;
+  /** "" = manual (tanpa kode); UUID = rate ikut kode pajak terpilih. */
+  taxCodeId: string;
 }
 
 function computeLineSubtotal(line: FormLine): number {
@@ -316,6 +319,7 @@ function createEmptyLine(): FormLine {
     quantity: "1",
     unitPrice: "0",
     taxRatePercent: "0",
+    taxCodeId: "",
   };
 }
 
@@ -376,6 +380,9 @@ function SalesInvoiceFormDialog({
     existingInvoice?.projectId,
   );
 
+  const { options: taxCodeOptions, isPending: isTaxCodesLoading } =
+    useTaxCodeOptions(businessId);
+
   // Inisialisasi form saat mode edit selesai memuat data invoice
   useEffect(() => {
     if (!isNew && existingInvoice) {
@@ -397,6 +404,7 @@ function SalesInvoiceFormDialog({
             quantity: String(line.quantity),
             unitPrice: String(line.unitPrice),
             taxRatePercent: String(line.taxRatePercent),
+            taxCodeId: line.taxCodeId ?? "",
           })),
         );
       }
@@ -456,6 +464,22 @@ function SalesInvoiceFormDialog({
     );
   };
 
+  /** Pilih kode pajak di baris: rate baris ikut rate kode (snapshot backend). */
+  const handleTaxCodeChange = (index: number, taxCodeId: string) => {
+    const selected = taxCodeOptions.find((tc) => tc.id === taxCodeId);
+    setLines((prev) =>
+      prev.map((line, idx) =>
+        idx === index
+          ? {
+              ...line,
+              taxCodeId,
+              ...(selected ? { taxRatePercent: String(selected.ratePercent) } : {}),
+            }
+          : line,
+      ),
+    );
+  };
+
   const liveTotalInvoiceAmount = useMemo(() => {
     return lines.reduce((sum, line) => sum + computeLineSubtotal(line), 0);
   }, [lines]);
@@ -505,6 +529,7 @@ function SalesInvoiceFormDialog({
       quantity: parseFloat(l.quantity) || 1,
       unitPrice: parseFloat(l.unitPrice) || 0,
       taxRatePercent: parseFloat(l.taxRatePercent) || 0,
+      taxCodeId: l.taxCodeId || null,
     }));
 
     try {
@@ -737,6 +762,7 @@ function SalesInvoiceFormDialog({
                         </th>
                         <th className="px-3 py-2 font-medium w-24">Qty *</th>
                         <th className="px-3 py-2 font-medium w-36">Unit Price *</th>
+                        <th className="px-3 py-2 font-medium w-36">Tax Code</th>
                         <th className="px-3 py-2 font-medium w-28">Tax Rate %</th>
                         <th className="px-3 py-2 text-right font-medium w-36">
                           Subtotal Baris
@@ -816,13 +842,35 @@ function SalesInvoiceFormDialog({
                               />
                             </td>
                             <td className="p-2">
+                              <select
+                                className="w-full h-8 rounded border border-gray-300 bg-white px-2 py-0.5 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
+                                value={line.taxCodeId}
+                                disabled={!canWrite || isTaxCodesLoading}
+                                onChange={(event) =>
+                                  handleTaxCodeChange(index, event.target.value)
+                                }
+                              >
+                                <option value="">-- Manual --</option>
+                                {taxCodeOptions.map((tc) => (
+                                  <option key={tc.id} value={tc.id}>
+                                    {tc.code} ({tc.ratePercent}%)
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="p-2">
                               <input
                                 type="number"
                                 step="any"
                                 min="0"
                                 className="w-full h-8 rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 value={line.taxRatePercent}
-                                disabled={!canWrite}
+                                disabled={!canWrite || !!line.taxCodeId}
+                                title={
+                                  line.taxCodeId
+                                    ? "Tarif diambil dari kode pajak terpilih"
+                                    : undefined
+                                }
                                 onChange={(event) =>
                                   updateLine(
                                     index,

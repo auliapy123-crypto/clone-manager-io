@@ -12,6 +12,7 @@ export interface SalesInvoiceLineInput {
   quantity: number;
   unitPrice: number;
   taxRatePercent?: number;
+  taxCodeId?: string | null;
 }
 
 export interface SalesInvoiceLine {
@@ -25,6 +26,8 @@ export interface SalesInvoiceLine {
   subtotal: number;
   taxRatePercent: number;
   taxAmount: number;
+  taxCodeId: string | null;
+  taxCode: { code: string; name: string } | null;
   lineTotal: number;
   sortOrder: number;
 }
@@ -55,6 +58,7 @@ export interface SalesInvoiceDetail extends SalesInvoice {
 export interface SalesInvoiceFilters {
   q?: string;
   status?: SalesInvoiceStatus;
+  taxCodeId?: string;
 }
 
 export interface CreateSalesInvoiceInput {
@@ -115,6 +119,7 @@ export function useSalesInvoices(
           pageSize,
           q: filters.q,
           status: filters.status,
+          taxCodeId: filters.taxCodeId,
         },
       });
 

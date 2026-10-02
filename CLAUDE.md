@@ -175,8 +175,9 @@ environment variable atau `.env` yang sudah di-gitignore.
   (`source_module='manual_journal'`, satu-satunya yang bisa
   diedit/dihapus dari modul ini — jurnal dari modul lain WAJIB ditolak
   kalau dicoba diedit/dihapus dari sini, harus lewat dokumen sumbernya).
-  Field `Division`/`Tax Code` dan "Locked Period" dari dokumen resmi
-  SENGAJA DILEWATI (modul pendukungnya belum ada).
+  Field `Division`/`Tax Code` dari dokumen resmi BELUM dipasang di JE
+  (modulnya sudah ada — Divisions sudah nempel di journal_entries,
+  Tax Codes belum — menyusul); "Locked Period" memang belum ada.
 - **PurchaseOrders** — `/businesses/:id/purchase-orders`. Dokumen
   NON-POSTING (tidak membuat jurnal). Tabel `purchase_orders` +
   `purchase_order_lines`; kolom `purchase_invoices.purchase_order_id`
@@ -300,6 +301,27 @@ environment variable atau `.env` yang sudah di-gitignore.
   dan `purchase-invoices.tsx` (param `convertFromQuote` ditambahkan di
   samping `convertFromPO`). Baris item wajib akun `category='Expense'`
   (validasi 400 di route, diuji pakai akun Revenue).
+- **TaxCodes** — `/businesses/:id/tax-codes`. Master referensi tarif
+  pajak (tabel `tax_codes`, soft-delete, unique code per bisnis).
+  Rate di-SNAPSHOT ke `sales_invoice_lines.tax_rate_percent` lewat
+  kolom `tax_code_id` (nullable) — rate master berubah TIDAK menulis
+  ulang faktur lama; `taxCodeId` MENANG atas `taxRatePercent`
+  eksplisit (resolve di route via `resolveLineTaxCodes`, 400 kalau
+  kode tidak valid/nonaktif). Guard hapus/nonaktif: ditolak 400
+  selama masih dipakai baris faktur aktif (usageCount join
+  sales_invoice_lines × sales_invoices). Detail line tampil
+  `taxCodeId` + `taxCode {code,name}`; filter list `?taxCodeId=`.
+  Jurnal TIDAK tersentuh (hitungan `tax_amount` tetap pola lama).
+  Konsumen saat ini: Sales Invoices SAJA — Purchase Invoices &
+  modul lain menyusul. Dokumen: `Dokumentasi Modul/TaxCodes.md`.
+- **Divisions** — `/businesses/:id/divisions`. Tag
+  departemen/cabang, MURNI TAG non-posting: kolom `division_id`
+  nullable (FK NO ACTION, pola sama `project_id`) di 6 tabel lines/
+  header (sales_invoices, purchase_invoices, receipts, payments,
+  expense_claims, journal_entries). Guard hapus ditolak 400 kalau
+  masih dipakai. **History** — `/businesses/:id/history`, jejak
+  audit read-only di atas `audit_logs` (satu-satunya modul selain
+  Jurnal Umum yang boleh dibuka viewer).
 
 ### Status fase
 
@@ -310,10 +332,10 @@ environment variable atau `.env` yang sudah di-gitignore.
   Journal Entries, Purchase Orders, Expense Claims, Projects.
 - **Fase 3 (Modul Prioritas 2) — SEDANG BERJALAN.** Sudah selesai:
   Sales Quotes, Sales Orders, Credit Notes, Late Payment Fees, Delivery
-  Notes, Billable Time, Withholding Tax Receipts, Purchase Quotes (8
-  modul).
-  **Berikutnya: Debit Notes**, Goods
-  Receipts, Inventory (Items, Transfers, Write-offs), Production
+  Notes, Billable Time, Withholding Tax Receipts, Purchase Quotes,
+  Debit Notes (9 modul).
+  **Berikutnya: Goods Receipts**, Inventory (Items, Transfers,
+  Write-offs), Production
   Orders, Employees & Payslips (Payroll), Fixed Assets & Depreciation
   Entries, Intangible Assets & Amortization Entries, Capital Accounts,
   Special Accounts, Folders. Payroll dan Fixed Assets butuh analisis
@@ -344,11 +366,16 @@ environment variable atau `.env` yang sudah di-gitignore.
   Kerjakan modul-modul yang menyambung ke alur yang sudah ada lebih dulu
   (mis. Sales Quotes → Sales Orders → Credit Notes, yang berkaitan ke
   Sales Invoices), dan tanyakan urutan pastinya ke owner sebelum mulai.
-- Fase 4 (fitur lintas modul: Attachments, History, Backup/Export,
-  Divisions, Tax Codes, Custom fields, Emails, Obscure mode, Reports,
-  Localization, Custom themes), Fase 5 (QA), Fase 6 (deployment) ada di
-  roadmap. Catatan: field `Division`/`Tax Code`/`Project` yang sengaja
-  dilewati di banyak modul menunggu Fase 4 (Divisions, Tax Codes).
+- **Fase 4 (fitur lintas modul) — SEDANG BERJALAN.** Sudah selesai:
+  Attachments (Tahap 1: tabel generik + widget di Expense Claims &
+  Customers), History (jejak audit read-only), Divisions (CRUD +
+  tagging `division_id` di 6 tabel), Tax Codes (master rate +
+  snapshot `tax_code_id` di Sales Invoices). Sisa roadmap Fase 4:
+  Backup/Export (download data user — BUKAN backup DB, Neon sudah
+  handle itu), Custom fields, Emails, Obscure mode, Reports,
+  Localization, Custom themes; lanjutan Tax Codes (Purchase
+  Invoices dkk) & Divisions di modul sisa. Fase 5 (QA), Fase 6
+  (deployment) menyusul.
 
 ### Pola yang sudah terbukti (pakai lagi di Fase 3)
 
@@ -413,7 +440,8 @@ asumsi dari nama file doang.**
   Transfers, Bank Reconciliations, Journal Entries, Purchase Orders, Expense
   Claims, Projects (13 modul Fase 2 lengkap), Sales Quotes, Sales Orders,
   Credit Notes, Late Payment Fees, Delivery Notes, Billable Time,
-  Withholding Tax Receipts, Purchase Quotes (8 modul Fase 3 sejauh ini)
+  Withholding Tax Receipts, Purchase Quotes, Debit Notes (9 modul Fase 3),
+  History, Divisions, Tax Codes (Fase 4, plus widget Attachments)
 
 ## Aturan Kerja
 

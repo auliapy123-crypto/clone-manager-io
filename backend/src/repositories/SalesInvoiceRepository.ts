@@ -21,6 +21,7 @@ import {
   journalEntryLines,
   salesInvoiceLines,
   salesInvoices,
+  taxCodes,
   withholdingTaxReceipts,
 } from "../db/schema.js";
 
@@ -38,6 +39,7 @@ export interface SalesInvoiceLineInput {
   quantity?: number;
   unitPrice: number;
   taxRatePercent?: number;
+  taxCodeId?: string | null;
 }
 
 export interface SalesInvoiceCreateInput {
@@ -69,6 +71,7 @@ export interface SalesInvoiceListOptions {
   pageSize: number;
   q?: string;
   status?: ComputedInvoiceStatus;
+  taxCodeId?: string;
 }
 
 interface ComputedLine {
@@ -80,6 +83,7 @@ interface ComputedLine {
   taxRatePercent: string;
   taxAmount: string;
   lineTotal: string;
+  taxCodeId: string | null;
 }
 
 export interface SalesInvoiceLineRecord {
@@ -95,6 +99,8 @@ export interface SalesInvoiceLineRecord {
   taxAmount: number;
   lineTotal: number;
   sortOrder: number;
+  taxCodeId: string | null;
+  taxCode: { code: string; name: string } | null;
 }
 
 export interface SalesInvoiceRecord {
@@ -142,6 +148,7 @@ function computeLines(lines: SalesInvoiceLineInput[]): {
       taxRatePercent: rate.toFixed(2),
       taxAmount: (taxCents / 100).toFixed(2),
       lineTotal: (totalCents / 100).toFixed(2),
+      taxCodeId: l.taxCodeId ?? null,
     };
   });
 
@@ -385,6 +392,9 @@ function toLineRecord(row: {
   subtotal: string;
   taxRatePercent: string;
   taxAmount: string;
+  taxCodeId: string | null;
+  taxCodeCode: string | null;
+  taxCodeName: string | null;
   lineTotal: string;
   sortOrder: number;
 }): SalesInvoiceLineRecord {
@@ -401,6 +411,11 @@ function toLineRecord(row: {
     subtotal: Number(row.subtotal),
     taxRatePercent: Number(row.taxRatePercent),
     taxAmount: Number(row.taxAmount),
+    taxCodeId: row.taxCodeId,
+    taxCode:
+      row.taxCodeId && row.taxCodeCode && row.taxCodeName
+        ? { code: row.taxCodeCode, name: row.taxCodeName }
+        : null,
     lineTotal: Number(row.lineTotal),
     sortOrder: row.sortOrder,
   };
@@ -562,6 +577,13 @@ export async function listSalesInvoices(
     );
   }
 
+  // Filter faktur yang punya minimal satu baris memakai tax code tertentu
+  if (opts.taxCodeId) {
+    conditions.push(
+      sql`EXISTS (SELECT 1 FROM sales_invoice_lines sil WHERE sil.sales_invoice_id = ${salesInvoices.id} AND sil.tax_code_id = ${opts.taxCodeId})`,
+    );
+  }
+
   const where = and(...conditions);
 
   const baseQuery = db
@@ -631,6 +653,9 @@ async function getLinesWithAccounts(
       subtotal: salesInvoiceLines.subtotal,
       taxRatePercent: salesInvoiceLines.taxRatePercent,
       taxAmount: salesInvoiceLines.taxAmount,
+      taxCodeId: salesInvoiceLines.taxCodeId,
+      taxCodeCode: taxCodes.code,
+      taxCodeName: taxCodes.name,
       lineTotal: salesInvoiceLines.lineTotal,
       sortOrder: salesInvoiceLines.sortOrder,
     })
@@ -639,6 +664,7 @@ async function getLinesWithAccounts(
       chartOfAccounts,
       eq(salesInvoiceLines.accountId, chartOfAccounts.id),
     )
+    .leftJoin(taxCodes, eq(salesInvoiceLines.taxCodeId, taxCodes.id))
     .where(eq(salesInvoiceLines.salesInvoiceId, invoiceId))
     .orderBy(asc(salesInvoiceLines.sortOrder), asc(salesInvoiceLines.id));
   return rows.map(toLineRecord);
@@ -722,6 +748,7 @@ export async function createSalesInvoice(
         subtotal: l.subtotal,
         taxRatePercent: l.taxRatePercent,
         taxAmount: l.taxAmount,
+        taxCodeId: l.taxCodeId,
         lineTotal: l.lineTotal,
         sortOrder: i,
       })),
@@ -806,6 +833,7 @@ export async function updateSalesInvoice(
           subtotal: l.subtotal,
           taxRatePercent: l.taxRatePercent,
           taxAmount: l.taxAmount,
+          taxCodeId: l.taxCodeId,
           lineTotal: l.lineTotal,
           sortOrder: i,
         })),

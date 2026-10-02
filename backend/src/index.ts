@@ -66,6 +66,7 @@ import salesInvoiceRoutesPlugin from "./plugins/SalesInvoiceRoutes.js";
 import salesOrderRoutesPlugin from "./plugins/SalesOrderRoutes.js";
 import salesQuoteRoutesPlugin from "./plugins/SalesQuoteRoutes.js";
 import supplierRoutesPlugin from "./plugins/SupplierRoutes.js";
+import taxCodeRoutesPlugin from "./plugins/TaxCodeRoutes.js";
 import userRoutesPlugin from "./plugins/UserRoutes.js";
 
 /** Nilai query `token` tidak boleh ikut tercatat di log (Guide §8.3). */
@@ -344,6 +345,7 @@ export async function buildApp() {
             { name: "Projects", description: "Pelacakan proyek dan ringkasan keuangan per bisnis" },
             { name: "History", description: "Jejak audit read-only per bisnis (siapa ubah apa, kapan)" },
             { name: "Divisions", description: "Divisi/departemen per bisnis (label/tag pengelompokan, non-posting)" },
+            { name: "TaxCodes", description: "Master tarif pajak (tax codes) per bisnis" },
          ],
       },
       transform: jsonSchemaTransform,
@@ -387,6 +389,7 @@ export async function buildApp() {
   await app.register(purchaseQuoteRoutesPlugin);
   await app.register(projectRoutesPlugin);
   await app.register(divisionRoutesPlugin);
+  await app.register(taxCodeRoutesPlugin);
   await app.register(historyRoutesPlugin);
 
   return app;

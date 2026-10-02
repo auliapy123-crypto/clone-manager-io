@@ -9,6 +9,10 @@ import { getCustomerById } from "../repositories/ContactRepository.js";
 import { validateProjectAssignment } from "../repositories/ProjectRepository.js";
 import { validateDivisionAssignment } from "../repositories/DivisionRepository.js";
 import {
+  resolveLineTaxCodes,
+  TaxCodeValidationError,
+} from "../repositories/TaxCodeRepository.js";
+import {
   createSalesInvoice,
   findArControlAccount,
   findTaxPayableAccount,
@@ -65,12 +69,13 @@ export async function salesInvoiceRoutesPlugin(fastify: FastifyInstance) {
       },
     },
     async (request, reply) => {
-      const { page, pageSize, q, status } = request.query;
+      const { page, pageSize, q, status, taxCodeId } = request.query;
       const { data, total } = await listSalesInvoices(request.params.businessId, {
         page,
         pageSize,
         q,
         status,
+        taxCodeId,
       });
       return sendPaginated(reply, data, total, page, pageSize);
     },
@@ -135,7 +140,18 @@ export async function salesInvoiceRoutesPlugin(fastify: FastifyInstance) {
         return sendError(reply, 400, ErrorCode.BAD_REQUEST, "Pelanggan tidak ditemukan.");
       }
 
-      const accountCheck = await checkRevenueAccounts(businessId, body.lines.map((l) => l.accountId));
+      // Validasi tax code per baris + override rate dari master (TaxCodes.md §2.3)
+      let lines: typeof body.lines;
+      try {
+        lines = await resolveLineTaxCodes(businessId, body.lines);
+      } catch (error) {
+        if (error instanceof TaxCodeValidationError) {
+          return sendError(reply, 400, ErrorCode.BAD_REQUEST, error.message);
+        }
+        throw error;
+      }
+
+      const accountCheck = await checkRevenueAccounts(businessId, lines.map((l) => l.accountId));
       if (accountCheck) return sendError(reply, 400, ErrorCode.BAD_REQUEST, accountCheck);
 
       if (!(await findArControlAccount(businessId))) {
@@ -146,7 +162,7 @@ export async function salesInvoiceRoutesPlugin(fastify: FastifyInstance) {
           "Akun kontrol Piutang Usaha belum disiapkan di bisnis ini.",
         );
       }
-      if (body.lines.some((l) => (l.taxRatePercent ?? 0) > 0)) {
+      if (lines.some((l) => (l.taxRatePercent ?? 0) > 0)) {
         if (!(await findTaxPayableAccount(businessId))) {
           return sendError(
             reply,
@@ -172,6 +188,7 @@ export async function salesInvoiceRoutesPlugin(fastify: FastifyInstance) {
 
       const invoice = await createSalesInvoice(businessId, {
         ...body,
+        lines,
         customerName: customer.name,
         dueDateResolved: dueDate,
         billingAddressResolved: billingAddress,
@@ -223,8 +240,19 @@ export async function salesInvoiceRoutesPlugin(fastify: FastifyInstance) {
         return sendError(reply, 400, ErrorCode.BAD_REQUEST, "Pelanggan tidak ditemukan.");
       }
 
-      if (body.lines) {
-        const accountCheck = await checkRevenueAccounts(businessId, body.lines.map((l) => l.accountId));
+      let lines = body.lines;
+      if (lines) {
+        // Validasi tax code per baris + override rate dari master (TaxCodes.md §2.3)
+        try {
+          lines = await resolveLineTaxCodes(businessId, lines);
+        } catch (error) {
+          if (error instanceof TaxCodeValidationError) {
+            return sendError(reply, 400, ErrorCode.BAD_REQUEST, error.message);
+          }
+          throw error;
+        }
+
+        const accountCheck = await checkRevenueAccounts(businessId, lines.map((l) => l.accountId));
         if (accountCheck) return sendError(reply, 400, ErrorCode.BAD_REQUEST, accountCheck);
         if (!(await findArControlAccount(businessId))) {
           return sendError(
@@ -234,7 +262,7 @@ export async function salesInvoiceRoutesPlugin(fastify: FastifyInstance) {
             "Akun kontrol Piutang Usaha belum disiapkan di bisnis ini.",
           );
         }
-        if (body.lines.some((l) => (l.taxRatePercent ?? 0) > 0)) {
+        if (lines.some((l) => (l.taxRatePercent ?? 0) > 0)) {
           if (!(await findTaxPayableAccount(businessId))) {
             return sendError(
               reply,
@@ -269,6 +297,7 @@ export async function salesInvoiceRoutesPlugin(fastify: FastifyInstance) {
 
       const updated = await updateSalesInvoice(businessId, invoiceId, {
         ...body,
+        lines,
         customerName: customer.name,
         dueDateResolved: dueDate ?? null,
         billingAddressResolved: billingAddress ?? null,

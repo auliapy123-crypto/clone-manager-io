@@ -316,7 +316,7 @@ export const salesInvoices = pgTable("sales_invoices", {
 // Anak dari sales_invoices (ON DELETE CASCADE), ikut lewat header-nya —
 // sengaja TANPA deletedAt seperti journal_entry_lines.
 // subtotal/tax_amount/line_total SEMUA dihitung backend, bukan input.
-// Pajak per baris via tax_rate_percent (bukan tabel kode pajak terpisah).
+// Pajak per baris via tax_rate_percent, dengan referensi master via tax_code_id (nullable).
 // =====================================================================
 export const salesInvoiceLines = pgTable("sales_invoice_lines", {
   id: uuid().primaryKey().defaultRandom(),
@@ -332,11 +332,13 @@ export const salesInvoiceLines = pgTable("sales_invoice_lines", {
   subtotal: numeric({ precision: 18, scale: 2 }).notNull(),
   taxRatePercent: numeric({ precision: 5, scale: 2 }).notNull().default("0.00"),
   taxAmount: numeric({ precision: 18, scale: 2 }).notNull().default("0.00"),
+  taxCodeId: uuid().references(() => taxCodes.id, { onDelete: "set null" }),
   lineTotal: numeric({ precision: 18, scale: 2 }).notNull(),
   sortOrder: integer().notNull().default(0),
 }, (t) => [
   index("idx_sales_invoice_lines_invoice").on(t.salesInvoiceId),
   index("idx_sales_invoice_lines_account").on(t.accountId),
+  index("idx_sales_invoice_lines_tax_code").on(t.taxCodeId),
 ]);
 
 // =====================================================================
@@ -1200,6 +1202,32 @@ export const divisions = pgTable(
 );
 
 // =====================================================================
+// 25. TAX_CODES (Master Kode Pajak)
+// =====================================================================
+export const taxCodes = pgTable(
+  "tax_codes",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    code: varchar({ length: 20 }).notNull(),
+    name: varchar({ length: 100 }).notNull(),
+    ratePercent: numeric({ precision: 5, scale: 2 }).notNull(),
+    isActive: boolean().notNull().default(true),
+    description: text(),
+    deletedAt: timestamp(),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_tax_codes_business").on(t.businessId),
+    index("idx_tax_codes_active").on(t.businessId, t.isActive),
+    unique("uq_tax_codes_business_code").on(t.businessId, t.code),
+  ],
+);
+
+// =====================================================================
 // 23. AUDIT_LOGS
 // =====================================================================
 export const auditLogs = pgTable(
@@ -1254,6 +1282,7 @@ export const businessesRelations = relations(businesses, ({ many }) => ({
   billableTimeEntries: many(billableTimeEntries),
   projects: many(projects),
   divisions: many(divisions),
+  taxCodes: many(taxCodes),
   auditLogs: many(auditLogs),
 }));
 
@@ -1393,6 +1422,10 @@ export const salesInvoiceLinesRelations = relations(
     account: one(chartOfAccounts, {
       fields: [salesInvoiceLines.accountId],
       references: [chartOfAccounts.id],
+    }),
+    taxCode: one(taxCodes, {
+      fields: [salesInvoiceLines.taxCodeId],
+      references: [taxCodes.id],
     }),
   }),
 );
@@ -1862,6 +1895,14 @@ export const divisionsRelations = relations(divisions, ({ one, many }) => ({
   journalEntries: many(journalEntries),
 }));
 
+export const taxCodesRelations = relations(taxCodes, ({ one, many }) => ({
+  business: one(businesses, {
+    fields: [taxCodes.businessId],
+    references: [businesses.id],
+  }),
+  salesInvoiceLines: many(salesInvoiceLines),
+}));
+
 // =====================================================================
 // TIPE TURUNAN (dipakai repository & route)
 // =====================================================================
@@ -1906,3 +1947,6 @@ export type NewProject = typeof projects.$inferInsert;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type Division = typeof divisions.$inferSelect;
 export type NewDivision = typeof divisions.$inferInsert;
+export type TaxCode = typeof taxCodes.$inferSelect;
+export type NewTaxCode = typeof taxCodes.$inferInsert;
+

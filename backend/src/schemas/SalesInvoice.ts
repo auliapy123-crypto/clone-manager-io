@@ -13,7 +13,8 @@ export const SalesInvoiceLineInputSchema = z.object({
   description: z.string().trim().max(255).optional().nullable(),
   quantity: z.number().positive("Kuantitas harus lebih dari 0").default(1),
   unitPrice: z.number().min(0, "Harga satuan tidak boleh negatif"),
-  taxRatePercent: z.number().min(0, "Tarif pajak tidak boleh negatif").default(0),
+  taxRatePercent: z.number().min(0, "Tarif pajak tidak boleh negatif").default(0).optional(),
+  taxCodeId: z.string().uuid().optional().nullable(),
 });
 
 export const CreateSalesInvoiceSchema = z.object({
@@ -47,10 +48,16 @@ export const UpdateSalesInvoiceSchema = z.object({
 
 export const SalesInvoiceListQuerySchema = SearchQuerySchema.extend({
   status: SalesInvoiceStatusSchema.optional(),
+  taxCodeId: z.string().uuid().optional(),
 });
 
 export const SalesInvoiceIdParamsSchema = BusinessIdParamsSchema.extend({
   invoiceId: z.string().uuid(),
+});
+
+export const SalesInvoiceLineTaxCodeSchema = z.object({
+  code: z.string(),
+  name: z.string(),
 });
 
 export const SalesInvoiceLineResponseSchema = z.object({
@@ -64,6 +71,8 @@ export const SalesInvoiceLineResponseSchema = z.object({
   subtotal: z.number(),
   taxRatePercent: z.number(),
   taxAmount: z.number(),
+  taxCodeId: z.string().nullable(),
+  taxCode: SalesInvoiceLineTaxCodeSchema.nullable(),
   lineTotal: z.number(),
   sortOrder: z.number(),
 });
