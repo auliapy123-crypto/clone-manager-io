@@ -493,3 +493,13 @@ asumsi dari nama file doang.**
   `git add <path spesifik>` buat file yang jelas-jelas punya kerjaan
   ini aja. Pernah kejadian script sementara ikut ke-commit gara-gara
   `-A` dipakai tanpa cek dulu.
+  Docker (sejak 2 Okt 2026, commit 7ebc354)
+File: docker-compose.yml (root), backend/Dockerfile, fe-accounting/Dockerfile, masing-masing .dockerignore. Versi MINIMAL: 2 container (backend :4000, frontend :3000), database TETAP Neon (bukan Postgres lokal), TANPA RabbitMQ/Jenkins/Traefik.
+Versi Node/pnpm di Dockerfile mengikuti runtime lokal (package.json tidak punya field engines).
+Kredensial dibaca dari backend/.env lewat env_file. JANGAN pernah ditulis ke Dockerfile/compose dan JANGAN dicetak ke chat/log. .env.example hanya berisi placeholder.
+Frontend: VITE_API_URL dan VITE_APP_NAME ditanam saat BUILD (build-arg di compose). File route hasil generate tidak ada di Git, jadi Dockerfile frontend generate dulu sebelum pnpm build.
+Perintah pakai docker compose (TANPA dash).
+Port 3000/4000 hanya boleh dipakai SATU mode: container Docker ATAU pnpm dev lokal. Sebelum kerja modul baru, pastikan docker ps kosong (kalau ada container proyek: docker compose down). Kalau tidak, E2E bisa menembak backend Docker yang berisi kode LAMA dan terlihat seperti 404 palsu.
+Mode Docker TIDAK hot-reload (source di-copy ke image): setiap perubahan kode harus docker compose up --build. Alur: ngoding = pnpm dev lokal, verifikasi sebelum push/demo = Docker.
+backend/uploads/ di-bind-mount supaya lampiran (modul Attachments) tidak hilang saat container di-recreate.
+AI agent hanya boleh menyentuh file Docker kalau tugasnya memang soal Docker. Kalau menghapus file yang sudah terlacak Git, SEBUTKAN nama filenya eksplisit di laporan (pernah ada penghapusan "dua file sementara TanStack" tanpa nama, jadi tidak bisa diaudit).
