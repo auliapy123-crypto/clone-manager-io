@@ -1228,6 +1228,93 @@ export const taxCodes = pgTable(
 );
 
 // =====================================================================
+// 26. CUSTOM FIELDS (Field Tambahan Bebas — EAV, Fase 4 Fase 1)
+//
+// Dua tabel generik: definisi per (business, entity_type, key) + nilai
+// per (definition, record). record_id TANPA FK lintas entity (entity
+// heterogen tidak bisa satu FK). entity_type di tabel values adalah
+// denormalisasi dari definisi — dibutuhkan index
+// (business_id, entity_type, record_id). Value null/kosong = baris
+// value DIHAPUS FISIK (tanpa deleted_at).
+// =====================================================================
+export const CUSTOM_FIELD_ENTITY_TYPES = ["customer", "sales_invoice"] as const;
+export type CustomFieldEntityType = (typeof CUSTOM_FIELD_ENTITY_TYPES)[number];
+
+export const CUSTOM_FIELD_TYPES = [
+  "text",
+  "number",
+  "date",
+  "boolean",
+  "select",
+] as const;
+export type CustomFieldType = (typeof CUSTOM_FIELD_TYPES)[number];
+
+export const customFieldDefinitions = pgTable(
+  "custom_field_definitions",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    entityType: varchar({ length: 50 })
+      .$type<CustomFieldEntityType>()
+      .notNull(),
+    key: varchar({ length: 50 }).notNull(),
+    label: varchar({ length: 100 }).notNull(),
+    fieldType: varchar({ length: 20 }).$type<CustomFieldType>().notNull(),
+    isRequired: boolean().notNull().default(false),
+    options: jsonb().$type<string[] | null>(),
+    sortOrder: integer().notNull().default(0),
+    isActive: boolean().notNull().default(true),
+    deletedAt: timestamp(),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_custom_field_definitions_business").on(t.businessId),
+    unique("uq_custom_field_definitions_business_entity_key").on(
+      t.businessId,
+      t.entityType,
+      t.key,
+    ),
+  ],
+);
+
+export const customFieldValues = pgTable(
+  "custom_field_values",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    definitionId: uuid()
+      .notNull()
+      .references(() => customFieldDefinitions.id, { onDelete: "cascade" }),
+    entityType: varchar({ length: 50 })
+      .$type<CustomFieldEntityType>()
+      .notNull(),
+    recordId: uuid().notNull(),
+    valueText: text(),
+    valueNumber: numeric({ precision: 18, scale: 2 }),
+    valueDate: date(),
+    valueBoolean: boolean(),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+  },
+  (t) => [
+    unique("uq_custom_field_values_definition_record").on(
+      t.definitionId,
+      t.recordId,
+    ),
+    index("idx_custom_field_values_business_entity_record").on(
+      t.businessId,
+      t.entityType,
+      t.recordId,
+    ),
+  ],
+);
+
+// =====================================================================
 // 23. AUDIT_LOGS
 // =====================================================================
 export const auditLogs = pgTable(
@@ -1903,6 +1990,31 @@ export const taxCodesRelations = relations(taxCodes, ({ one, many }) => ({
   salesInvoiceLines: many(salesInvoiceLines),
 }));
 
+export const customFieldDefinitionsRelations = relations(
+  customFieldDefinitions,
+  ({ one, many }) => ({
+    business: one(businesses, {
+      fields: [customFieldDefinitions.businessId],
+      references: [businesses.id],
+    }),
+    values: many(customFieldValues),
+  }),
+);
+
+export const customFieldValuesRelations = relations(
+  customFieldValues,
+  ({ one }) => ({
+    business: one(businesses, {
+      fields: [customFieldValues.businessId],
+      references: [businesses.id],
+    }),
+    definition: one(customFieldDefinitions, {
+      fields: [customFieldValues.definitionId],
+      references: [customFieldDefinitions.id],
+    }),
+  }),
+);
+
 // =====================================================================
 // TIPE TURUNAN (dipakai repository & route)
 // =====================================================================
@@ -1949,4 +2061,8 @@ export type Division = typeof divisions.$inferSelect;
 export type NewDivision = typeof divisions.$inferInsert;
 export type TaxCode = typeof taxCodes.$inferSelect;
 export type NewTaxCode = typeof taxCodes.$inferInsert;
+export type CustomFieldDefinition = typeof customFieldDefinitions.$inferSelect;
+export type NewCustomFieldDefinition = typeof customFieldDefinitions.$inferInsert;
+export type CustomFieldValue = typeof customFieldValues.$inferSelect;
+export type NewCustomFieldValue = typeof customFieldValues.$inferInsert;
 

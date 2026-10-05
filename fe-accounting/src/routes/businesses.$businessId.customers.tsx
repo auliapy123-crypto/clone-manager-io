@@ -8,6 +8,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { AttachmentsWidget } from "@/components/attachments-widget";
+import {
+  CustomFieldsSection,
+  useCustomFieldsForm,
+} from "@/components/custom-fields-section";
 import { useBusinesses } from "@/hooks/use-businesses";
 import {
   type CreateCustomerInput,
@@ -129,19 +133,29 @@ function CustomerFormDialog({ mode, open, onOpenChange, businessId, customer, ca
   const createCustomer = useCreateCustomer(businessId);
   const updateCustomer = useUpdateCustomer(businessId);
   const [serverError, setServerError] = useState<string | null>(null);
+  // Section dinamis "Field Tambahan" (custom fields entity customer) —
+  // level header; values dikirim via upsert SETELAH save record utama sukses.
+  const customFields = useCustomFieldsForm(businessId, "customer", customer?.id ?? null);
   const form = useForm({
     defaultValues: { name: customer?.name ?? "", code: customer?.code ?? "", email: customer?.email ?? "", creditLimit: customer ? String(customer.creditLimit) : "", billingAddress: customer?.billingAddress ?? "", deliveryAddress: customer?.deliveryAddress ?? "", salesInvoiceDueDateDays: customer?.salesInvoiceDueDateDays == null ? "" : String(customer.salesInvoiceDueDateDays) } satisfies CustomerFormValues,
     onSubmit: async ({ value, formApi }) => {
       setServerError(null);
       const base: CreateCustomerInput = { name: value.name.trim(), code: value.code.trim() || undefined, email: value.email.trim() || undefined, creditLimit: value.creditLimit === "" ? undefined : Number(value.creditLimit), billingAddress: value.billingAddress.trim() || undefined, deliveryAddress: value.deliveryAddress.trim() || undefined, salesInvoiceDueDateDays: value.salesInvoiceDueDateDays === "" ? undefined : Number(value.salesInvoiceDueDateDays) };
+      const customFieldError = customFields.validateRequired();
+      if (customFieldError) { setServerError(customFieldError); return; }
       try {
-        if (mode === "create") await createCustomer.mutateAsync(base);
-        else if (customer) await updateCustomer.mutateAsync({ customerId: customer.id, ...base, code: base.code ?? null, email: base.email ?? null, billingAddress: base.billingAddress ?? null, deliveryAddress: base.deliveryAddress ?? null, salesInvoiceDueDateDays: base.salesInvoiceDueDateDays ?? null });
-        formApi.reset(); onOpenChange(false);
+        if (mode === "create") {
+          const created = await createCustomer.mutateAsync(base);
+          await customFields.save(created.id);
+        } else if (customer) {
+          await updateCustomer.mutateAsync({ customerId: customer.id, ...base, code: base.code ?? null, email: base.email ?? null, billingAddress: base.billingAddress ?? null, deliveryAddress: base.deliveryAddress ?? null, salesInvoiceDueDateDays: base.salesInvoiceDueDateDays ?? null });
+          await customFields.save(customer.id);
+        }
+        formApi.reset(); customFields.reset(); onOpenChange(false);
       } catch (error) { setServerError(getApiErrorMessage(error)); }
     },
   });
-  const close = () => { onOpenChange(false); setServerError(null); form.reset(); };
+  const close = () => { onOpenChange(false); setServerError(null); form.reset(); customFields.reset(); };
   const textAreaClass = "min-h-20 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900";
   return <Dialog open={open} onOpenChange={close}><DialogContent onClose={close}><DialogHeader><DialogTitle>{mode === "create" ? "Tambah Customer" : "Ubah Customer"}</DialogTitle><DialogDescription>{mode === "create" ? "Tambahkan customer baru ke bisnis ini." : "Perbarui data customer ini."}</DialogDescription></DialogHeader>
     <form className="flex flex-col gap-4" onSubmit={(event) => { event.preventDefault(); event.stopPropagation(); void form.handleSubmit(); }}>
@@ -152,6 +166,7 @@ function CustomerFormDialog({ mode, open, onOpenChange, businessId, customer, ca
       <FormTextarea form={form} name="billingAddress" label="Billing Address (opsional)" className={textAreaClass} />
       <FormTextarea form={form} name="deliveryAddress" label="Delivery Address (opsional)" className={textAreaClass} />
       <FormInput form={form} name="salesInvoiceDueDateDays" label="Sales Invoice Due Date Days (opsional)" validator={dueDaysSchema} type="number" min="0" step="1" />
+      <CustomFieldsSection state={customFields} canWrite={canWrite} />
       {serverError && <p role="alert" className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">{serverError}</p>}
       {/* Lampiran hanya di mode edit -- record create belum punya id. */}
       {mode === "edit" && customer && <AttachmentsWidget businessId={businessId} entityType="customer" entityId={customer.id} canWrite={canWrite} />}

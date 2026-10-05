@@ -322,6 +322,21 @@ environment variable atau `.env` yang sudah di-gitignore.
   masih dipakai. **History** — `/businesses/:id/history`, jejak
   audit read-only di atas `audit_logs` (satu-satunya modul selain
   Jurnal Umum yang boleh dibuka viewer).
+- **CustomFields** — `/businesses/:id/custom-field-definitions` +
+  `/businesses/:id/custom-field-values`. Infra EAV GENERIK (2 tabel
+  baru: `custom_field_definitions` + `custom_field_values`,
+  NOL ubah tabel existing; `record_id` TANPA FK lintas entity; kolom
+  `entity_type` di tabel values DENORMALISASI dari definisi demi index
+  `(business_id, entity_type, record_id)`). Fase 1 entity cuma
+  `customer` & `sales_invoice` (nilai lain → 400), level header/record
+  SAJA. Value null/"" = hapus fisik baris value. Tipe/key definisi
+  IMMUTABLE setelah ada values (→ 400); hapus/nonaktifkan definisi
+  yang masih punya values → 400. Upsert validasi: definisi milik
+  bisnis+entity + aktif + tipe cocok → setelah itu semua definisi
+  required+aktif entity itu wajib terisi (kurang → 400, transaksi
+  rollback). Konsumsi frontend via endpoint generik — TIDAK ADA
+  perubahan route/response modul Customers & Sales Invoices.
+  Dokumen: `Dokumentasi Modul/CustomFields.md`.
 
 ### Status fase
 
@@ -370,12 +385,15 @@ environment variable atau `.env` yang sudah di-gitignore.
   Attachments (Tahap 1: tabel generik + widget di Expense Claims &
   Customers), History (jejak audit read-only), Divisions (CRUD +
   tagging `division_id` di 6 tabel), Tax Codes (master rate +
-  snapshot `tax_code_id` di Sales Invoices). Sisa roadmap Fase 4:
+  snapshot `tax_code_id` di Sales Invoices), Custom Fields Fase 1
+  (infra EAV generik + section dinamis di form/detail Customers &
+  Sales Invoices level header). Sisa roadmap Fase 4:
   Backup/Export (download data user — BUKAN backup DB, Neon sudah
-  handle itu), Custom fields, Emails, Obscure mode, Reports,
-  Localization, Custom themes; lanjutan Tax Codes (Purchase
-  Invoices dkk) & Divisions di modul sisa. Fase 5 (QA), Fase 6
-  (deployment) menyusul.
+  handle itu), lanjutan Custom Fields (entity modul lain, field per
+  baris, kolom list, laporan — cukup dari frontend), Emails,
+  Obscure mode, Reports, Localization, Custom themes; lanjutan Tax
+  Codes (Purchase Invoices dkk) & Divisions di modul sisa. Fase 5
+  (QA), Fase 6 (deployment) menyusul.
 
 ### Pola yang sudah terbukti (pakai lagi di Fase 3)
 
@@ -441,7 +459,8 @@ asumsi dari nama file doang.**
   Claims, Projects (13 modul Fase 2 lengkap), Sales Quotes, Sales Orders,
   Credit Notes, Late Payment Fees, Delivery Notes, Billable Time,
   Withholding Tax Receipts, Purchase Quotes, Debit Notes (9 modul Fase 3),
-  History, Divisions, Tax Codes (Fase 4, plus widget Attachments)
+  History, Divisions, Tax Codes, Custom Fields (Fase 4, plus widget
+  Attachments)
 
 ## Aturan Kerja
 

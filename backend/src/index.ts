@@ -45,6 +45,7 @@ import chartOfAccountRoutesPlugin from "./plugins/ChartOfAccountRoutes.js";
 import creditNoteRoutesPlugin from "./plugins/CreditNoteRoutes.js";
 import debitNoteRoutesPlugin from "./plugins/DebitNoteRoutes.js";
 import attachmentRoutesPlugin from "./plugins/AttachmentRoutes.js";
+import customFieldRoutesPlugin from "./plugins/CustomFieldRoutes.js";
 import customerRoutesPlugin from "./plugins/CustomerRoutes.js";
 import deliveryNoteRoutesPlugin from "./plugins/DeliveryNoteRoutes.js";
 import healthPlugin from "./plugins/HealthPlugin.js";
@@ -346,6 +347,7 @@ export async function buildApp() {
             { name: "History", description: "Jejak audit read-only per bisnis (siapa ubah apa, kapan)" },
             { name: "Divisions", description: "Divisi/departemen per bisnis (label/tag pengelompokan, non-posting)" },
             { name: "TaxCodes", description: "Master tarif pajak (tax codes) per bisnis" },
+            { name: "CustomFields", description: "Field tambahan bebas per jenis record (definisi + nilai, EAV generik)" },
          ],
       },
       transform: jsonSchemaTransform,
@@ -390,6 +392,7 @@ export async function buildApp() {
   await app.register(projectRoutesPlugin);
   await app.register(divisionRoutesPlugin);
   await app.register(taxCodeRoutesPlugin);
+  await app.register(customFieldRoutesPlugin);
   await app.register(historyRoutesPlugin);
 
   return app;

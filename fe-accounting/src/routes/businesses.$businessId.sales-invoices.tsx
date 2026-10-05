@@ -13,6 +13,10 @@ import {
 import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
+import {
+  CustomFieldsSection,
+  useCustomFieldsForm,
+} from "@/components/custom-fields-section";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useBusinesses } from "@/hooks/use-businesses";
 import { useCustomers } from "@/hooks/use-customers";
@@ -370,6 +374,14 @@ function SalesInvoiceFormDialog({
   const [lines, setLines] = useState<FormLine[]>([createEmptyLine()]);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Section dinamis "Field Tambahan" (custom fields entity sales_invoice) —
+  // level header; values dikirim via upsert SETELAH save faktur sukses.
+  const customFields = useCustomFieldsForm(
+    businessId,
+    "sales_invoice",
+    isNew ? null : invoiceId,
+  );
+
   const { options: divisionOptions } = useDivisionOptions(
     businessId,
     existingInvoice?.divisionId,
@@ -532,9 +544,15 @@ function SalesInvoiceFormDialog({
       taxCodeId: l.taxCodeId || null,
     }));
 
+    const customFieldError = customFields.validateRequired();
+    if (customFieldError) {
+      setFormError(customFieldError);
+      return;
+    }
+
     try {
       if (isNew) {
-        await createInvoice.mutateAsync({
+        const created = await createInvoice.mutateAsync({
           customerId,
           reference: reference.trim() || undefined,
           issueDate: finalIssueDate,
@@ -545,6 +563,7 @@ function SalesInvoiceFormDialog({
           divisionId: divisionId || null,
           lines: formattedLines,
         });
+        await customFields.save(created.id);
       } else {
         await updateInvoice.mutateAsync({
           invoiceId,
@@ -558,6 +577,7 @@ function SalesInvoiceFormDialog({
           divisionId: divisionId || null,
           lines: formattedLines,
         });
+        await customFields.save(invoiceId);
       }
       onClose();
     } catch (err) {
@@ -731,6 +751,9 @@ function SalesInvoiceFormDialog({
                   onChange={(event) => setBillingAddress(event.target.value)}
                 />
               </div>
+
+              {/* Section dinamis Field Tambahan (custom fields, level header) */}
+              <CustomFieldsSection state={customFields} canWrite={canWrite} />
 
               {/* Tabel Baris Item Dinamis */}
               <div className="mt-2 flex flex-col gap-2">

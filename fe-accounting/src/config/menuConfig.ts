@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeftRight, ArrowUpFromLine, BadgePercent, BookMarked, BookOpen, Building2, ClipboardList, FileMinus, FileText, FolderKanban, History, Hourglass, Landmark, LayoutDashboard, PackageCheck, Percent, Quote, Receipt, Scale, ShoppingCart, Stamp, Timer, Truck, User, UserRound, Users, Wallet, Waypoints } from "lucide-react";
+import { ArrowLeftRight, ArrowUpFromLine, BadgePercent, BookMarked, BookOpen, Building2, ClipboardList, FileMinus, FileText, FolderKanban, History, Hourglass, Landmark, LayoutDashboard, ListPlus, PackageCheck, Percent, Quote, Receipt, Scale, ShoppingCart, Stamp, Timer, Truck, User, UserRound, Users, Wallet, Waypoints } from "lucide-react";
 
 /** Role bisnis (Guide §7 RBAC) -- harus sinkron dgn BusinessRoleSchema backend. */
 export type BusinessRole = "admin" | "accountant" | "viewer";
@@ -177,6 +177,12 @@ export const businessMenuItems: MenuItem[] = [
     label: "Kode Pajak",
     to: "/businesses/$businessId/tax-codes",
     icon: Percent,
+    allowedRoles: ["admin", "accountant"],
+  },
+  {
+    label: "Custom Fields",
+    to: "/businesses/$businessId/custom-fields",
+    icon: ListPlus,
     allowedRoles: ["admin", "accountant"],
   },
   {
