@@ -133,6 +133,11 @@ function CustomerFormDialog({ mode, open, onOpenChange, businessId, customer, ca
   const createCustomer = useCreateCustomer(businessId);
   const updateCustomer = useUpdateCustomer(businessId);
   const [serverError, setServerError] = useState<string | null>(null);
+  // Setelah create sukses tapi upsert values GAGAL, id customer baru disimpan
+  // di sini dan submit berikutnya jadi UPDATE — mencegah customer duplikat
+  // saat user memperbaiki Field Tambahan lalu simpan lagi.
+  const [savedRecordId, setSavedRecordId] = useState<string | null>(null);
+  useEffect(() => { if (!open) setSavedRecordId(null); }, [open]);
   // Section dinamis "Field Tambahan" (custom fields entity customer) —
   // level header; values dikirim via upsert SETELAH save record utama sukses.
   const customFields = useCustomFieldsForm(businessId, "customer", customer?.id ?? null);
@@ -145,8 +150,15 @@ function CustomerFormDialog({ mode, open, onOpenChange, businessId, customer, ca
       if (customFieldError) { setServerError(customFieldError); return; }
       try {
         if (mode === "create") {
-          const created = await createCustomer.mutateAsync(base);
-          await customFields.save(created.id);
+          if (savedRecordId) {
+            // Upsert values pernah gagal setelah create — submit ulang jadi update.
+            await updateCustomer.mutateAsync({ customerId: savedRecordId, ...base, code: base.code ?? null, email: base.email ?? null, billingAddress: base.billingAddress ?? null, deliveryAddress: base.deliveryAddress ?? null, salesInvoiceDueDateDays: base.salesInvoiceDueDateDays ?? null });
+            await customFields.save(savedRecordId);
+          } else {
+            const created = await createCustomer.mutateAsync(base);
+            setSavedRecordId(created.id);
+            await customFields.save(created.id);
+          }
         } else if (customer) {
           await updateCustomer.mutateAsync({ customerId: customer.id, ...base, code: base.code ?? null, email: base.email ?? null, billingAddress: base.billingAddress ?? null, deliveryAddress: base.deliveryAddress ?? null, salesInvoiceDueDateDays: base.salesInvoiceDueDateDays ?? null });
           await customFields.save(customer.id);

@@ -34,6 +34,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -1272,11 +1273,12 @@ export const customFieldDefinitions = pgTable(
   },
   (t) => [
     index("idx_custom_field_definitions_business").on(t.businessId),
-    unique("uq_custom_field_definitions_business_entity_key").on(
-      t.businessId,
-      t.entityType,
-      t.key,
-    ),
+    // PARTIAL unique index: key unik per bisnis+entity hanya di antara
+    // definisi yang BELUM dihapus — definisi soft-deleted tidak boleh
+    // memblokir recreate dengan key yang sama.
+    uniqueIndex("uq_custom_field_definitions_business_entity_key")
+      .on(t.businessId, t.entityType, t.key)
+      .where(sql`${t.deletedAt} IS NULL`),
   ],
 );
 

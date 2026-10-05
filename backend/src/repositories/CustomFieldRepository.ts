@@ -15,11 +15,15 @@
 import { and, asc, count, eq, ilike, isNull, or } from "drizzle-orm";
 import db from "../db/index.js";
 import {
+  contacts,
   customFieldDefinitions,
   customFieldValues,
+  salesInvoices,
   type CustomFieldEntityType,
   type CustomFieldType,
 } from "../db/schema.js";
+import { getCustomerById } from "./ContactRepository.js";
+import { getSalesInvoiceById } from "./SalesInvoiceRepository.js";
 
 /** Error validasi Custom Field (tipe salah, required kurang, guard) -> 400. */
 export class CustomFieldValidationError extends Error {
@@ -158,7 +162,9 @@ function isEmptyValue(
 ): boolean {
   if (value === null) return true;
   if (fieldType === "text" || fieldType === "select") {
-    return (value as string).trim() === "";
+    // Value bertipe salah (mis. number ke text) BUKAN "kosong" — ditolak
+    // oleh assertValueMatchesType, bukan dianggap perintah hapus.
+    return typeof value === "string" && (value as string).trim() === "";
   }
   return false;
 }
@@ -176,17 +182,33 @@ function isValidDateString(value: string): boolean {
  * CustomFieldValidationError (400) jika tidak cocok.
  */
 function assertValueMatchesType(
-  def: { key: string; label: string; fieldType: CustomFieldType },
+  def: {
+    key: string;
+    label: string;
+    fieldType: CustomFieldType;
+    options: string[] | null;
+  },
   value: string | number | boolean | null,
 ): void {
   if (value === null) return; // null selalu valid: artinya hapus value.
 
   switch (def.fieldType) {
     case "text":
+      if (typeof value !== "string") {
+        throw new CustomFieldValidationError(
+          `Field "${def.label}" bertipe text menerima teks, diterima ${typeof value}.`,
+        );
+      }
+      break;
     case "select":
       if (typeof value !== "string") {
         throw new CustomFieldValidationError(
-          `Field "${def.label}" bertipe ${def.fieldType} menerima teks, diterima ${typeof value}.`,
+          `Field "${def.label}" bertipe select menerima teks pilihan, diterima ${typeof value}.`,
+        );
+      }
+      if (!(def.options ?? []).includes(value)) {
+        throw new CustomFieldValidationError(
+          `Field "${def.label}" hanya menerima salah satu opsi: ${(def.options ?? []).join(", ")}.`,
         );
       }
       break;
@@ -214,6 +236,33 @@ function assertValueMatchesType(
         );
       }
       break;
+  }
+}
+
+/**
+ * Validasi bahwa record pemilik values benar-benar ada di bisnis ini dan
+ * belum di-soft-delete — record_id di tabel values TANPA FK, jadi tanpa
+ * cek ini upsert ke ID acak akan diam-diam membuat values yatim.
+ */
+async function assertRecordExists(
+  businessId: string,
+  entityType: CustomFieldEntityType,
+  recordId: string,
+): Promise<void> {
+  if (entityType === "customer") {
+    const record = await getCustomerById(businessId, recordId);
+    if (!record) {
+      throw new CustomFieldValidationError(
+        "Customer pemilik values tidak ditemukan di bisnis ini (atau sudah dihapus).",
+      );
+    }
+    return;
+  }
+  const record = await getSalesInvoiceById(businessId, recordId);
+  if (!record) {
+    throw new CustomFieldValidationError(
+      "Faktur penjualan pemilik values tidak ditemukan di bisnis ini (atau sudah dihapus).",
+    );
   }
 }
 
@@ -261,24 +310,67 @@ function columnsForType(
 }
 
 /**
- * Hitung jumlah values milik satu definisi. Definisi selalu ber-scope
- * satu bisnis, jadi business_id cukup dari definisinya.
+ * Hitung jumlah values milik satu definisi yang pemilik record-nya masih
+ * AKTIF (record soft-deleted = values yatim, tidak dihitung — kalau tidak,
+ * definisi tak bisa dihapus setelah salah satu pemakainya dihapus).
+ * Definisi selalu ber-scope satu bisnis, jadi business_id cukup dari definisinya.
  */
 export async function countValues(
   businessId: string,
   definitionId: string,
 ): Promise<number> {
-  const [row] = await db
-    .select({ count: count() })
-    .from(customFieldValues)
+  const [def] = await db
+    .select({ entityType: customFieldDefinitions.entityType })
+    .from(customFieldDefinitions)
     .where(
       and(
-        eq(customFieldValues.definitionId, definitionId),
-        eq(customFieldValues.businessId, businessId),
+        eq(customFieldDefinitions.id, definitionId),
+        eq(customFieldDefinitions.businessId, businessId),
       ),
-    );
+    )
+    .limit(1);
 
-  return Number(row?.count ?? 0);
+  if (!def) return 0;
+
+  const valueConditions = and(
+    eq(customFieldValues.definitionId, definitionId),
+    eq(customFieldValues.businessId, businessId),
+  );
+
+  if (def.entityType === "customer") {
+    const [row] = await db
+      .select({ count: count() })
+      .from(customFieldValues)
+      .innerJoin(
+        contacts,
+        and(
+          eq(customFieldValues.recordId, contacts.id),
+          eq(contacts.businessId, businessId),
+          isNull(contacts.deletedAt),
+        ),
+      )
+      .where(valueConditions);
+    return Number(row?.count ?? 0);
+  }
+
+  if (def.entityType === "sales_invoice") {
+    const [row] = await db
+      .select({ count: count() })
+      .from(customFieldValues)
+      .innerJoin(
+        salesInvoices,
+        and(
+          eq(customFieldValues.recordId, salesInvoices.id),
+          eq(salesInvoices.businessId, businessId),
+          isNull(salesInvoices.deletedAt),
+        ),
+      )
+      .where(valueConditions);
+    return Number(row?.count ?? 0);
+  }
+
+  // Entity di luar Fase 1 tidak bisa punya definisi (enum Zod) — anggap kosong.
+  return 0;
 }
 
 export async function hasValues(
@@ -497,13 +589,25 @@ export async function deleteDefinition(
   const existing = await getDefinitionById(businessId, id);
   if (!existing) return false;
 
-  // Guard: definisi yang masih punya values ditolak (pola Project/Division/TaxCode).
+  // Guard: definisi yang masih punya values (record AKTIF) ditolak
+  // (pola Project/Division/TaxCode).
   const usedCount = await countValues(businessId, id);
   if (usedCount > 0) {
     throw new CustomFieldValidationError(
       `Definisi masih dipakai oleh ${usedCount} nilai tersimpan dan tidak dapat dihapus.`,
     );
   }
+
+  // Values yatim (pemilik record sudah dihapus) dibersihkan fisik agar
+  // tidak menumpuk tanpa pernah bisa diakses lagi.
+  await db
+    .delete(customFieldValues)
+    .where(
+      and(
+        eq(customFieldValues.definitionId, id),
+        eq(customFieldValues.businessId, businessId),
+      ),
+    );
 
   const rows = await db
     .update(customFieldDefinitions)
@@ -601,6 +705,10 @@ export async function upsertCustomFieldValues(
   input: UpsertCustomFieldValuesInput,
 ): Promise<CustomFieldValueRecord[]> {
   await db.transaction(async (tx) => {
+    // 0. Record pemilik harus benar-benar ada di bisnis ini dan aktif
+    //    (record_id tanpa FK — tanpa cek ini bisa terbentuk values yatim).
+    await assertRecordExists(businessId, input.entityType, input.recordId);
+
     // 1. Kumpulan definisi entity ini (belum dihapus).
     const defs = await tx
       .select()
@@ -614,7 +722,8 @@ export async function upsertCustomFieldValues(
       );
     const defById = new Map(defs.map((d) => [d.id, d]));
 
-    // 2. Validasi tiap item terhadap definisinya.
+    // 2. Validasi tiap item terhadap definisinya. null/kosong ("") adalah
+    //    perintah HAPUS value (§5.3) — selalu valid, tidak masuk cek tipe.
     for (const item of input.values) {
       const def = defById.get(item.definitionId);
       if (!def) {
@@ -627,7 +736,9 @@ export async function upsertCustomFieldValues(
           `Definisi "${def.label}" sedang nonaktif dan tidak dapat diisi.`,
         );
       }
-      assertValueMatchesType(def, item.value);
+      if (!isEmptyValue(def.fieldType, item.value)) {
+        assertValueMatchesType(def, item.value);
+      }
     }
 
     // 3. Terapkan: null/kosong = hapus fisik, selain itu upsert.

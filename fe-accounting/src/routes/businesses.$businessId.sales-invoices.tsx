@@ -373,6 +373,10 @@ function SalesInvoiceFormDialog({
   const [divisionId, setDivisionId] = useState("");
   const [lines, setLines] = useState<FormLine[]>([createEmptyLine()]);
   const [formError, setFormError] = useState<string | null>(null);
+  // Setelah create sukses tapi upsert values GAGAL, id faktur baru disimpan
+  // di sini dan submit berikutnya jadi UPDATE — mencegah faktur duplikat
+  // saat user memperbaiki Field Tambahan lalu simpan lagi.
+  const [savedRecordId, setSavedRecordId] = useState<string | null>(null);
 
   // Section dinamis "Field Tambahan" (custom fields entity sales_invoice) —
   // level header; values dikirim via upsert SETELAH save faktur sukses.
@@ -551,7 +555,7 @@ function SalesInvoiceFormDialog({
     }
 
     try {
-      if (isNew) {
+      if (isNew && savedRecordId === null) {
         const created = await createInvoice.mutateAsync({
           customerId,
           reference: reference.trim() || undefined,
@@ -563,10 +567,12 @@ function SalesInvoiceFormDialog({
           divisionId: divisionId || null,
           lines: formattedLines,
         });
+        setSavedRecordId(created.id);
         await customFields.save(created.id);
       } else {
+        const targetId = savedRecordId ?? invoiceId;
         await updateInvoice.mutateAsync({
-          invoiceId,
+          invoiceId: targetId,
           customerId,
           reference: reference.trim() || null,
           issueDate: finalIssueDate,
@@ -577,7 +583,7 @@ function SalesInvoiceFormDialog({
           divisionId: divisionId || null,
           lines: formattedLines,
         });
-        await customFields.save(invoiceId);
+        await customFields.save(targetId);
       }
       onClose();
     } catch (err) {
