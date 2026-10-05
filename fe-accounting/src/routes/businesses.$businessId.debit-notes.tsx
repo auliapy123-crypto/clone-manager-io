@@ -408,7 +408,7 @@ function DebitNoteFormDialog({
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
-        <DialogHeader>
+        <DialogHeader className="shrink-0">
           <DialogTitle>{noteId ? "Edit Nota Debet" : "Buat Nota Debet"}</DialogTitle>
           <DialogDescription>
             {noteId
@@ -418,7 +418,7 @@ function DebitNoteFormDialog({
         </DialogHeader>
 
         {formError && (
-          <div role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-700">
+          <div role="alert" className="shrink-0 rounded-md bg-red-50 p-3 text-sm text-red-700">
             {formError}
           </div>
         )}
@@ -426,7 +426,8 @@ function DebitNoteFormDialog({
         {isLoading ? (
           <p className="text-sm text-gray-500">Memuat data...</p>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
@@ -655,8 +656,9 @@ function DebitNoteFormDialog({
                 </table>
               </div>
             </div>
+            </div>
 
-            <DialogFooter>
+            <DialogFooter className="shrink-0 border-t pt-3">
               <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
                 Batal
               </Button>

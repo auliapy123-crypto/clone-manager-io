@@ -141,8 +141,9 @@ function SupplierFormDialog({ mode, open, onOpenChange, businessId, supplier }: 
   });
   const close = () => { onOpenChange(false); setServerError(null); form.reset(); };
   const textAreaClass = "min-h-20 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900";
-  return <Dialog open={open} onOpenChange={close}><DialogContent onClose={close}><DialogHeader><DialogTitle>{mode === "create" ? "Tambah Supplier" : "Ubah Supplier"}</DialogTitle><DialogDescription>{mode === "create" ? "Tambahkan supplier baru ke bisnis ini." : "Perbarui data supplier ini."}</DialogDescription></DialogHeader>
-    <form className="flex flex-col gap-4" onSubmit={(event) => { event.preventDefault(); event.stopPropagation(); void form.handleSubmit(); }}>
+  return <Dialog open={open} onOpenChange={close}><DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden" onClose={close}><DialogHeader className="shrink-0"><DialogTitle>{mode === "create" ? "Tambah Supplier" : "Ubah Supplier"}</DialogTitle><DialogDescription>{mode === "create" ? "Tambahkan supplier baru ke bisnis ini." : "Perbarui data supplier ini."}</DialogDescription></DialogHeader>
+    <form className="flex min-h-0 flex-1 flex-col overflow-hidden" onSubmit={(event) => { event.preventDefault(); event.stopPropagation(); void form.handleSubmit(); }}>
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
       <FormInput form={form} name="name" label="Name" validator={nameSchema} required />
       <FormInput form={form} name="code" label="Code (opsional)" validator={codeSchema} />
       <FormInput form={form} name="email" label="Email (opsional)" validator={emailSchema} type="email" />
@@ -150,7 +151,8 @@ function SupplierFormDialog({ mode, open, onOpenChange, businessId, supplier }: 
       <FormTextarea form={form} name="deliveryAddress" label="Delivery Address (opsional)" className={textAreaClass} />
       <FormInput form={form} name="purchaseInvoiceDueDateDays" label="Purchase Invoice Due Date Days (opsional)" validator={dueDaysSchema} type="number" min="0" step="1" />
       {serverError && <p role="alert" className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">{serverError}</p>}
-      <DialogFooter><Button type="button" variant="outline" onClick={close}>Batal</Button><form.Subscribe selector={(state) => state.isSubmitting}>{(isSubmitting) => <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Menyimpan..." : mode === "create" ? "Tambah" : "Simpan"}</Button>}</form.Subscribe></DialogFooter>
+      </div>
+      <DialogFooter className="shrink-0 border-t pt-3"><Button type="button" variant="outline" onClick={close}>Batal</Button><form.Subscribe selector={(state) => state.isSubmitting}>{(isSubmitting) => <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Menyimpan..." : mode === "create" ? "Tambah" : "Simpan"}</Button>}</form.Subscribe></DialogFooter>
     </form></DialogContent></Dialog>;
 }
 

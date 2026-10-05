@@ -310,8 +310,8 @@ function TaxCodeFormDialog({
 
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
+      <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle>
             {isNew ? "Kode Pajak Baru" : canWrite ? "Edit Kode Pajak" : "Detail Kode Pajak"}
           </DialogTitle>
@@ -329,8 +329,9 @@ function TaxCodeFormDialog({
         ) : (
           <form
             onSubmit={(event) => void handleSubmit(event)}
-            className="flex flex-col gap-4"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden"
           >
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
             {formError && (
               <div
                 role="alert"
@@ -416,8 +417,9 @@ function TaxCodeFormDialog({
                 onChange={(event) => setDescription(event.target.value)}
               />
             </div>
+            </div>
 
-            <DialogFooter>
+            <DialogFooter className="shrink-0 border-t pt-3">
               <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
                 Batal
               </Button>

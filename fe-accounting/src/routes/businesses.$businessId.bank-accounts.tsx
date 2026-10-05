@@ -149,8 +149,9 @@ function BankAccountForm({ mode, open, onOpenChange, businessId, account }: { mo
       } catch (e) { setServerError(getApiErrorMessage(e)); }
     },
   });
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent><DialogHeader><DialogTitle>{mode === "create" ? "Tambah Akun" : "Edit Akun"}</DialogTitle></DialogHeader>
-    <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void form.handleSubmit(); }}>
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-h-[90vh] flex flex-col overflow-hidden"><DialogHeader className="shrink-0"><DialogTitle>{mode === "create" ? "Tambah Akun" : "Edit Akun"}</DialogTitle></DialogHeader>
+    <form className="flex min-h-0 flex-1 flex-col overflow-hidden" onSubmit={(e) => { e.preventDefault(); void form.handleSubmit(); }}>
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
       <form.Field name="accountType">{(field) => <div className="flex gap-4"><label className="flex items-center gap-1"><Input type="radio" className="w-4" checked={field.state.value === "bank"} onChange={() => field.handleChange("bank")} />Bank</label><label className="flex items-center gap-1"><Input type="radio" className="w-4" checked={field.state.value === "cash"} onChange={() => field.handleChange("cash")} />Cash</label></div>}</form.Field>
       <form.Field name="accountId">{(field) => <div className="flex flex-col gap-1"><label className="text-sm">Akun COA (Asset)</label><Combobox value={field.state.value} onChange={(value) => field.handleChange(value)} placeholder="Pilih Akun" ariaLabel="Akun COA" options={availableCoas.map((c) => ({ value: c.id, label: `${c.code} - ${c.name}` }))} /></div>}</form.Field>
       <form.Field name="name" validators={{ onChange: zodFieldValidator(nameSchema) }}>{(field) => <div className="flex flex-col gap-1"><Input placeholder="Nama Akun" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} />{field.state.meta.errors && <p className="text-xs text-red-600">{field.state.meta.errors}</p>}</div>}</form.Field>
@@ -158,6 +159,7 @@ function BankAccountForm({ mode, open, onOpenChange, businessId, account }: { mo
       {form.state.values.accountType === "bank" && <form.Field name="accountNumber" validators={{ onChange: zodFieldValidator(accNumSchema) }}>{(field) => <div className="flex flex-col gap-1"><Input placeholder="No. Rekening" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} /></div>}</form.Field>}
       <form.Field name="description">{(field) => <textarea placeholder="Deskripsi" className="rounded border p-2 text-sm" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} />}</form.Field>
       {serverError && <p className="text-xs text-red-600">{serverError}</p>}
-      <DialogFooter><Button type="submit">Simpan</Button></DialogFooter>
+      </div>
+      <DialogFooter className="shrink-0 border-t pt-3"><Button type="submit">Simpan</Button></DialogFooter>
     </form></DialogContent></Dialog>;
 }
