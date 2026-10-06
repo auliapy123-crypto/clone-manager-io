@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,16 +34,21 @@ export const Route = createFileRoute("/businesses/$businessId/members")({
   component: MembersPage,
 });
 
-const ROLE_LABEL: Record<BusinessRole, string> = {
-  admin: "Admin",
-  accountant: "Akuntan",
-  viewer: "Viewer",
-};
-
 const ROLE_OPTIONS: BusinessRole[] = ["admin", "accountant", "viewer"];
+
+/** Label role — dibuat di dalam komponen karena butuh t(). */
+function useRoleLabels(): Record<BusinessRole, string> {
+  const { t } = useTranslation();
+  return {
+    admin: t("members.roleAdmin"),
+    accountant: t("members.roleAccountant"),
+    viewer: t("members.roleViewer"),
+  };
+}
 
 function MembersPage() {
   const { businessId } = Route.useParams();
+  const { t } = useTranslation();
   const { data: businesses } = useBusinesses();
   const { data: me } = useMe();
   const currentRole = businesses?.find((b) => b.id === businessId)?.role;
@@ -55,29 +61,29 @@ function MembersPage() {
   return (
     <div className="flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-gray-900">Anggota Bisnis</h1>
-        {isAdmin && <Button onClick={() => setAddOpen(true)}>Tambah Anggota</Button>}
+        <h1 className="text-lg font-semibold text-gray-900">{t("members.title")}</h1>
+        {isAdmin && <Button onClick={() => setAddOpen(true)}>{t("members.newButton")}</Button>}
       </div>
 
       <Card>
         <CardContent className="p-0">
           {isPending ? (
-            <p className="p-6 text-sm text-gray-500">Memuat anggota...</p>
+            <p className="p-6 text-sm text-gray-500">{t("members.loading")}</p>
           ) : isError ? (
             <p role="alert" className="p-6 text-sm text-red-700">
               {getApiErrorMessage(error)}
             </p>
           ) : data.data.length === 0 ? (
-            <p className="p-6 text-sm text-gray-500">Belum ada anggota.</p>
+            <p className="p-6 text-sm text-gray-500">{t("members.empty")}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Nama</th>
-                    <th className="px-6 py-3 font-medium">Email</th>
-                    <th className="px-6 py-3 font-medium">Role</th>
-                    {isAdmin && <th className="px-6 py-3 font-medium">Aksi</th>}
+                    <th className="px-6 py-3 font-medium">{t("common.colName")}</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colEmail")}</th>
+                    <th className="px-6 py-3 font-medium">{t("members.colRole")}</th>
+                    {isAdmin && <th className="px-6 py-3 font-medium">{t("common.colActions")}</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -120,6 +126,8 @@ interface MemberRowProps {
 }
 
 function MemberRow({ businessId, member, isAdmin, isSelf }: MemberRowProps) {
+  const { t } = useTranslation();
+  const roleLabels = useRoleLabels();
   const updateRole = useUpdateMemberRole(businessId);
   const removeMember = useRemoveMember(businessId);
   const [rowError, setRowError] = useState<string | null>(null);
@@ -134,7 +142,7 @@ function MemberRow({ businessId, member, isAdmin, isSelf }: MemberRowProps) {
   };
 
   const handleRemove = async () => {
-    if (!window.confirm(`Lepaskan ${member.name} dari bisnis ini?`)) return;
+    if (!window.confirm(t("members.removeConfirm", { name: member.name }))) return;
     setRowError(null);
     try {
       await removeMember.mutateAsync(member.id);
@@ -157,13 +165,13 @@ function MemberRow({ businessId, member, isAdmin, isSelf }: MemberRowProps) {
           >
             {ROLE_OPTIONS.map((role) => (
               <option key={role} value={role}>
-                {ROLE_LABEL[role]}
+                {roleLabels[role]}
               </option>
             ))}
           </select>
         ) : (
           <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-            {ROLE_LABEL[member.role]}
+            {roleLabels[member.role]}
           </span>
         )}
         {rowError && <p className="mt-1 text-xs text-red-600">{rowError}</p>}
@@ -174,20 +182,16 @@ function MemberRow({ businessId, member, isAdmin, isSelf }: MemberRowProps) {
             variant="destructive"
             size="sm"
             disabled={isSelf || removeMember.isPending}
-            title={isSelf ? "Tidak bisa mengeluarkan diri sendiri dari bisnis ini." : undefined}
+            title={isSelf ? t("members.removeSelfTitle") : undefined}
             onClick={() => void handleRemove()}
           >
-            Hapus
+            {t("common.delete")}
           </Button>
         </td>
       )}
     </tr>
   );
 }
-
-const nameSchema = z.string().min(1, "Nama wajib diisi.");
-const emailSchema = z.string().email("Email tidak valid.");
-const passwordSchema = z.string().min(8, "Password minimal 8 karakter.");
 
 interface AddMemberDialogProps {
   open: boolean;
@@ -198,8 +202,15 @@ interface AddMemberDialogProps {
 // Backend hanya punya "buat akun" + "hubungkan ke bisnis" terpisah (UserRoutes.ts),
 // jadi dialog ini merangkai keduanya jadi satu aksi "Tambah Anggota".
 function AddMemberDialog({ open, onOpenChange, businessId }: AddMemberDialogProps) {
+  const { t } = useTranslation();
+  const roleLabels = useRoleLabels();
   const addMember = useAddMember(businessId);
   const [serverError, setServerError] = useState<string | null>(null);
+
+  // Schema dibuat DI DALAM komponen karena pesan validasi butuh t().
+  const nameSchema = z.string().min(1, t("members.validationNameRequired"));
+  const emailSchema = z.string().email(t("members.validationEmail"));
+  const passwordSchema = z.string().min(8, t("members.validationPasswordMin"));
 
   const form = useForm({
     defaultValues: {
@@ -230,9 +241,9 @@ function AddMemberDialog({ open, onOpenChange, businessId }: AddMemberDialogProp
     <Dialog open={open} onOpenChange={close}>
       <DialogContent onClose={close}>
         <DialogHeader>
-          <DialogTitle>Tambah Anggota</DialogTitle>
+          <DialogTitle>{t("members.newButton")}</DialogTitle>
           <DialogDescription>
-            Buat akun baru dan hubungkan langsung ke bisnis ini.
+            {t("members.dialogDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -248,7 +259,7 @@ function AddMemberDialog({ open, onOpenChange, businessId }: AddMemberDialogProp
             {(field) => (
               <div className="flex flex-col gap-1">
                 <label htmlFor={field.name} className="text-sm font-medium text-gray-700">
-                  Nama
+                  {t("members.fieldName")}
                 </label>
                 <Input
                   id={field.name}
@@ -268,7 +279,7 @@ function AddMemberDialog({ open, onOpenChange, businessId }: AddMemberDialogProp
             {(field) => (
               <div className="flex flex-col gap-1">
                 <label htmlFor={field.name} className="text-sm font-medium text-gray-700">
-                  Email
+                  {t("members.fieldEmail")}
                 </label>
                 <Input
                   id={field.name}
@@ -293,7 +304,7 @@ function AddMemberDialog({ open, onOpenChange, businessId }: AddMemberDialogProp
             {(field) => (
               <div className="flex flex-col gap-1">
                 <label htmlFor={field.name} className="text-sm font-medium text-gray-700">
-                  Password Awal
+                  {t("members.fieldPassword")}
                 </label>
                 <Input
                   id={field.name}
@@ -315,7 +326,7 @@ function AddMemberDialog({ open, onOpenChange, businessId }: AddMemberDialogProp
             {(field) => (
               <div className="flex flex-col gap-1">
                 <label htmlFor={field.name} className="text-sm font-medium text-gray-700">
-                  Role
+                  {t("members.fieldRole")}
                 </label>
                 <select
                   id={field.name}
@@ -326,7 +337,7 @@ function AddMemberDialog({ open, onOpenChange, businessId }: AddMemberDialogProp
                 >
                   {ROLE_OPTIONS.map((role) => (
                     <option key={role} value={role}>
-                      {ROLE_LABEL[role]}
+                      {roleLabels[role]}
                     </option>
                   ))}
                 </select>
@@ -342,12 +353,12 @@ function AddMemberDialog({ open, onOpenChange, businessId }: AddMemberDialogProp
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={close}>
-              Batal
+              {t("common.cancel")}
             </Button>
             <form.Subscribe selector={(state) => state.isSubmitting}>
               {(isSubmitting) => (
                 <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Menyimpan..." : "Tambah"}
+                  {isSubmitting ? t("common.submitting") : t("common.add")}
                 </Button>
               )}
             </form.Subscribe>
