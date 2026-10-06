@@ -287,17 +287,17 @@ function CreditNoteFormDialog({
       }
 
       if (formData.lines.length === 0) {
-        setFormError(t("creditNotes.validationMinLines"));
+        setFormError(t("common.minLinesRequired"));
         return;
       }
 
       for (const line of formData.lines) {
         if (!line.accountId) {
-          setFormError(t("creditNotes.validationAccount"));
+          setFormError(t("common.accountRequiredPerLine"));
           return;
         }
         if (line.quantity <= 0) {
-          setFormError(t("creditNotes.validationQty"));
+          setFormError(t("common.qtyPositive"));
           return;
         }
       }
@@ -455,7 +455,7 @@ function CreditNoteFormDialog({
                     onClick={addLine}
                     disabled={isSaving}
                   >
-                    {t("creditNotes.addLine")}
+                    {t("common.addLine")}
                   </Button>
                 )}
               </div>

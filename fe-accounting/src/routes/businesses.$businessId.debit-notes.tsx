@@ -28,6 +28,7 @@ import {
 } from "@/hooks/use-debit-notes";
 import { usePurchaseInvoices } from "@/hooks/use-purchase-invoices";
 import { useSuppliers } from "@/hooks/use-suppliers";
+import { useTranslation } from "react-i18next";
 import { getApiErrorMessage } from "@/lib/errors";
 import { useFormatAmount } from "@/lib/format";
 
@@ -36,6 +37,7 @@ export const Route = createFileRoute("/businesses/$businessId/debit-notes")({
 });
 
 function DebitNotesPage() {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
@@ -75,7 +77,7 @@ function DebitNotesPage() {
     const refText = note.debitNoteNumber ? ` "${note.debitNoteNumber}"` : "";
     if (
       !window.confirm(
-        `Hapus nota debet${refText} untuk supplier "${note.supplierName}"? Jurnal terkait juga akan dihapus.`,
+        t("debitNotes.deleteConfirm", { ref: refText, supplier: note.supplierName }),
       )
     ) {
       return;
@@ -95,7 +97,10 @@ function DebitNotesPage() {
     try {
       const copied = await copyNote.mutateAsync(note.id);
       setNotice(
-        `Nota debet duplikat dibuat: ${copied.debitNoteNumber ?? copied.id.slice(0, 8)} (${copied.date}).`,
+        t("debitNotes.copyNotice", {
+          number: copied.debitNoteNumber ?? copied.id.slice(0, 8),
+          date: copied.date,
+        }),
       );
     } catch (err) {
       setActionError(getApiErrorMessage(err));
@@ -106,13 +111,13 @@ function DebitNotesPage() {
     <div className="flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Nota Debet</h1>
+          <h1 className="text-lg font-semibold text-gray-900">{t("debitNotes.title")}</h1>
           {data && (
-            <p className="text-sm text-gray-500">{data.pagination.total} nota debet</p>
+            <p className="text-sm text-gray-500">{t("debitNotes.subtitle", { count: data.pagination.total })}</p>
           )}
         </div>
         {canWrite && (
-          <Button onClick={() => setActiveNoteId("new")}>Nota Debet Baru</Button>
+          <Button onClick={() => setActiveNoteId("new")}>{t("debitNotes.newButton")}</Button>
         )}
       </div>
 
@@ -130,7 +135,7 @@ function DebitNotesPage() {
 
       <Input
         className="max-w-xs"
-        placeholder="Cari nomor nota, supplier, keterangan..."
+        placeholder={t("debitNotes.searchPlaceholder")}
         value={search}
         onChange={(event) => setSearch(event.target.value)}
       />
@@ -138,24 +143,24 @@ function DebitNotesPage() {
       <Card>
         <CardContent className="p-0">
           {isPending ? (
-            <p className="p-6 text-sm text-gray-500">Memuat nota debet...</p>
+            <p className="p-6 text-sm text-gray-500">{t("debitNotes.loading")}</p>
           ) : isError ? (
             <p role="alert" className="p-6 text-sm text-red-700">
               {getApiErrorMessage(error)}
             </p>
           ) : data.data.length === 0 ? (
-            <p className="p-6 text-sm text-gray-500">Belum ada nota debet.</p>
+            <p className="p-6 text-sm text-gray-500">{t("debitNotes.empty")}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Tanggal</th>
-                    <th className="px-6 py-3 font-medium">Nomor Nota Debet</th>
-                    <th className="px-6 py-3 font-medium">Supplier</th>
-                    <th className="px-6 py-3 font-medium">Faktur Pembelian</th>
-                    <th className="px-6 py-3 text-right font-medium">Total</th>
-                    <th className="px-6 py-3 font-medium">Aksi</th>
+                    <th className="px-6 py-3 font-medium">{t("common.date")}</th>
+                    <th className="px-6 py-3 font-medium">{t("debitNotes.colNumber")}</th>
+                    <th className="px-6 py-3 font-medium">{t("common.supplier")}</th>
+                    <th className="px-6 py-3 font-medium">{t("debitNotes.colPurchaseInvoice")}</th>
+                    <th className="px-6 py-3 text-right font-medium">{t("common.total")}</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colActions")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -181,7 +186,7 @@ function DebitNotesPage() {
                               size="sm"
                               onClick={() => setActiveNoteId(note.id)}
                             >
-                              Edit
+                              {t("common.edit")}
                             </Button>
                             <Button
                               variant="outline"
@@ -189,14 +194,14 @@ function DebitNotesPage() {
                               disabled={copyNote.isPending}
                               onClick={() => handleCopy(note)}
                             >
-                              Duplikat
+                              {t("debitNotes.copyButton")}
                             </Button>
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => handleDelete(note)}
                             >
-                              Hapus
+                              {t("common.delete")}
                             </Button>
                           </div>
                         ) : (
@@ -205,7 +210,7 @@ function DebitNotesPage() {
                             size="sm"
                             onClick={() => setActiveNoteId(note.id)}
                           >
-                            Detail
+                            {t("debitNotes.detailButton")}
                           </Button>
                         )}
                       </td>
@@ -215,7 +220,7 @@ function DebitNotesPage() {
                 <tfoot className="border-t bg-gray-50">
                   <tr>
                     <td colSpan={4} className="px-6 py-4 font-medium text-gray-900">
-                      Total
+                      {t("common.total")}
                     </td>
                     <td className="px-6 py-4 text-right font-medium text-gray-900">
                       {formatAmount(totalAmount)}
@@ -260,6 +265,7 @@ function DebitNoteFormDialog({
   onClose: () => void;
   canWrite: boolean;
 }) {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const { data: note, isLoading } = useDebitNote(businessId, noteId);
   const { data: suppliers } = useSuppliers(businessId, 1, {}, 100);
@@ -335,22 +341,22 @@ function DebitNoteFormDialog({
 
     try {
       if (!formData.supplierId) {
-        setFormError("Supplier wajib dipilih.");
+        setFormError(t("debitNotes.validationSupplier"));
         return;
       }
 
       if (formData.lines.length === 0) {
-        setFormError("Minimal 1 baris item diperlukan.");
+        setFormError(t("common.minLinesRequired"));
         return;
       }
 
       for (const line of formData.lines) {
         if (!line.accountId) {
-          setFormError("Akun di setiap baris wajib dipilih.");
+          setFormError(t("common.accountRequiredPerLine"));
           return;
         }
         if (line.quantity <= 0) {
-          setFormError("Kuantitas harus lebih dari 0.");
+          setFormError(t("common.qtyPositive"));
           return;
         }
       }
@@ -405,11 +411,11 @@ function DebitNoteFormDialog({
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle>{noteId ? "Edit Nota Debet" : "Buat Nota Debet"}</DialogTitle>
+          <DialogTitle>{noteId ? t("debitNotes.dialogTitleEdit") : t("debitNotes.dialogTitleNew")}</DialogTitle>
           <DialogDescription>
             {noteId
-              ? "Ubah data nota debet (jurnal disusun ulang bila supplier atau baris berubah)"
-              : "Nota debet mengurangi Utang Usaha supplier dan langsung posting jurnal"}
+              ? t("debitNotes.dialogDescEdit")
+              : t("debitNotes.dialogDescNew")}
           </DialogDescription>
         </DialogHeader>
 
@@ -420,14 +426,14 @@ function DebitNoteFormDialog({
         )}
 
         {isLoading ? (
-          <p className="text-sm text-gray-500">Memuat data...</p>
+          <p className="text-sm text-gray-500">{t("common.loadingData")}</p>
         ) : (
           <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
             <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Tanggal *
+                  {t("common.date")} *
                 </label>
                 <input
                   type="date"
@@ -442,7 +448,7 @@ function DebitNoteFormDialog({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Nomor Nota Debet
+                  {t("debitNotes.fieldNumber")}
                 </label>
                 <input
                   type="text"
@@ -457,7 +463,7 @@ function DebitNoteFormDialog({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Supplier *
+                  {t("common.supplier")} *
                 </label>
                 <select
                   disabled={!canWrite || isSaving}
@@ -473,7 +479,7 @@ function DebitNoteFormDialog({
                   }
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 disabled:bg-gray-100"
                 >
-                  <option value="">-- Pilih Supplier --</option>                  {suppliers?.data.map((s) => (
+                  <option value="">{t("debitNotes.supplierPlaceholder")}</option>                  {suppliers?.data.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
                     </option>
@@ -483,7 +489,7 @@ function DebitNoteFormDialog({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Faktur Pembelian
+                  {t("debitNotes.colPurchaseInvoice")}
                 </label>
                 <select
                   disabled={!canWrite || isSaving || !formData.supplierId}
@@ -495,8 +501,8 @@ function DebitNoteFormDialog({
                 >
                   <option value="">
                     {formData.supplierId
-                      ? "-- Tanpa faktur (opsional) --"
-                      : "-- Pilih supplier dulu --"}
+                      ? t("debitNotes.invoicePlaceholderNone")
+                      : t("debitNotes.invoicePlaceholderPickSupplier")}
                   </option>
                   {supplierInvoices.map((invoice) => (
                     <option key={invoice.id} value={invoice.id}>
@@ -506,14 +512,14 @@ function DebitNoteFormDialog({
                 </select>
                 {formData.supplierId && supplierInvoices.length === 0 && (
                   <p className="mt-1 text-xs text-gray-500">
-                    Supplier ini belum punya faktur pembelian aktif.
+                    {t("debitNotes.noActiveInvoices")}
                   </p>
                 )}
               </div>
 
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700">
-                  Ringkasan Deskripsi
+                  {t("debitNotes.fieldDescription")}
                 </label>
                 <textarea
                   disabled={!canWrite || isSaving}
@@ -530,7 +536,7 @@ function DebitNoteFormDialog({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="block text-sm font-medium text-gray-700">
-                  Baris Item * (minimal 1, akun kategori Expense)
+                  {t("debitNotes.linesTitle")}
                 </label>
                 {canWrite && (
                   <Button
@@ -540,7 +546,7 @@ function DebitNoteFormDialog({
                     onClick={addLine}
                     disabled={isSaving}
                   >
-                    Tambah Baris
+                    {t("common.addLine")}
                   </Button>
                 )}
               </div>
@@ -549,12 +555,12 @@ function DebitNoteFormDialog({
                 <table className="w-full text-left text-sm">
                   <thead className="border-b bg-gray-50">
                     <tr>
-                      <th className="min-w-[200px] px-3 py-2 whitespace-nowrap">Akun</th>
-                      <th className="min-w-[150px] px-3 py-2">Deskripsi</th>
-                      <th className="px-3 py-2 text-right">Qty</th>
-                      <th className="px-3 py-2 text-right whitespace-nowrap">Harga Satuan</th>
-                      <th className="px-3 py-2 text-right">Total</th>
-                      {canWrite && <th className="px-3 py-2">Aksi</th>}
+                      <th className="min-w-[200px] px-3 py-2 whitespace-nowrap">{t("debitNotes.colAccount")}</th>
+                      <th className="min-w-[150px] px-3 py-2">{t("common.description")}</th>
+                      <th className="px-3 py-2 text-right">{t("common.qty")}</th>
+                      <th className="px-3 py-2 text-right whitespace-nowrap">{t("debitNotes.colUnitPrice")}</th>
+                      <th className="px-3 py-2 text-right">{t("common.total")}</th>
+                      {canWrite && <th className="px-3 py-2">{t("common.colActions")}</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -563,11 +569,11 @@ function DebitNoteFormDialog({
                         <td className="px-3 py-2">
                           <Combobox
                             className="h-8 text-xs"
-                            ariaLabel={`Akun baris ${idx + 1}`}
+                            ariaLabel={t("debitNotes.accountRowAria", { index: idx + 1 })}
                             value={line.accountId}
                             disabled={!canWrite || isSaving}
                             onChange={(value) => updateLine(idx, "accountId", value)}
-                            placeholder="-- Pilih Akun --"
+                            placeholder={t("debitNotes.accountPlaceholder")}
                             options={expenseAccounts.map((a) => ({
                               value: a.id,
                               label: `${a.code} - ${a.name}`,
@@ -631,7 +637,7 @@ function DebitNoteFormDialog({
                               onClick={() => removeLine(idx)}
                               disabled={formData.lines.length === 1 || isSaving}
                             >
-                              Hapus Baris
+                              {t("common.removeLine")}
                             </Button>
                           </td>
                         )}
@@ -641,7 +647,7 @@ function DebitNoteFormDialog({
                   <tfoot className="border-t bg-gray-50">
                     <tr>
                       <td colSpan={4} className="px-3 py-2 font-medium text-gray-900">
-                        Total
+                        {t("common.total")}
                       </td>
                       <td className="px-3 py-2 text-right font-medium text-gray-900">
                         {formatAmount(totalAmount)}
@@ -660,7 +666,7 @@ function DebitNoteFormDialog({
               </Button>
               {canWrite && (
                 <Button type="submit" disabled={isSaving}>
-                  {isSaving ? "Menyimpan..." : noteId ? "Update" : "Buat"}
+                  {isSaving ? t("common.submitting") : noteId ? t("debitNotes.submitEdit") : t("debitNotes.submitNew")}
                 </Button>
               )}
             </DialogFooter>

@@ -25,6 +25,7 @@ import {
   useDeleteAccount,
   useUpdateAccount,
 } from "@/hooks/use-accounts";
+import { useTranslation } from "react-i18next";
 import { getApiErrorMessage } from "@/lib/errors";
 import { zodFieldValidator } from "@/lib/form-validators";
 
@@ -35,6 +36,7 @@ export const Route = createFileRoute("/businesses/$businessId/accounts")({
 });
 
 function AccountsPage() {
+  const { t } = useTranslation();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
   const currentRole = businesses?.find((b) => b.id === businessId)?.role;
@@ -63,13 +65,13 @@ function AccountsPage() {
   return (
     <div className="flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-gray-900">Chart of Accounts</h1>
-        {canWrite && <Button onClick={() => setAddOpen(true)}>Tambah Akun</Button>}
+        <h1 className="text-lg font-semibold text-gray-900">{t("accounts.title")}</h1>
+        {canWrite && <Button onClick={() => setAddOpen(true)}>{t("accounts.newButton")}</Button>}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <Input
-          placeholder="Cari kode atau nama akun..."
+          placeholder={t("accounts.searchPlaceholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-xs"
@@ -82,7 +84,7 @@ function AccountsPage() {
             setPage(1);
           }}
         >
-          <option value="">Semua Kategori</option>
+          <option value="">{t("accounts.allCategories")}</option>
           {ACCOUNT_CATEGORIES.map((cat) => (
             <option key={cat} value={cat}>
               {cat}
@@ -94,24 +96,24 @@ function AccountsPage() {
       <Card>
         <CardContent className="p-0">
           {isPending ? (
-            <p className="p-6 text-sm text-gray-500">Memuat akun...</p>
+            <p className="p-6 text-sm text-gray-500">{t("accounts.loading")}</p>
           ) : isError ? (
             <p role="alert" className="p-6 text-sm text-red-700">
               {getApiErrorMessage(error)}
             </p>
           ) : data.data.length === 0 ? (
-            <p className="p-6 text-sm text-gray-500">Belum ada akun.</p>
+            <p className="p-6 text-sm text-gray-500">{t("accounts.empty")}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Kode</th>
-                    <th className="px-6 py-3 font-medium">Nama</th>
-                    <th className="px-6 py-3 font-medium">Kategori</th>
-                    <th className="px-6 py-3 font-medium">Group</th>
-                    <th className="px-6 py-3 font-medium">Currency</th>
-                    {canWrite && <th className="px-6 py-3 font-medium">Aksi</th>}
+                    <th className="px-6 py-3 font-medium">{t("accounts.colCode")}</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colName")}</th>
+                    <th className="px-6 py-3 font-medium">{t("accounts.colCategory")}</th>
+                    <th className="px-6 py-3 font-medium">{t("accounts.colGroup")}</th>
+                    <th className="px-6 py-3 font-medium">{t("accounts.colCurrency")}</th>
+                    {canWrite && <th className="px-6 py-3 font-medium">{t("common.colActions")}</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -157,12 +159,13 @@ interface AccountRowProps {
 }
 
 function AccountRow({ businessId, account, canWrite }: AccountRowProps) {
+  const { t } = useTranslation();
   const deleteAccount = useDeleteAccount(businessId);
   const [editOpen, setEditOpen] = useState(false);
   const [rowError, setRowError] = useState<string | null>(null);
 
   const handleDelete = async () => {
-    if (!window.confirm(`Hapus akun "${account.code} - ${account.name}"?`)) return;
+    if (!window.confirm(t("accounts.deleteConfirm", { item: `${account.code} - ${account.name}` }))) return;
     setRowError(null);
     try {
       await deleteAccount.mutateAsync(account.id);
@@ -183,7 +186,7 @@ function AccountRow({ businessId, account, canWrite }: AccountRowProps) {
           <td className="px-6 py-3">
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-                Edit
+                {t("common.edit")}
               </Button>
               <Button
                 variant="destructive"
@@ -191,7 +194,7 @@ function AccountRow({ businessId, account, canWrite }: AccountRowProps) {
                 disabled={deleteAccount.isPending}
                 onClick={() => void handleDelete()}
               >
-                Hapus
+                {t("common.delete")}
               </Button>
             </div>
             {rowError && <p className="mt-1 text-xs text-red-600">{rowError}</p>}
@@ -212,9 +215,14 @@ function AccountRow({ businessId, account, canWrite }: AccountRowProps) {
   );
 }
 
-const codeSchema = z.string().min(1, "Kode wajib diisi.").max(50, "Kode maksimal 50 karakter.");
-const nameSchema = z.string().min(1, "Nama wajib diisi.").max(225, "Nama maksimal 225 karakter.");
-const currencySchema = z.string().length(3, "Kode mata uang harus 3 huruf.");
+// Skema dibuat per render dengan t() supaya pesan validasi reaktif.
+function makeSchemas(t: ReturnType<typeof useTranslation>["t"]) {
+  return {
+    codeSchema: z.string().min(1, t("accounts.codeRequired")).max(50, t("accounts.codeMax")),
+    nameSchema: z.string().min(1, t("accounts.nameRequired")).max(225, t("accounts.nameMax")),
+    currencySchema: z.string().length(3, t("accounts.currencyLength")),
+  };
+}
 
 interface AccountFormDialogProps {
   mode: "create" | "edit";
@@ -225,6 +233,8 @@ interface AccountFormDialogProps {
 }
 
 function AccountFormDialog({ mode, open, onOpenChange, businessId, account }: AccountFormDialogProps) {
+  const { t } = useTranslation();
+  const { codeSchema, nameSchema, currencySchema } = makeSchemas(t);
   const createAccount = useCreateAccount(businessId);
   const updateAccount = useUpdateAccount(businessId);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -268,11 +278,11 @@ function AccountFormDialog({ mode, open, onOpenChange, businessId, account }: Ac
     <Dialog open={open} onOpenChange={close}>
       <DialogContent onClose={close}>
         <DialogHeader>
-          <DialogTitle>{mode === "create" ? "Tambah Akun" : "Ubah Akun"}</DialogTitle>
+          <DialogTitle>{mode === "create" ? t("accounts.dialogTitleNew") : t("accounts.dialogTitleEdit")}</DialogTitle>
           <DialogDescription>
             {mode === "create"
-              ? "Tambahkan akun baru ke chart of accounts bisnis ini."
-              : "Perbarui data akun ini."}
+              ? t("accounts.dialogDescNew")
+              : t("accounts.dialogDescEdit")}
           </DialogDescription>
         </DialogHeader>
 
@@ -288,7 +298,7 @@ function AccountFormDialog({ mode, open, onOpenChange, businessId, account }: Ac
             {(field) => (
               <div className="flex flex-col gap-1">
                 <label htmlFor={field.name} className="text-sm font-medium text-gray-700">
-                  Kode
+                  {t("accounts.fieldCode")}
                 </label>
                 <Input
                   id={field.name}
@@ -308,7 +318,7 @@ function AccountFormDialog({ mode, open, onOpenChange, businessId, account }: Ac
             {(field) => (
               <div className="flex flex-col gap-1">
                 <label htmlFor={field.name} className="text-sm font-medium text-gray-700">
-                  Nama
+                  {t("common.colName")}
                 </label>
                 <Input
                   id={field.name}
@@ -328,7 +338,7 @@ function AccountFormDialog({ mode, open, onOpenChange, businessId, account }: Ac
             {(field) => (
               <div className="flex flex-col gap-1">
                 <label htmlFor={field.name} className="text-sm font-medium text-gray-700">
-                  Kategori
+                  {t("accounts.fieldCategory")}
                 </label>
                 <select
                   id={field.name}
@@ -351,7 +361,7 @@ function AccountFormDialog({ mode, open, onOpenChange, businessId, account }: Ac
             {(field) => (
               <div className="flex flex-col gap-1">
                 <label htmlFor={field.name} className="text-sm font-medium text-gray-700">
-                  Group (opsional)
+                  {t("accounts.fieldGroup")}
                 </label>
                 <Input
                   id={field.name}
@@ -371,7 +381,7 @@ function AccountFormDialog({ mode, open, onOpenChange, businessId, account }: Ac
             {(field) => (
               <div className="flex flex-col gap-1">
                 <label htmlFor={field.name} className="text-sm font-medium text-gray-700">
-                  Currency
+                  {t("accounts.fieldCurrency")}
                 </label>
                 <Input
                   id={field.name}
@@ -396,12 +406,12 @@ function AccountFormDialog({ mode, open, onOpenChange, businessId, account }: Ac
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={close}>
-              Batal
+              {t("common.cancel")}
             </Button>
             <form.Subscribe selector={(state) => state.isSubmitting}>
               {(isSubmitting) => (
                 <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Menyimpan..." : mode === "create" ? "Tambah" : "Simpan"}
+                  {isSubmitting ? t("common.submitting") : mode === "create" ? t("common.add") : t("common.save")}
                 </Button>
               )}
             </form.Subscribe>

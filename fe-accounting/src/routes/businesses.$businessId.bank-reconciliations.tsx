@@ -27,6 +27,7 @@ import { useBusinesses } from "@/hooks/use-businesses";
 import { useInterAccountTransfers } from "@/hooks/use-inter-account-transfers";
 import { usePayments } from "@/hooks/use-payments";
 import { useReceipts } from "@/hooks/use-receipts";
+import { useTranslation } from "react-i18next";
 import { getApiErrorMessage } from "@/lib/errors";
 import { useFormatAmount } from "@/lib/format";
 
@@ -35,21 +36,23 @@ export const Route = createFileRoute("/businesses/$businessId/bank-reconciliatio
 });
 
 function StatusBadge({ status }: { status: BankReconciliationStatus }) {
+  const { t } = useTranslation();
   if (status === "Reconciled") {
     return (
       <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 border border-green-200">
-        Reconciled
+        {t("bankReconciliations.statusReconciled")}
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800 border border-red-200">
-      Not Reconciled
+      <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800 border border-red-200">
+      {t("bankReconciliations.statusNotReconciled")}
     </span>
   );
 }
 
 function BankReconciliationsPage() {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
@@ -90,7 +93,10 @@ function BankReconciliationsPage() {
   const handleDelete = async (reconciliation: BankReconciliation) => {
     if (
       !window.confirm(
-        `Hapus lembar rekonsiliasi "${reconciliation.bankAccountName}" tanggal ${reconciliation.date}? Ini cuma catatan pengecekan, jurnal tidak ikut terhapus.`,
+        t("bankReconciliations.deleteConfirm", {
+          account: reconciliation.bankAccountName,
+          date: reconciliation.date,
+        }),
       )
     ) {
       return;
@@ -107,13 +113,13 @@ function BankReconciliationsPage() {
     <div className="flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Bank Reconciliations</h1>
+          <h1 className="text-lg font-semibold text-gray-900">{t("bankReconciliations.title")}</h1>
           {data && (
-            <p className="text-sm text-gray-500">{data.pagination.total} lembar rekonsiliasi</p>
+            <p className="text-sm text-gray-500">{t("bankReconciliations.subtitle", { count: data.pagination.total })}</p>
           )}
         </div>
         {canWrite && (
-          <Button onClick={() => setActiveReconciliationId("new")}>Rekonsiliasi Baru</Button>
+          <Button onClick={() => setActiveReconciliationId("new")}>{t("bankReconciliations.newButton")}</Button>
         )}
       </div>
 
@@ -126,7 +132,7 @@ function BankReconciliationsPage() {
       <div className="flex flex-wrap items-center gap-3">
         <Input
           className="max-w-xs"
-          placeholder="Cari bank, keterangan..."
+          placeholder={t("bankReconciliations.searchPlaceholder")}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -135,26 +141,26 @@ function BankReconciliationsPage() {
       <Card>
         <CardContent className="p-0">
           {isPending ? (
-            <p className="p-6 text-sm text-gray-500">Memuat rekonsiliasi...</p>
+            <p className="p-6 text-sm text-gray-500">{t("bankReconciliations.loading")}</p>
           ) : isError ? (
             <p role="alert" className="p-6 text-sm text-red-700">
               {getApiErrorMessage(error)}
             </p>
           ) : data.data.length === 0 ? (
-            <p className="p-6 text-sm text-gray-500">Belum ada lembar rekonsiliasi.</p>
+            <p className="p-6 text-sm text-gray-500">{t("bankReconciliations.empty")}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Date</th>
-                    <th className="px-6 py-3 font-medium">Bank Account</th>
+                    <th className="px-6 py-3 font-medium">{t("bankReconciliations.colDate")}</th>
+                    <th className="px-6 py-3 font-medium">{t("bankReconciliations.colBankAccount")}</th>
                     <th className="px-6 py-3 text-right font-medium">
-                      Statement Balance
+                      {t("bankReconciliations.colStatementBalance")}
                     </th>
-                    <th className="px-6 py-3 text-right font-medium">Discrepancy</th>
-                    <th className="px-6 py-3 font-medium">Status</th>
-                    <th className="px-6 py-3 font-medium">Aksi</th>
+                    <th className="px-6 py-3 text-right font-medium">{t("bankReconciliations.colDiscrepancy")}</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colStatus")}</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colActions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -171,7 +177,7 @@ function BankReconciliationsPage() {
                         <button
                           type="button"
                           className="text-blue-600 hover:text-blue-800 hover:underline"
-                          title="Lihat transaksi penyusun saldo buku"
+                          title={t("bankReconciliations.drillTitleAttr")}
                           onClick={() => setDrillReconciliation(reconciliation)}
                         >
                           {formatAmount(reconciliation.discrepancy)}
@@ -187,7 +193,7 @@ function BankReconciliationsPage() {
                             size="sm"
                             onClick={() => setActiveReconciliationId(reconciliation.id)}
                           >
-                            {canWrite ? "Edit" : "Lihat"}
+                            {canWrite ? t("common.edit") : t("common.view")}
                           </Button>
                           {canWrite && (
                             <Button
@@ -196,7 +202,7 @@ function BankReconciliationsPage() {
                               disabled={deleteReconciliation.isPending}
                               onClick={() => void handleDelete(reconciliation)}
                             >
-                              Hapus
+                              {t("common.delete")}
                             </Button>
                           )}
                         </div>
@@ -207,7 +213,7 @@ function BankReconciliationsPage() {
                 <tfoot className="border-t bg-gray-50">
                   <tr>
                     <td colSpan={2} className="px-6 py-3 font-medium text-gray-900">
-                      Total
+                      {t("common.total")}
                     </td>
                     <td className="px-6 py-3 text-right font-semibold text-gray-900">
                       {formatAmount(totalStatement)}
@@ -265,6 +271,7 @@ function BankReconciliationFormDialog({
   canWrite,
   onClose,
 }: BankReconciliationFormDialogProps) {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const isNew = reconciliationId === "new";
   const { data: existingReconciliation, isPending: isReconciliationLoading } =
@@ -300,13 +307,13 @@ function BankReconciliationFormDialog({
     setFormError(null);
 
     if (!bankAccountId) {
-      setFormError("Rekening bank/kas wajib dipilih.");
+      setFormError(t("bankReconciliations.validationAccount"));
       return;
     }
 
     const parsedBalance = parseFloat(statementBalance);
     if (statementBalance.trim() === "" || !Number.isFinite(parsedBalance)) {
-      setFormError("Statement balance wajib diisi angka yang valid (boleh 0).");
+      setFormError(t("bankReconciliations.validationStatement"));
       return;
     }
 
@@ -347,21 +354,21 @@ function BankReconciliationFormDialog({
         <DialogHeader>
           <DialogTitle>
             {isNew
-              ? "Rekonsiliasi Baru"
+              ? t("bankReconciliations.dialogTitleNew")
               : canWrite
-                ? "Edit Rekonsiliasi"
-                : "Detail Rekonsiliasi"}
+                ? t("bankReconciliations.dialogTitleEdit")
+                : t("bankReconciliations.dialogTitleDetail")}
           </DialogTitle>
           <DialogDescription>
             {isNew
-              ? "Lembar pengecekan saldo — tidak memposting jurnal apa pun."
-              : "Lihat atau perbarui lembar rekonsiliasi."}
+              ? t("bankReconciliations.dialogDescNew")
+              : t("bankReconciliations.dialogDescEdit")}
           </DialogDescription>
         </DialogHeader>
 
         {isInitialLoading ? (
           <div className="py-12 text-center text-sm text-gray-500">
-            Memuat data rekonsiliasi...
+            {t("bankReconciliations.loadingDetail")}
           </div>
         ) : (
           <form
@@ -381,19 +388,19 @@ function BankReconciliationFormDialog({
               {!isNew && existingReconciliation && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 rounded-md bg-gray-50 p-3 text-sm">
                   <div>
-                    <div className="text-xs text-gray-500">Book Balance</div>
+                    <div className="text-xs text-gray-500">{t("bankReconciliations.infoBookBalance")}</div>
                     <div className="font-semibold text-gray-900">
                       {formatAmount(existingReconciliation.bookBalance)}
                     </div>
                   </div>
                   <div>
-                    <div className="text-xs text-gray-500">Discrepancy</div>
+                    <div className="text-xs text-gray-500">{t("bankReconciliations.infoDiscrepancy")}</div>
                     <div className="font-semibold text-gray-900">
                       {formatAmount(existingReconciliation.discrepancy)}
                     </div>
                   </div>
                   <div>
-                    <div className="text-xs text-gray-500">Status</div>
+                    <div className="text-xs text-gray-500">{t("common.colStatus")}</div>
                     <StatusBadge status={existingReconciliation.status} />
                   </div>
                 </div>
@@ -402,7 +409,7 @@ function BankReconciliationFormDialog({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Date *
+                    {t("bankReconciliations.fieldDate")} *
                   </label>
                   <Input
                     type="date"
@@ -415,7 +422,7 @@ function BankReconciliationFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Bank Account *
+                    {t("bankReconciliations.fieldBankAccount")} *
                   </label>
                   <select
                     className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
@@ -424,7 +431,7 @@ function BankReconciliationFormDialog({
                     onChange={(event) => setBankAccountId(event.target.value)}
                     required
                   >
-                    <option value="">-- Pilih Rekening --</option>
+                    <option value="">{t("bankReconciliations.bankAccountPlaceholder")}</option>
                     {bankAccountsData?.data.map((ba) => (
                       <option key={ba.id} value={ba.id}>
                         {ba.name} ({ba.accountCode})
@@ -435,7 +442,7 @@ function BankReconciliationFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Statement Balance *
+                    {t("bankReconciliations.fieldStatementBalance")} *
                   </label>
                   <Input
                     type="number"
@@ -450,10 +457,10 @@ function BankReconciliationFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Description
+                    {t("bankReconciliations.fieldDescription")}
                   </label>
                   <Input
-                    placeholder="Catatan (opsional)"
+                    placeholder={t("bankReconciliations.placeholderDescription")}
                     value={description}
                     disabled={!canWrite}
                     onChange={(event) => setDescription(event.target.value)}
@@ -464,13 +471,13 @@ function BankReconciliationFormDialog({
 
             <DialogFooter>
               <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-                Batal
+                {t("common.cancel")}
               </Button>
               {canWrite && (
                 <Button type="submit" disabled={isSubmitting}>
                   {isNew
-                    ? (isSubmitting ? "Menyimpan..." : "Simpan Rekonsiliasi")
-                    : (isSubmitting ? "Menyimpan..." : "Perbarui Rekonsiliasi")}
+                    ? (isSubmitting ? t("common.submitting") : t("bankReconciliations.submitNew"))
+                    : (isSubmitting ? t("common.submitting") : t("bankReconciliations.submitEdit"))}
                 </Button>
               )}
             </DialogFooter>
@@ -499,6 +506,7 @@ function DiscrepancyDrillDialog({
   reconciliation: BankReconciliation;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const cutoff = reconciliation.date;
   const accountId = reconciliation.bankAccountId;
@@ -576,34 +584,37 @@ function DiscrepancyDrillDialog({
       >
         <DialogHeader>
           <DialogTitle>
-            Transaksi {reconciliation.bankAccountName} s.d. {cutoff}
+            {t("bankReconciliations.drillTitle", {
+              account: reconciliation.bankAccountName,
+              date: cutoff,
+            })}
           </DialogTitle>
           <DialogDescription>
-            Semua Receipts, Payments, dan Transfers akun ini sampai tanggal cutoff —
-            penyusun Book Balance {formatAmount(reconciliation.bookBalance)}.
-            Statement {formatAmount(reconciliation.statementBalance)} −
-            Book {formatAmount(reconciliation.bookBalance)} = Discrepancy{" "}
-            {formatAmount(reconciliation.discrepancy)}.
+            {t("bankReconciliations.drillDescription", {
+              book: formatAmount(reconciliation.bookBalance),
+              statement: formatAmount(reconciliation.statementBalance),
+              discrepancy: formatAmount(reconciliation.discrepancy),
+            })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="overflow-y-auto pr-2 flex-1">
           {isLoading ? (
-            <p className="py-8 text-center text-sm text-gray-500">Memuat transaksi...</p>
+            <p className="py-8 text-center text-sm text-gray-500">{t("bankReconciliations.drillLoading")}</p>
           ) : rows.length === 0 ? (
             <p className="py-8 text-center text-sm text-gray-500">
-              Tidak ada transaksi akun ini sampai tanggal cutoff.
+              {t("bankReconciliations.drillEmpty")}
             </p>
           ) : (
             <div className="overflow-x-auto rounded-md border border-gray-200">
               <table className="w-full text-left text-xs">
                 <thead className="border-b bg-gray-50 uppercase text-gray-500">
                   <tr>
-                    <th className="px-3 py-2 font-medium">Date</th>
-                    <th className="px-3 py-2 font-medium">Jenis</th>
-                    <th className="px-3 py-2 font-medium">Reference</th>
-                    <th className="px-3 py-2 font-medium">Keterangan</th>
-                    <th className="px-3 py-2 text-right font-medium">Nominal</th>
+                    <th className="px-3 py-2 font-medium">{t("bankReconciliations.drillColDate")}</th>
+                    <th className="px-3 py-2 font-medium">{t("bankReconciliations.drillColKind")}</th>
+                    <th className="px-3 py-2 font-medium">{t("creditNotes.colReference")}</th>
+                    <th className="px-3 py-2 font-medium">{t("bankReconciliations.drillColDescription")}</th>
+                    <th className="px-3 py-2 text-right font-medium">{t("bankReconciliations.drillColAmount")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -624,7 +635,7 @@ function DiscrepancyDrillDialog({
                 <tfoot className="border-t bg-gray-50">
                   <tr>
                     <td colSpan={4} className="p-2 font-medium text-gray-900">
-                      Total (= Book Balance)
+                      {t("bankReconciliations.drillTotal")}
                     </td>
                     <td className="p-2 text-right font-semibold text-gray-900">
                       {formatAmount(rowsTotal)}
@@ -638,7 +649,7 @@ function DiscrepancyDrillDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Tutup
+            {t("common.close")}
           </Button>
         </DialogFooter>
       </DialogContent>
