@@ -393,9 +393,11 @@ environment variable atau `.env` yang sudah di-gitignore.
   Fase 1 (react-i18next: infra + switcher ID|EN di header — z-60
   supaya bisa dipakai saat dialog terbuka; katalog
   `src/i18n/locales/id+en.json`, key `<halaman>.<elemen>` +
-  `common.*`; TERKONVERSI: menu/header, login, tax-codes; halaman
-  lain sengaja masih hardcode Indonesia — konversi Fase 2).
-  Sisa roadmap Fase 4:
+  `common.*`; Fase 2 Batch 1+2 SELESAI: semua halaman kecuali
+  sales-invoices, purchase-invoices, sales-quotes, purchase-orders,
+  expense-claims, delivery-notes — katalog utk itu sudah lengkap,
+  tinggal konversi di sesi berikut; fallback id menutupi halaman
+  yang belum dikonversi). Sisa roadmap Fase 4:
   Backup/Export (download data user — BUKAN backup DB, Neon sudah
   handle itu), lanjutan Custom Fields (entity modul lain, field per
   baris, kolom list, laporan — cukup dari frontend), Emails,
