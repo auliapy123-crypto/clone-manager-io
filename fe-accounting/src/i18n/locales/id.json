@@ -35,7 +35,10 @@
     "qty": "Qty",
     "customerRequired": "Pelanggan wajib dipilih.",
     "deleting": "Menghapus...",
-    "update": "Update"
+    "update": "Update",
+    "supplierRequired": "Supplier wajib dipilih.",
+    "accountRowAria": "Akun baris {{index}}",
+    "accountPlaceholder": "-- Pilih Akun --"
   },
   "menu": {
     "business": "Bisnis",
@@ -587,9 +590,6 @@
     "linesTitle": "Baris Item * (minimal 1, akun kategori Expense)",
     "colAccount": "Akun",
     "colUnitPrice": "Harga Satuan",
-    "accountRowAria": "Akun baris {{index}}",
-    "accountPlaceholder": "-- Pilih Akun --",
-    "validationSupplier": "Supplier wajib dipilih.",
     "submitNew": "Buat",
     "submitEdit": "Update"
   },
@@ -719,5 +719,39 @@
     "deleteButton": "Delete",
     "submitNew": "Simpan Denda",
     "submitEdit": "Update"
+  },
+  "purchaseQuotes": {
+    "title": "Purchase Quotes",
+    "subtitle": "{{count}} penawaran",
+    "newButton": "Penawaran Baru",
+    "searchPlaceholder": "Cari nomor penawaran, supplier, keterangan...",
+    "loading": "Memuat penawaran...",
+    "empty": "Belum ada penawaran pembelian.",
+    "deleteConfirm": "Hapus penawaran{{ref}} untuk supplier \"{{supplier}}\"?",
+    "colQuoteNumber": "Quote Number",
+    "colSupplier": "Supplier",
+    "colTotalAmount": "Total Amount",
+    "copyToPO": "Copy to PO",
+    "copyToInvoice": "Copy to Invoice",
+    "validationMinLines": "Penawaran wajib memiliki minimal 1 baris item.",
+    "validationAccountLine": "Baris #{{index}}: Akun beban wajib dipilih.",
+    "dialogTitleNew": "Buat Penawaran Pembelian",
+    "dialogTitleEdit": "Edit Penawaran Pembelian",
+    "dialogTitleDetail": "Detail Penawaran Pembelian",
+    "dialogDescNew": "Buat penawaran baru. Modul ini non-posting — tidak memposting jurnal apa pun.",
+    "dialogDescEdit": "Lihat atau perbarui penawaran beserta status dan baris itemnya.",
+    "loadingDetail": "Memuat data penawaran...",
+    "fieldSupplier": "Supplier",
+    "fieldDate": "Date",
+    "fieldQuoteNumber": "Quote Number",
+    "placeholderQuoteNumber": "Contoh: PQ-2026-001",
+    "fieldSummary": "Summary Description",
+    "placeholderSummary": "Ringkasan penawaran (opsional)",
+    "linesTitle": "Baris Item",
+    "colAccount": "Account (Expense)",
+    "colUnitPrice": "Unit Price",
+    "lineDescriptionPlaceholder": "Deskripsi item",
+    "submitNew": "Simpan Penawaran",
+    "submitEdit": "Perbarui Penawaran"
   }
 }

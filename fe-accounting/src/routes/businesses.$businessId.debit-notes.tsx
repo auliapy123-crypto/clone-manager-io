@@ -341,7 +341,7 @@ function DebitNoteFormDialog({
 
     try {
       if (!formData.supplierId) {
-        setFormError(t("debitNotes.validationSupplier"));
+        setFormError(t("common.supplierRequired"));
         return;
       }
 
@@ -569,11 +569,11 @@ function DebitNoteFormDialog({
                         <td className="px-3 py-2">
                           <Combobox
                             className="h-8 text-xs"
-                            ariaLabel={t("debitNotes.accountRowAria", { index: idx + 1 })}
+                            ariaLabel={t("common.accountRowAria", { index: idx + 1 })}
                             value={line.accountId}
                             disabled={!canWrite || isSaving}
                             onChange={(value) => updateLine(idx, "accountId", value)}
-                            placeholder={t("debitNotes.accountPlaceholder")}
+                            placeholder={t("common.accountPlaceholder")}
                             options={expenseAccounts.map((a) => ({
                               value: a.id,
                               label: `${a.code} - ${a.name}`,

@@ -30,6 +30,7 @@ import {
   useUpdatePurchaseQuote,
 } from "@/hooks/use-purchase-quotes";
 import { getTodayDateString } from "@/hooks/use-purchase-orders";
+import { useTranslation } from "react-i18next";
 import { getApiErrorMessage } from "@/lib/errors";
 import { useFormatAmount } from "@/lib/format";
 
@@ -63,6 +64,7 @@ function StatusBadge({ status }: { status: PurchaseQuoteStatus }) {
 }
 
 function PurchaseQuotesPage() {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const navigate = Route.useNavigate();
@@ -107,7 +109,7 @@ function PurchaseQuotesPage() {
     const refText = quote.quoteNumber ? ` "${quote.quoteNumber}"` : "";
     if (
       !window.confirm(
-        `Hapus penawaran${refText} untuk supplier "${quote.supplierName}"?`,
+        t("purchaseQuotes.deleteConfirm", { ref: refText, supplier: quote.supplierName }),
       )
     ) {
       return;
@@ -140,16 +142,16 @@ function PurchaseQuotesPage() {
     <div className="flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Purchase Quotes</h1>
+          <h1 className="text-lg font-semibold text-gray-900">{t("purchaseQuotes.title")}</h1>
           {data && (
             <p className="text-sm text-gray-500">
-              {data.pagination.total} penawaran
+              {t("purchaseQuotes.subtitle", { count: data.pagination.total })}
             </p>
           )}
         </div>
         {canWrite && (
           <Button onClick={() => setActiveQuoteId("new")}>
-            Penawaran Baru
+            {t("purchaseQuotes.newButton")}
           </Button>
         )}
       </div>
@@ -163,7 +165,7 @@ function PurchaseQuotesPage() {
       <div className="flex flex-wrap items-center gap-3">
         <Input
           className="max-w-xs"
-          placeholder="Cari nomor penawaran, supplier, keterangan..."
+          placeholder={t("purchaseQuotes.searchPlaceholder")}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -175,7 +177,7 @@ function PurchaseQuotesPage() {
             setPage(1);
           }}
         >
-          <option value="">Semua Status</option>
+          <option value="">{t("common.allStatuses")}</option>
           <option value="Draft">Draft</option>
           <option value="Accepted">Accepted</option>
           <option value="Rejected">Rejected</option>
@@ -185,28 +187,28 @@ function PurchaseQuotesPage() {
       <Card>
         <CardContent className="p-0">
           {isPending ? (
-            <p className="p-6 text-sm text-gray-500">Memuat penawaran...</p>
+            <p className="p-6 text-sm text-gray-500">{t("purchaseQuotes.loading")}</p>
           ) : isError ? (
             <p role="alert" className="p-6 text-sm text-red-700">
               {getApiErrorMessage(error)}
             </p>
           ) : data.data.length === 0 ? (
             <p className="p-6 text-sm text-gray-500">
-              Belum ada penawaran pembelian.
+              {t("purchaseQuotes.empty")}
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Date</th>
-                    <th className="px-6 py-3 font-medium">Quote Number</th>
-                    <th className="px-6 py-3 font-medium">Supplier</th>
+                    <th className="px-6 py-3 font-medium">{t("common.date")}</th>
+                    <th className="px-6 py-3 font-medium">{t("purchaseQuotes.colQuoteNumber")}</th>
+                    <th className="px-6 py-3 font-medium">{t("purchaseQuotes.colSupplier")}</th>
                     <th className="px-6 py-3 text-right font-medium">
-                      Total Amount
+                      {t("purchaseQuotes.colTotalAmount")}
                     </th>
-                    <th className="px-6 py-3 font-medium">Status</th>
-                    <th className="px-6 py-3 font-medium">Aksi</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colStatus")}</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colActions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -232,7 +234,7 @@ function PurchaseQuotesPage() {
                             size="sm"
                             onClick={() => setActiveQuoteId(quote.id)}
                           >
-                            {canWrite ? "Edit" : "Lihat"}
+                            {canWrite ? t("common.edit") : t("common.view")}
                           </Button>
                           {canWrite && (
                             <>
@@ -241,14 +243,14 @@ function PurchaseQuotesPage() {
                                 size="sm"
                                 onClick={() => handleCopyToPO(quote)}
                               >
-                                Copy to PO
+                                {t("purchaseQuotes.copyToPO")}
                               </Button>
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleCopyToInvoice(quote)}
                               >
-                                Copy to Invoice
+                                {t("purchaseQuotes.copyToInvoice")}
                               </Button>
                               <Button
                                 variant="destructive"
@@ -256,7 +258,7 @@ function PurchaseQuotesPage() {
                                 disabled={deleteQuote.isPending}
                                 onClick={() => void handleDelete(quote)}
                               >
-                                Hapus
+                                {t("common.delete")}
                               </Button>
                             </>
                           )}
@@ -268,7 +270,7 @@ function PurchaseQuotesPage() {
                 <tfoot className="border-t bg-gray-50">
                   <tr>
                     <td colSpan={3} className="px-6 py-3 font-medium text-gray-900">
-                      Total
+                      {t("common.total")}
                     </td>
                     <td className="px-6 py-3 text-right font-semibold text-gray-900">
                       {formatAmount(totalAmount)}
@@ -339,6 +341,7 @@ function PurchaseQuoteFormDialog({
   canWrite,
   onClose,
 }: PurchaseQuoteFormDialogProps) {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const isNew = quoteId === "new";
   const { data: existingQuote, isPending: isQuoteLoading } = usePurchaseQuote(
@@ -417,21 +420,21 @@ function PurchaseQuoteFormDialog({
     setFormError(null);
 
     if (!supplierId) {
-      setFormError("Supplier wajib dipilih.");
+      setFormError(t("common.supplierRequired"));
       return;
     }
 
     const finalDate = date.trim() || getTodayDateString();
 
     if (lines.length === 0) {
-      setFormError("Penawaran wajib memiliki minimal 1 baris item.");
+      setFormError(t("purchaseQuotes.validationMinLines"));
       return;
     }
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (!line.accountId) {
-        setFormError(`Baris #${i + 1}: Akun beban wajib dipilih.`);
+        setFormError(t("purchaseQuotes.validationAccountLine", { index: i + 1 }));
         return;
       }
       const qty = parseFloat(line.quantity);
@@ -494,21 +497,21 @@ function PurchaseQuoteFormDialog({
         <DialogHeader>
           <DialogTitle>
             {isNew
-              ? "Buat Penawaran Pembelian"
+              ? t("purchaseQuotes.dialogTitleNew")
               : canWrite
-                ? "Edit Penawaran Pembelian"
-                : "Detail Penawaran Pembelian"}
+                ? t("purchaseQuotes.dialogTitleEdit")
+                : t("purchaseQuotes.dialogTitleDetail")}
           </DialogTitle>
           <DialogDescription>
             {isNew
-              ? "Buat penawaran baru. Modul ini non-posting — tidak memposting jurnal apa pun."
-              : "Lihat atau perbarui penawaran beserta status dan baris itemnya."}
+              ? t("purchaseQuotes.dialogDescNew")
+              : t("purchaseQuotes.dialogDescEdit")}
           </DialogDescription>
         </DialogHeader>
 
         {isInitialLoading ? (
           <div className="py-12 text-center text-sm text-gray-500">
-            Memuat data penawaran...
+            {t("purchaseQuotes.loadingDetail")}
           </div>
         ) : (
           <form
@@ -528,7 +531,7 @@ function PurchaseQuoteFormDialog({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Supplier *
+                    {t("purchaseQuotes.fieldSupplier")} *
                   </label>
                   <select
                     className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
@@ -537,7 +540,7 @@ function PurchaseQuoteFormDialog({
                     onChange={(event) => setSupplierId(event.target.value)}
                     required
                   >
-                    <option value="">-- Pilih Supplier --</option>
+                    <option value="">{t("debitNotes.supplierPlaceholder")}</option>
                     {suppliersData?.data.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name} {c.code ? `(${c.code})` : ""}
@@ -548,7 +551,7 @@ function PurchaseQuoteFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Date *
+                    {t("purchaseQuotes.fieldDate")} *
                   </label>
                   <Input
                     type="date"
@@ -561,10 +564,10 @@ function PurchaseQuoteFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Quote Number
+                    {t("purchaseQuotes.fieldQuoteNumber")}
                   </label>
                   <Input
-                    placeholder="Contoh: PQ-2026-001"
+                    placeholder={t("purchaseQuotes.placeholderQuoteNumber")}
                     value={quoteNumber}
                     disabled={!canWrite}
                     onChange={(event) => setQuoteNumber(event.target.value)}
@@ -573,7 +576,7 @@ function PurchaseQuoteFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Status *
+                    {t("common.colStatus")} *
                   </label>
                   <select
                     className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
@@ -594,11 +597,11 @@ function PurchaseQuoteFormDialog({
 
                 <div className="flex flex-col gap-1 md:col-span-2">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Summary Description
+                    {t("purchaseQuotes.fieldSummary")}
                   </label>
                   <textarea
                     className="min-h-9 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
-                    placeholder="Ringkasan penawaran (opsional)"
+                    placeholder={t("purchaseQuotes.placeholderSummary")}
                     rows={2}
                     value={description}
                     disabled={!canWrite}
@@ -610,7 +613,7 @@ function PurchaseQuoteFormDialog({
               <div className="mt-2 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-gray-900">
-                    Baris Item
+                    {t("purchaseQuotes.linesTitle")}
                   </h3>
                   {canWrite && (
                     <Button
@@ -619,7 +622,7 @@ function PurchaseQuoteFormDialog({
                       size="sm"
                       onClick={addLine}
                     >
-                      + Tambah Baris
+                      + {t("common.addLine")}
                     </Button>
                   )}
                 </div>
@@ -629,19 +632,19 @@ function PurchaseQuoteFormDialog({
                     <thead className="border-b bg-gray-50 uppercase text-gray-500">
                       <tr>
                         <th className="px-3 py-2 font-medium min-w-[200px]">
-                          Account (Expense) *
+                          {t("purchaseQuotes.colAccount")} *
                         </th>
                         <th className="px-3 py-2 font-medium min-w-[180px]">
                           Description
                         </th>
-                        <th className="px-3 py-2 font-medium w-24">Qty *</th>
-                        <th className="px-3 py-2 font-medium w-36">Unit Price *</th>
+                        <th className="px-3 py-2 font-medium w-24">{t("common.qty")} *</th>
+                        <th className="px-3 py-2 font-medium w-36">{t("purchaseQuotes.colUnitPrice")} *</th>
                         <th className="px-3 py-2 text-right font-medium w-36">
-                          Total
+                          {t("common.total")}
                         </th>
                         {canWrite && (
                           <th className="px-3 py-2 text-center font-medium w-16">
-                            Hapus
+                            {t("common.delete")}
                           </th>
                         )}
                       </tr>
@@ -654,13 +657,13 @@ function PurchaseQuoteFormDialog({
                             <td className="p-2">
                                                               <Combobox
                                   className="h-8 text-xs"
-                                  ariaLabel={`Akun baris ${index + 1}`}
+                                  ariaLabel={t("common.accountRowAria", { index: index + 1 })}
                                   value={line.accountId}
                                   disabled={!canWrite || isAccountsLoading}
                                   onChange={(value) =>
                                     updateLine(index, "accountId", value)
                                   }
-                                  placeholder="-- Pilih Akun --"
+                                  placeholder={t("common.accountPlaceholder")}
                                   options={expenseAccounts.map((acc) => ({
                                     value: acc.id,
                                     label: `${acc.code} - ${acc.name}`,
@@ -677,7 +680,7 @@ function PurchaseQuoteFormDialog({
                               <input
                                 type="text"
                                 className="w-full h-8 rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
-                                placeholder="Deskripsi item"
+                                placeholder={t("purchaseQuotes.lineDescriptionPlaceholder")}
                                 value={line.description}
                                 disabled={!canWrite}
                                 onChange={(event) =>
@@ -739,7 +742,7 @@ function PurchaseQuoteFormDialog({
               <div className="mt-4 border-t pt-3">
                 <div className="flex items-center justify-end gap-6">
                   <div className="text-right">
-                    <div className="text-xs text-gray-500">Total</div>
+                    <div className="text-xs text-gray-500">{t("common.total")}</div>
                     <div className="text-lg font-semibold text-gray-900">
                       {formatAmount(liveTotalAmount)}
                     </div>
@@ -750,13 +753,13 @@ function PurchaseQuoteFormDialog({
 
             <DialogFooter>
               <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-                Batal
+                {t("common.cancel")}
               </Button>
               {canWrite && (
                 <Button type="submit" disabled={isSubmitting}>
                   {isNew
-                    ? (isSubmitting ? "Menyimpan..." : "Simpan Penawaran")
-                    : (isSubmitting ? "Menyimpan..." : "Perbarui Penawaran")}
+                    ? (isSubmitting ? t("common.submitting") : t("purchaseQuotes.submitNew"))
+                    : (isSubmitting ? t("common.submitting") : t("purchaseQuotes.submitEdit"))}
                 </Button>
               )}
             </DialogFooter>

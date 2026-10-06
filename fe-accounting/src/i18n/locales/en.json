@@ -35,7 +35,10 @@
     "qty": "Qty",
     "customerRequired": "Customer is required.",
     "deleting": "Deleting...",
-    "update": "Update"
+    "update": "Update",
+    "supplierRequired": "Supplier is required.",
+    "accountRowAria": "Account line {{index}}",
+    "accountPlaceholder": "-- Choose account --"
   },
   "menu": {
     "business": "Businesses",
@@ -587,9 +590,6 @@
     "linesTitle": "Line Items * (min 1, Expense category account)",
     "colAccount": "Account",
     "colUnitPrice": "Unit Price",
-    "accountRowAria": "Account line {{index}}",
-    "accountPlaceholder": "-- Choose account --",
-    "validationSupplier": "Supplier is required.",
     "submitNew": "Create",
     "submitEdit": "Update"
   },
@@ -719,5 +719,39 @@
     "deleteButton": "Delete",
     "submitNew": "Save Fee",
     "submitEdit": "Update"
+  },
+  "purchaseQuotes": {
+    "title": "Purchase Quotes",
+    "subtitle": "{{count}} quotes",
+    "newButton": "New Quote",
+    "searchPlaceholder": "Search quote number, supplier, description...",
+    "loading": "Loading quotes...",
+    "empty": "No purchase quotes yet.",
+    "deleteConfirm": "Delete quote{{ref}} for supplier \"{{supplier}}\"?",
+    "colQuoteNumber": "Quote Number",
+    "colSupplier": "Supplier",
+    "colTotalAmount": "Total Amount",
+    "copyToPO": "Copy to PO",
+    "copyToInvoice": "Copy to Invoice",
+    "validationMinLines": "A quote must have at least 1 line item.",
+    "validationAccountLine": "Line #{{index}}: An Expense account must be selected.",
+    "dialogTitleNew": "Create Purchase Quote",
+    "dialogTitleEdit": "Edit Purchase Quote",
+    "dialogTitleDetail": "Purchase Quote Details",
+    "dialogDescNew": "Create a new quote. This module is non-posting — no journal is created.",
+    "dialogDescEdit": "View or update the quote including its status and line items.",
+    "loadingDetail": "Loading quote data...",
+    "fieldSupplier": "Supplier",
+    "fieldDate": "Date",
+    "fieldQuoteNumber": "Quote Number",
+    "placeholderQuoteNumber": "e.g. PQ-2026-001",
+    "fieldSummary": "Summary Description",
+    "placeholderSummary": "Quote summary (optional)",
+    "linesTitle": "Line Items",
+    "colAccount": "Account (Expense)",
+    "colUnitPrice": "Unit Price",
+    "lineDescriptionPlaceholder": "Item description",
+    "submitNew": "Save Quote",
+    "submitEdit": "Update Quote"
   }
 }
