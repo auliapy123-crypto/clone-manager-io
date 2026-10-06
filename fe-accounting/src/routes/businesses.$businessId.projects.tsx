@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -32,28 +33,30 @@ export const Route = createFileRoute("/businesses/$businessId/projects")({
 });
 
 function StatusBadge({ status }: { status: ProjectStatus }) {
+  const { t } = useTranslation();
   if (status === "active") {
     return (
       <span className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
-        Active
+        {t("projects.statusActive")}
       </span>
     );
   }
   if (status === "completed") {
     return (
       <span className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700">
-        Completed
+        {t("projects.statusCompleted")}
       </span>
     );
   }
   return (
     <span className="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600">
-      Inactive
+      {t("projects.statusInactive")}
     </span>
   );
 }
 
 function ProjectsPage() {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
@@ -95,20 +98,20 @@ function ProjectsPage() {
     <div className="flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Projects</h1>
+          <h1 className="text-lg font-semibold text-gray-900">{t("projects.title")}</h1>
           {data && (
-            <p className="text-sm text-gray-500">{data.pagination.total} proyek</p>
+            <p className="text-sm text-gray-500">{t("projects.subtitle", { count: data.pagination.total })}</p>
           )}
         </div>
         {canWrite && (
-          <Button onClick={() => setAddOpen(true)}>Proyek Baru</Button>
+          <Button onClick={() => setAddOpen(true)}>{t("projects.newButton")}</Button>
         )}
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <Input
           className="max-w-xs"
-          placeholder="Cari nama atau kode proyek..."
+          placeholder={t("projects.searchPlaceholder")}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -120,36 +123,36 @@ function ProjectsPage() {
             setPage(1);
           }}
         >
-          <option value="all">Semua Status</option>
-          <option value="active">Active</option>
-          <option value="completed">Completed</option>
-          <option value="inactive">Inactive</option>
+          <option value="all">{t("projects.filterAllStatuses")}</option>
+          <option value="active">{t("projects.statusActive")}</option>
+          <option value="completed">{t("projects.statusCompleted")}</option>
+          <option value="inactive">{t("projects.statusInactive")}</option>
         </select>
       </div>
 
       <Card>
         <CardContent className="p-0">
           {isPending ? (
-            <p className="p-6 text-sm text-gray-500">Memuat proyek...</p>
+            <p className="p-6 text-sm text-gray-500">{t("projects.loading")}</p>
           ) : isError ? (
             <p role="alert" className="p-6 text-sm text-red-700">
               {getApiErrorMessage(error)}
             </p>
           ) : data.data.length === 0 ? (
-            <p className="p-6 text-sm text-gray-500">Belum ada proyek.</p>
+            <p className="p-6 text-sm text-gray-500">{t("projects.empty")}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Code</th>
-                    <th className="px-6 py-3 font-medium">Name</th>
-                    <th className="px-6 py-3 font-medium">Customer</th>
-                    <th className="px-6 py-3 text-right font-medium">Income</th>
-                    <th className="px-6 py-3 text-right font-medium">Expenses</th>
-                    <th className="px-6 py-3 text-right font-medium">Net Profit</th>
-                    <th className="px-6 py-3 font-medium">Status</th>
-                    <th className="px-6 py-3 font-medium">Aksi</th>
+                    <th className="px-6 py-3 font-medium">{t("projects.colCode")}</th>
+                    <th className="px-6 py-3 font-medium">{t("projects.colName")}</th>
+                    <th className="px-6 py-3 font-medium">{t("projects.colCustomer")}</th>
+                    <th className="px-6 py-3 text-right font-medium">{t("projects.colIncome")}</th>
+                    <th className="px-6 py-3 text-right font-medium">{t("projects.colExpenses")}</th>
+                    <th className="px-6 py-3 text-right font-medium">{t("projects.colNetProfit")}</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colStatus")}</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colActions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -165,7 +168,7 @@ function ProjectsPage() {
                 <tfoot className="border-t bg-gray-50">
                   <tr>
                     <td colSpan={3} className="px-6 py-3 font-medium text-gray-900">
-                      Total
+                      {t("common.total")}
                     </td>
                     <td className="px-6 py-3 text-right font-medium text-gray-900">
                       {formatAmount(totals.income)}
@@ -222,6 +225,7 @@ function ProjectRow({
   project: Project;
   canWrite: boolean;
 }) {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const deleteProject = useDeleteProject(businessId);
   const [editOpen, setEditOpen] = useState(false);
@@ -229,7 +233,7 @@ function ProjectRow({
   const [rowError, setRowError] = useState<string | null>(null);
 
   const handleDelete = async () => {
-    if (!window.confirm(`Hapus proyek "${project.name}"?`)) return;
+    if (!window.confirm(t("common.deleteConfirmItem", { item: project.name }))) return;
     setRowError(null);
     try {
       await deleteProject.mutateAsync(project.id);
@@ -273,7 +277,7 @@ function ProjectRow({
               size="sm"
               onClick={() => setSummaryOpen(true)}
             >
-              Ringkasan
+              {t("projects.summaryButton")}
             </Button>
             {canWrite && (
               <>
@@ -282,7 +286,7 @@ function ProjectRow({
                   size="sm"
                   onClick={() => setEditOpen(true)}
                 >
-                  Edit
+                  {t("common.edit")}
                 </Button>
                 <Button
                   variant="destructive"
@@ -290,7 +294,7 @@ function ProjectRow({
                   disabled={deleteProject.isPending}
                   onClick={() => void handleDelete()}
                 >
-                  Hapus
+                  {t("common.delete")}
                 </Button>
               </>
             )}
@@ -325,33 +329,33 @@ function ProjectSummaryDialog({
   onOpenChange: (open: boolean) => void;
   project: Project;
 }) {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent onClose={() => onOpenChange(false)}>
         <DialogHeader>
-          <DialogTitle>Ringkasan {project.name}</DialogTitle>
+          <DialogTitle>{t("projects.summaryTitle", { name: project.name })}</DialogTitle>
           <DialogDescription>
-            {project.code ? `${project.code} · ` : ""}dihitung real-time dari
-            jurnal transaksi yang ditandai proyek ini.
+            {project.code ? t("projects.summaryDescriptionWithCode", { code: project.code }) : t("projects.summaryDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between rounded-md bg-gray-50 px-4 py-3">
-            <span className="text-sm text-gray-600">Income</span>
+            <span className="text-sm text-gray-600">{t("projects.colIncome")}</span>
             <span className="text-sm font-semibold text-gray-900">
               {formatAmount(project.totalIncome)}
             </span>
           </div>
           <div className="flex items-center justify-between rounded-md bg-gray-50 px-4 py-3">
-            <span className="text-sm text-gray-600">Expenses</span>
+            <span className="text-sm text-gray-600">{t("projects.colExpenses")}</span>
             <span className="text-sm font-semibold text-gray-900">
               {formatAmount(project.totalExpenses)}
             </span>
           </div>
           <div className="flex items-center justify-between rounded-md bg-gray-50 px-4 py-3">
-            <span className="text-sm text-gray-600">Net Profit</span>
+            <span className="text-sm text-gray-600">{t("projects.colNetProfit")}</span>
             <span
               className={`text-sm font-semibold ${
                 project.netProfit > 0
@@ -368,7 +372,7 @@ function ProjectSummaryDialog({
 
         <DialogFooter className="mt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Tutup
+            {t("common.close")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -389,6 +393,7 @@ function ProjectFormDialog({
   businessId: string;
   project?: Project;
 }) {
+  const { t } = useTranslation();
   const createProject = useCreateProject(businessId);
   const updateProject = useUpdateProject(businessId);
   const { data: customersData } = useCustomers(businessId, 1, {}, 100);
@@ -415,7 +420,7 @@ function ProjectFormDialog({
 
     const trimmedName = name.trim();
     if (!trimmedName) {
-      setFormError("Nama proyek wajib diisi.");
+      setFormError(t("projects.validationNameRequired"));
       return;
     }
 
@@ -451,12 +456,12 @@ function ProjectFormDialog({
       <DialogContent onClose={() => onOpenChange(false)}>
         <DialogHeader>
           <DialogTitle>
-            {mode === "create" ? "Proyek Baru" : "Edit Proyek"}
+            {mode === "create" ? t("projects.newButton") : t("projects.dialogTitleEdit")}
           </DialogTitle>
           <DialogDescription>
             {mode === "create"
-              ? "Tambahkan proyek baru untuk pelacakan transaksi keuangan."
-              : "Perbarui informasi proyek ini."}
+              ? t("projects.dialogDescriptionNew")
+              : t("projects.dialogDescriptionEdit")}
           </DialogDescription>
         </DialogHeader>
 
@@ -472,10 +477,10 @@ function ProjectFormDialog({
 
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">
-              Nama Proyek *
+              {t("projects.fieldName")} *
             </label>
             <Input
-              placeholder="Contoh: Pengembangan Website"
+              placeholder={t("projects.placeholderName")}
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -484,10 +489,10 @@ function ProjectFormDialog({
 
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">
-              Kode Proyek (opsional)
+              {t("projects.fieldCode")}
             </label>
             <Input
-              placeholder="Contoh: PRJ-001"
+              placeholder={t("projects.placeholderCode")}
               value={code}
               onChange={(e) => setCode(e.target.value)}
             />
@@ -495,14 +500,14 @@ function ProjectFormDialog({
 
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">
-              Pelanggan (opsional)
+              {t("projects.fieldCustomer")}
             </label>
             <select
               className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               value={customerId}
               onChange={(e) => setCustomerId(e.target.value)}
             >
-              <option value="">-- Tanpa Pelanggan --</option>
+              <option value="">{t("projects.noCustomer")}</option>
               {customersData?.data.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name} {c.code ? `(${c.code})` : ""}
@@ -512,15 +517,15 @@ function ProjectFormDialog({
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">Status</label>
+            <label className="text-sm font-medium text-gray-700">{t("projects.fieldStatus")}</label>
             <select
               className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               value={status}
               onChange={(e) => setStatus(e.target.value as ProjectStatus)}
             >
-              <option value="active">Active</option>
-              <option value="completed">Completed</option>
-              <option value="inactive">Inactive</option>
+              <option value="active">{t("projects.statusActive")}</option>
+              <option value="completed">{t("projects.statusCompleted")}</option>
+              <option value="inactive">{t("projects.statusInactive")}</option>
             </select>
           </div>
 
@@ -530,14 +535,14 @@ function ProjectFormDialog({
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              Batal
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting
-                ? "Menyimpan..."
+                ? t("common.submitting")
                 : mode === "create"
-                  ? "Tambah Proyek"
-                  : "Simpan"}
+                  ? t("projects.submitNew")
+                  : t("common.save")}
             </Button>
           </DialogFooter>
         </form>

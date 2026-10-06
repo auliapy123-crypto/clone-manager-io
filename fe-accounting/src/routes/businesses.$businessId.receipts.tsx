@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -38,6 +39,7 @@ export const Route = createFileRoute("/businesses/$businessId/receipts")({
 });
 
 function ReceiptsPage() {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
@@ -71,10 +73,18 @@ function ReceiptsPage() {
   );
 
   const handleDelete = async (receipt: Receipt) => {
-    const refText = receipt.reference ? ` "${receipt.reference}"` : "";
     if (
       !window.confirm(
-        `Hapus penerimaan${refText} sebesar ${formatAmount(receipt.totalAmount)} ke "${receipt.bankAccountName}"? Jurnal terkait juga akan dihapus.`,
+        receipt.reference
+          ? t("receipts.deleteConfirmWithRef", {
+              reference: receipt.reference,
+              amount: formatAmount(receipt.totalAmount),
+              bankAccount: receipt.bankAccountName,
+            })
+          : t("receipts.deleteConfirm", {
+              amount: formatAmount(receipt.totalAmount),
+              bankAccount: receipt.bankAccountName,
+            }),
       )
     ) {
       return;
@@ -91,13 +101,13 @@ function ReceiptsPage() {
     <div className="flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Receipts</h1>
+          <h1 className="text-lg font-semibold text-gray-900">{t("receipts.title")}</h1>
           {data && (
-            <p className="text-sm text-gray-500">{data.pagination.total} penerimaan</p>
+            <p className="text-sm text-gray-500">{t("receipts.subtitle", { count: data.pagination.total })}</p>
           )}
         </div>
         {canWrite && (
-          <Button onClick={() => setActiveReceiptId("new")}>Catat Penerimaan</Button>
+          <Button onClick={() => setActiveReceiptId("new")}>{t("receipts.newButton")}</Button>
         )}
       </div>
 
@@ -110,7 +120,7 @@ function ReceiptsPage() {
       <div className="flex flex-wrap items-center gap-3">
         <Input
           className="max-w-xs"
-          placeholder="Cari referensi, kontak, keterangan..."
+          placeholder={t("receipts.searchPlaceholder")}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -119,27 +129,27 @@ function ReceiptsPage() {
       <Card>
         <CardContent className="p-0">
           {isPending ? (
-            <p className="p-6 text-sm text-gray-500">Memuat penerimaan...</p>
+            <p className="p-6 text-sm text-gray-500">{t("receipts.loading")}</p>
           ) : isError ? (
             <p role="alert" className="p-6 text-sm text-red-700">
               {getApiErrorMessage(error)}
             </p>
           ) : data.data.length === 0 ? (
-            <p className="p-6 text-sm text-gray-500">Belum ada penerimaan.</p>
+            <p className="p-6 text-sm text-gray-500">{t("receipts.empty")}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Date</th>
-                    <th className="px-6 py-3 font-medium">Reference</th>
-                    <th className="px-6 py-3 font-medium">Received In</th>
-                    <th className="px-6 py-3 font-medium">Paid By</th>
-                    <th className="px-6 py-3 font-medium">Description</th>
+                    <th className="px-6 py-3 font-medium">{t("receipts.colDate")}</th>
+                    <th className="px-6 py-3 font-medium">{t("receipts.colReference")}</th>
+                    <th className="px-6 py-3 font-medium">{t("receipts.colReceivedIn")}</th>
+                    <th className="px-6 py-3 font-medium">{t("receipts.colPaidBy")}</th>
+                    <th className="px-6 py-3 font-medium">{t("receipts.colDescription")}</th>
                     <th className="px-6 py-3 text-right font-medium">
-                      Total Amount
+                      {t("receipts.colTotalAmount")}
                     </th>
-                    <th className="px-6 py-3 font-medium">Aksi</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colActions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -168,7 +178,7 @@ function ReceiptsPage() {
                             size="sm"
                             onClick={() => setActiveReceiptId(receipt.id)}
                           >
-                            {canWrite ? "Edit" : "Lihat"}
+                            {canWrite ? t("common.edit") : t("common.view")}
                           </Button>
                           {canWrite && (
                             <Button
@@ -177,7 +187,7 @@ function ReceiptsPage() {
                               disabled={deleteReceipt.isPending}
                               onClick={() => void handleDelete(receipt)}
                             >
-                              Hapus
+                              {t("common.delete")}
                             </Button>
                           )}
                         </div>
@@ -188,7 +198,7 @@ function ReceiptsPage() {
                 <tfoot className="border-t bg-gray-50">
                   <tr>
                     <td colSpan={5} className="px-6 py-3 font-medium text-gray-900">
-                      Total
+                      {t("common.total")}
                     </td>
                     <td className="px-6 py-3 text-right font-semibold text-gray-900">
                       {formatAmount(totalAmount)}
@@ -262,6 +272,7 @@ function ReceiptFormDialog({
   canWrite,
   onClose,
 }: ReceiptFormDialogProps) {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const isNew = receiptId === "new";
   const { data: existingReceipt, isPending: isReceiptLoading } = useReceipt(
@@ -392,26 +403,26 @@ function ReceiptFormDialog({
     setFormError(null);
 
     if (!bankAccountId) {
-      setFormError("Rekening bank/kas tujuan (Received in) wajib dipilih.");
+      setFormError(t("receipts.validationBankRequired"));
       return;
     }
 
     const finalDate = date.trim() || getTodayDateString();
 
     if (lines.length === 0) {
-      setFormError("Penerimaan wajib memiliki minimal 1 baris item.");
+      setFormError(t("receipts.validationMinLines"));
       return;
     }
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (!line.accountId) {
-        setFormError(`Baris #${i + 1}: Akun wajib dipilih.`);
+        setFormError(t("receipts.validationLineAccount", { index: i + 1 }));
         return;
       }
       const amount = parseFloat(line.amount);
       if (!Number.isFinite(amount) || amount <= 0) {
-        setFormError(`Baris #${i + 1}: Nominal harus lebih dari 0.`);
+        setFormError(t("receipts.validationLineAmount", { index: i + 1 }));
         return;
       }
     }
@@ -465,21 +476,21 @@ function ReceiptFormDialog({
         <DialogHeader>
           <DialogTitle>
             {isNew
-              ? "Catat Penerimaan"
+              ? t("receipts.newButton")
               : canWrite
-                ? "Edit Penerimaan"
-                : "Detail Penerimaan"}
+                ? t("receipts.dialogTitleEdit")
+                : t("receipts.dialogTitleDetail")}
           </DialogTitle>
           <DialogDescription>
             {isNew
-              ? "Catat penerimaan baru. Jurnal kas/bank akan otomatis diposting."
-              : "Lihat atau perbarui penerimaan beserta baris itemnya."}
+              ? t("receipts.dialogDescriptionNew")
+              : t("receipts.dialogDescriptionEdit")}
           </DialogDescription>
         </DialogHeader>
 
         {isInitialLoading ? (
           <div className="py-12 text-center text-sm text-gray-500">
-            Memuat data penerimaan...
+            {t("receipts.loadingDetail")}
           </div>
         ) : (
           <form
@@ -499,7 +510,7 @@ function ReceiptFormDialog({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Date *
+                    {t("receipts.fieldDate")} *
                   </label>
                   <Input
                     type="date"
@@ -512,10 +523,10 @@ function ReceiptFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Reference
+                    {t("receipts.fieldReference")}
                   </label>
                   <Input
-                    placeholder="Contoh: RCV-2026-001 (opsional)"
+                    placeholder={t("receipts.placeholderReference")}
                     value={reference}
                     disabled={!canWrite}
                     onChange={(event) => setReference(event.target.value)}
@@ -524,7 +535,7 @@ function ReceiptFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Received In *
+                    {t("receipts.fieldReceivedIn")} *
                   </label>
                   <select
                     className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
@@ -533,7 +544,7 @@ function ReceiptFormDialog({
                     onChange={(event) => setBankAccountId(event.target.value)}
                     required
                   >
-                    <option value="">-- Pilih Rekening --</option>
+                    <option value="">{t("receipts.selectAccount")}</option>
                     {bankAccountsData?.data.map((ba) => (
                       <option key={ba.id} value={ba.id}>
                         {ba.name} ({ba.accountCode})
@@ -544,7 +555,7 @@ function ReceiptFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Paid By (opsional)
+                    {t("receipts.fieldPaidBy")}
                   </label>
                   <select
                     className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
@@ -552,7 +563,7 @@ function ReceiptFormDialog({
                     disabled={!canWrite || isContactsLoading}
                     onChange={(event) => setContactId(event.target.value)}
                   >
-                    <option value="">-- Tanpa Kontak --</option>
+                    <option value="">{t("receipts.noContact")}</option>
                     {contactOptions.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name} ({c.kinds.join(", ")})
@@ -563,10 +574,10 @@ function ReceiptFormDialog({
 
                 <div className="flex flex-col gap-1 md:col-span-2">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Description
+                    {t("receipts.fieldDescription")}
                   </label>
                   <Input
-                    placeholder="Keterangan penerimaan (opsional)"
+                    placeholder={t("receipts.placeholderDescription")}
                     value={description}
                     disabled={!canWrite}
                     onChange={(event) => setDescription(event.target.value)}
@@ -575,7 +586,7 @@ function ReceiptFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Project
+                    {t("receipts.fieldProject")}
                   </label>
                   <select
                     className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
@@ -583,7 +594,7 @@ function ReceiptFormDialog({
                     disabled={!canWrite}
                     onChange={(event) => setProjectId(event.target.value)}
                   >
-                    <option value="">-- Tanpa Proyek --</option>
+                    <option value="">{t("receipts.noProject")}</option>
                     {projectOptions.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name} {p.code ? `(${p.code})` : ""}
@@ -594,7 +605,7 @@ function ReceiptFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Division
+                    {t("receipts.fieldDivision")}
                   </label>
                   <select
                     className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
@@ -602,7 +613,7 @@ function ReceiptFormDialog({
                     disabled={!canWrite}
                     onChange={(event) => setDivisionId(event.target.value)}
                   >
-                    <option value="">-- Tanpa Divisi --</option>
+                    <option value="">{t("receipts.noDivision")}</option>
                     {divisionOptions.map((d) => (
                       <option key={d.id} value={d.id}>
                         {d.name} {d.code ? `(${d.code})` : ""}
@@ -615,7 +626,7 @@ function ReceiptFormDialog({
               <div className="mt-2 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-gray-900">
-                    Baris Item Penerimaan
+                    {t("receipts.linesTitle")}
                   </h3>
                   {canWrite && (
                     <Button
@@ -624,7 +635,7 @@ function ReceiptFormDialog({
                       size="sm"
                       onClick={addLine}
                     >
-                      + Tambah Baris
+                      {t("receipts.addLine")}
                     </Button>
                   )}
                 </div>
@@ -634,17 +645,17 @@ function ReceiptFormDialog({
                     <thead className="border-b bg-gray-50 uppercase text-gray-500">
                       <tr>
                         <th className="px-3 py-2 font-medium min-w-[220px]">
-                          Account (bukan Asset) *
+                          {t("receipts.lineColAccount")} *
                         </th>
                         <th className="px-3 py-2 font-medium min-w-[180px]">
-                          Description
+                          {t("receipts.lineColDescription")}
                         </th>
                         <th className="px-3 py-2 text-right font-medium w-40">
-                          Amount *
+                          {t("receipts.lineColAmount")} *
                         </th>
                         {canWrite && (
                           <th className="px-3 py-2 text-center font-medium w-16">
-                            Hapus
+                            {t("receipts.lineColRemove")}
                           </th>
                         )}
                       </tr>
@@ -662,7 +673,7 @@ function ReceiptFormDialog({
                                   onChange={(value) =>
                                     updateLine(index, "accountId", value)
                                   }
-                                  placeholder="-- Pilih Akun --"
+                                  placeholder={t("receipts.selectLineAccount")}
                                   options={lineAccounts.map((acc) => ({
                                     value: acc.id,
                                     label: `${acc.code} - ${acc.name}`,
@@ -671,7 +682,7 @@ function ReceiptFormDialog({
                               {lineAccounts.length === 0 &&
                                 !isAccountsLoading && (
                                   <p className="mt-0.5 text-[10px] text-amber-600">
-                                    Belum ada akun non-Asset
+                                    {t("receipts.noNonAssetAccounts")}
                                   </p>
                                 )}
                             </td>
@@ -679,7 +690,7 @@ function ReceiptFormDialog({
                               <input
                                 type="text"
                                 className="w-full h-8 rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
-                                placeholder="Deskripsi baris"
+                                placeholder={t("receipts.lineDescriptionPlaceholder")}
                                 value={line.description}
                                 disabled={!canWrite}
                                 onChange={(event) =>
@@ -725,7 +736,7 @@ function ReceiptFormDialog({
               <div className="mt-4 border-t pt-3">
                 <div className="flex items-center justify-end gap-6">
                   <div className="text-right">
-                    <div className="text-xs text-gray-500">Total Penerimaan</div>
+                    <div className="text-xs text-gray-500">{t("receipts.totalLabel")}</div>
                     <div className="text-lg font-semibold text-gray-900">
                       {formatAmount(liveTotalAmount)}
                     </div>
@@ -736,13 +747,13 @@ function ReceiptFormDialog({
 
             <DialogFooter>
               <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-                Batal
+                {t("common.cancel")}
               </Button>
               {canWrite && (
                 <Button type="submit" disabled={isSubmitting}>
                   {isNew
-                    ? (isSubmitting ? "Menyimpan..." : "Simpan Penerimaan")
-                    : (isSubmitting ? "Menyimpan..." : "Perbarui Penerimaan")}
+                    ? (isSubmitting ? t("common.submitting") : t("receipts.submitNew"))
+                    : (isSubmitting ? t("common.submitting") : t("receipts.submitEdit"))}
                 </Button>
               )}
             </DialogFooter>
