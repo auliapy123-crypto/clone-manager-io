@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -36,20 +37,21 @@ export const Route = createFileRoute("/businesses/$businessId/journal-entries")(
   component: JournalEntriesPage,
 });
 
-const SOURCE_MODULE_LABELS: Record<string, string> = {
-  manual_journal: "Manual",
-  sales_invoice: "Sales Invoice",
-  purchase_invoice: "Purchase Invoice",
-  receipt: "Receipt",
-  payment: "Payment",
-  inter_account_transfer: "Transfer",
-};
-
-function sourceLabel(sourceModule: string): string {
-  return SOURCE_MODULE_LABELS[sourceModule] ?? sourceModule;
+/** Label sumber jurnal — di dalam komponen karena butuh t(). */
+function useSourceLabels(): Record<string, string> {
+  const { t } = useTranslation();
+  return {
+    manual_journal: t("journalEntries.sourceManual"),
+    sales_invoice: t("journalEntries.sourceSalesInvoice"),
+    purchase_invoice: t("journalEntries.sourcePurchaseInvoice"),
+    receipt: t("journalEntries.sourceReceipt"),
+    payment: t("journalEntries.sourcePayment"),
+    inter_account_transfer: t("journalEntries.sourceTransfer"),
+  };
 }
 
 function SourceBadge({ sourceModule }: { sourceModule: string }) {
+  const sourceLabels = useSourceLabels();
   const isManual = sourceModule === "manual_journal";
   return (
     <span
@@ -59,23 +61,25 @@ function SourceBadge({ sourceModule }: { sourceModule: string }) {
           : "bg-gray-100 text-gray-700 border-gray-200"
       }`}
     >
-      {sourceLabel(sourceModule)}
+      {sourceLabels[sourceModule] ?? sourceModule}
     </span>
   );
 }
 
-const SOURCE_FILTER_OPTIONS = [
-  { value: "", label: "Semua Source" },
-  { value: "manual_journal", label: "Manual" },
-  { value: "sales_invoice", label: "Sales Invoice" },
-  { value: "purchase_invoice", label: "Purchase Invoice" },
-  { value: "receipt", label: "Receipt" },
-  { value: "payment", label: "Payment" },
-  { value: "inter_account_transfer", label: "Transfer" },
+const SOURCE_FILTER_VALUES = [
+  "",
+  "manual_journal",
+  "sales_invoice",
+  "purchase_invoice",
+  "receipt",
+  "payment",
+  "inter_account_transfer",
 ];
 
 function JournalEntriesPage() {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
+  const sourceLabels = useSourceLabels();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
   const role = businesses?.find((b) => b.id === businessId)?.role;
@@ -115,10 +119,18 @@ function JournalEntriesPage() {
   );
 
   const handleDelete = async (entry: JournalEntry) => {
-    const refText = entry.reference ? ` "${entry.reference}"` : "";
     if (
       !window.confirm(
-        `Hapus jurnal manual${refText} tanggal ${entry.entryDate} sebesar ${formatAmount(entry.totalDebit)}?`,
+        entry.reference
+          ? t("journalEntries.deleteConfirmWithRef", {
+              reference: entry.reference,
+              date: entry.entryDate,
+              amount: formatAmount(entry.totalDebit),
+            })
+          : t("journalEntries.deleteConfirm", {
+              date: entry.entryDate,
+              amount: formatAmount(entry.totalDebit),
+            }),
       )
     ) {
       return;
@@ -137,13 +149,13 @@ function JournalEntriesPage() {
     <div className="flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Journal Entries</h1>
+          <h1 className="text-lg font-semibold text-gray-900">{t("journalEntries.title")}</h1>
           {data && (
-            <p className="text-sm text-gray-500">{data.pagination.total} jurnal</p>
+            <p className="text-sm text-gray-500">{t("journalEntries.subtitle", { count: data.pagination.total })}</p>
           )}
         </div>
         {canWrite && (
-          <Button onClick={() => setActiveEntryId("new")}>Jurnal Manual Baru</Button>
+          <Button onClick={() => setActiveEntryId("new")}>{t("journalEntries.newButton")}</Button>
         )}
       </div>
 
@@ -156,7 +168,7 @@ function JournalEntriesPage() {
       <div className="flex flex-wrap items-center gap-3">
         <Input
           className="max-w-xs"
-          placeholder="Cari referensi, keterangan..."
+          placeholder={t("journalEntries.searchPlaceholder")}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -168,9 +180,10 @@ function JournalEntriesPage() {
             resetPage();
           }}
         >
-          {SOURCE_FILTER_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
+          <option value="">{t("journalEntries.sourceAll")}</option>
+          {SOURCE_FILTER_VALUES.filter((v) => v !== "").map((value) => (
+            <option key={value} value={value}>
+              {sourceLabels[value] ?? value}
             </option>
           ))}
         </select>
@@ -182,9 +195,9 @@ function JournalEntriesPage() {
             setDateFrom(event.target.value);
             resetPage();
           }}
-          aria-label="Tanggal dari"
+          aria-label={t("journalEntries.dateFrom")}
         />
-        <span className="text-sm text-gray-500">s.d.</span>
+        <span className="text-sm text-gray-500">{t("journalEntries.dateSeparator")}</span>
         <Input
           type="date"
           className="max-w-[170px]"
@@ -193,33 +206,33 @@ function JournalEntriesPage() {
             setDateTo(event.target.value);
             resetPage();
           }}
-          aria-label="Tanggal sampai"
+          aria-label={t("journalEntries.dateTo")}
         />
       </div>
 
       <Card>
         <CardContent className="p-0">
           {isPending ? (
-            <p className="p-6 text-sm text-gray-500">Memuat jurnal...</p>
+            <p className="p-6 text-sm text-gray-500">{t("journalEntries.loading")}</p>
           ) : isError ? (
             <p role="alert" className="p-6 text-sm text-red-700">
               {getApiErrorMessage(error)}
             </p>
           ) : data.data.length === 0 ? (
-            <p className="p-6 text-sm text-gray-500">Belum ada jurnal.</p>
+            <p className="p-6 text-sm text-gray-500">{t("journalEntries.empty")}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Entry Date</th>
-                    <th className="px-6 py-3 font-medium">Reference</th>
-                    <th className="px-6 py-3 font-medium">Source</th>
-                    <th className="px-6 py-3 font-medium">Description</th>
+                    <th className="px-6 py-3 font-medium">{t("journalEntries.colEntryDate")}</th>
+                    <th className="px-6 py-3 font-medium">{t("journalEntries.colReference")}</th>
+                    <th className="px-6 py-3 font-medium">{t("journalEntries.colSource")}</th>
+                    <th className="px-6 py-3 font-medium">{t("journalEntries.colDescription")}</th>
                     <th className="px-6 py-3 text-right font-medium">
-                      Total Amount
+                      {t("journalEntries.colTotalAmount")}
                     </th>
-                    <th className="px-6 py-3 font-medium">Aksi</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colActions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -245,7 +258,7 @@ function JournalEntriesPage() {
                             size="sm"
                             onClick={() => setViewEntryId(entry.id)}
                           >
-                            Lihat
+                            {t("common.view")}
                           </Button>
                           {canWrite && entry.isManual && (
                             <>
@@ -254,7 +267,7 @@ function JournalEntriesPage() {
                                 size="sm"
                                 onClick={() => setActiveEntryId(entry.id)}
                               >
-                                Edit
+                                {t("common.edit")}
                               </Button>
                               <Button
                                 variant="destructive"
@@ -262,7 +275,7 @@ function JournalEntriesPage() {
                                 disabled={deleteEntry.isPending}
                                 onClick={() => void handleDelete(entry)}
                               >
-                                Hapus
+                                {t("common.delete")}
                               </Button>
                             </>
                           )}
@@ -274,7 +287,7 @@ function JournalEntriesPage() {
                 <tfoot className="border-t bg-gray-50">
                   <tr>
                     <td colSpan={4} className="px-6 py-3 font-medium text-gray-900">
-                      Total
+                      {t("common.total")}
                     </td>
                     <td className="px-6 py-3 text-right font-semibold text-gray-900">
                       {formatAmount(totalDebit)}
@@ -325,6 +338,7 @@ function JournalEntryDetailDialog({
   entryId: string;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const { data: entry, isPending } = useJournalEntry(businessId, entryId);
 
@@ -339,33 +353,35 @@ function JournalEntryDetailDialog({
       >
         <DialogHeader>
           <DialogTitle>
-            Detail Jurnal {entry ? `— ${entry.reference || entry.id.slice(0, 8)}` : ""}
+            {t("journalEntries.detailTitle", {
+              suffix: entry ? `— ${entry.reference || entry.id.slice(0, 8)}` : "",
+            })}
           </DialogTitle>
           <DialogDescription>
             {entry ? (
               <>
                 {entry.entryDate} · <SourceBadge sourceModule={entry.sourceModule} /> ·{" "}
-                {entry.description || "Tanpa keterangan"}
+                {entry.description || t("journalEntries.noDescription")}
               </>
             ) : (
-              "Memuat detail jurnal..."
+              t("journalEntries.loadingDetail")
             )}
           </DialogDescription>
         </DialogHeader>
 
         <div className="overflow-y-auto pr-2 flex-1">
           {isPending || !entry ? (
-            <p className="py-8 text-center text-sm text-gray-500">Memuat baris jurnal...</p>
+            <p className="py-8 text-center text-sm text-gray-500">{t("journalEntries.loadingLines")}</p>
           ) : (
             <div className="overflow-x-auto rounded-md border border-gray-200">
               <table className="w-full text-left text-xs">
                 <thead className="border-b bg-gray-50 uppercase text-gray-500">
                   <tr>
-                    <th className="px-3 py-2 font-medium">Account</th>
-                    <th className="px-3 py-2 font-medium">Contact</th>
-                    <th className="px-3 py-2 font-medium">Description</th>
-                    <th className="px-3 py-2 text-right font-medium">Debit</th>
-                    <th className="px-3 py-2 text-right font-medium">Credit</th>
+                    <th className="px-3 py-2 font-medium">{t("journalEntries.colAccount")}</th>
+                    <th className="px-3 py-2 font-medium">{t("journalEntries.colContact")}</th>
+                    <th className="px-3 py-2 font-medium">{t("journalEntries.colDescription")}</th>
+                    <th className="px-3 py-2 text-right font-medium">{t("journalEntries.colDebit")}</th>
+                    <th className="px-3 py-2 text-right font-medium">{t("journalEntries.colCredit")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -388,7 +404,7 @@ function JournalEntryDetailDialog({
                 <tfoot className="border-t bg-gray-50">
                   <tr>
                     <td colSpan={3} className="p-2 font-medium text-gray-900">
-                      Total
+                      {t("common.total")}
                     </td>
                     <td className="p-2 text-right font-semibold text-gray-900">
                       {formatAmount(totalDebit)}
@@ -405,7 +421,7 @@ function JournalEntryDetailDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Tutup
+            {t("common.close")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -458,6 +474,7 @@ function JournalEntryFormDialog({
   canWrite,
   onClose,
 }: JournalEntryFormDialogProps) {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const isNew = entryId === "new";
   const { data: existingEntry, isPending: isEntryLoading } = useJournalEntry(
@@ -580,21 +597,21 @@ function JournalEntryFormDialog({
   }, [lines]);
 
   const validationError: string | null = useMemo(() => {
-    if (lines.length < 2) return "Jurnal manual wajib punya minimal 2 baris.";
+    if (lines.length < 2) return t("journalEntries.validationMinLines");
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      if (!line.accountId) return `Baris #${i + 1}: Akun wajib dipilih.`;
+      if (!line.accountId) return t("journalEntries.validationLineAccount", { index: i + 1 });
       const filled =
         (parseAmountToCents(line.debit) > 0 ? 1 : 0) +
         (parseAmountToCents(line.credit) > 0 ? 1 : 0);
       if (filled !== 1)
-        return `Baris #${i + 1}: isi tepat satu dari debit ATAU kredit.`;
+        return t("journalEntries.validationLineOneSide", { index: i + 1 });
     }
     if (totals.debitCents !== totals.creditCents)
-      return "Total debit harus sama dengan total kredit.";
-    if (totals.debitCents <= 0) return "Total jurnal harus lebih dari 0.";
+      return t("journalEntries.validationUnbalanced");
+    if (totals.debitCents <= 0) return t("journalEntries.validationPositiveTotal");
     return null;
-  }, [lines, totals]);
+  }, [lines, totals, t]);
 
   const isBalanced = totals.debitCents === totals.creditCents && totals.debitCents > 0;
 
@@ -655,21 +672,21 @@ function JournalEntryFormDialog({
         <DialogHeader>
           <DialogTitle>
             {isNew
-              ? "Jurnal Manual Baru"
+              ? t("journalEntries.newButton")
               : canWrite
-                ? "Edit Jurnal Manual"
-                : "Detail Jurnal Manual"}
+                ? t("journalEntries.dialogTitleEdit")
+                : t("journalEntries.dialogTitleDetail")}
           </DialogTitle>
           <DialogDescription>
             {isNew
-              ? "Jurnal koreksi/penyesuaian. Wajib balance sebelum bisa disimpan."
-              : "Lihat atau perbarui jurnal manual beserta barisnya."}
+              ? t("journalEntries.dialogDescriptionNew")
+              : t("journalEntries.dialogDescriptionEdit")}
           </DialogDescription>
         </DialogHeader>
 
         {isInitialLoading ? (
           <div className="py-12 text-center text-sm text-gray-500">
-            Memuat data jurnal...
+            {t("journalEntries.loadingDialog")}
           </div>
         ) : (
           <form
@@ -689,7 +706,7 @@ function JournalEntryFormDialog({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Entry Date *
+                    {t("journalEntries.fieldEntryDate")} *
                   </label>
                   <Input
                     type="date"
@@ -702,10 +719,10 @@ function JournalEntryFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Reference
+                    {t("journalEntries.fieldReference")}
                   </label>
                   <Input
-                    placeholder="Contoh: ADJ-2026-001 (opsional)"
+                    placeholder={t("journalEntries.placeholderReference")}
                     value={reference}
                     disabled={!canWrite}
                     onChange={(event) => setReference(event.target.value)}
@@ -714,10 +731,10 @@ function JournalEntryFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Description
+                    {t("journalEntries.fieldDescription")}
                   </label>
                   <Input
-                    placeholder="Keterangan jurnal (opsional)"
+                    placeholder={t("journalEntries.placeholderDescription")}
                     value={description}
                     disabled={!canWrite}
                     onChange={(event) => setDescription(event.target.value)}
@@ -726,7 +743,7 @@ function JournalEntryFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Project
+                    {t("journalEntries.fieldProject")}
                   </label>
                   <select
                     className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
@@ -734,7 +751,7 @@ function JournalEntryFormDialog({
                     disabled={!canWrite}
                     onChange={(event) => setProjectId(event.target.value)}
                   >
-                    <option value="">-- Tanpa Proyek --</option>
+                    <option value="">{t("journalEntries.noProject")}</option>
                     {projectOptions.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name} {p.code ? `(${p.code})` : ""}
@@ -745,7 +762,7 @@ function JournalEntryFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Division
+                    {t("journalEntries.fieldDivision")}
                   </label>
                   <select
                     className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
@@ -753,7 +770,7 @@ function JournalEntryFormDialog({
                     disabled={!canWrite}
                     onChange={(event) => setDivisionId(event.target.value)}
                   >
-                    <option value="">-- Tanpa Divisi --</option>
+                    <option value="">{t("journalEntries.noDivision")}</option>
                     {divisionOptions.map((d) => (
                       <option key={d.id} value={d.id}>
                         {d.name} {d.code ? `(${d.code})` : ""}
@@ -766,7 +783,7 @@ function JournalEntryFormDialog({
               <div className="mt-2 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-gray-900">
-                    Baris Jurnal (minimal 2)
+                    {t("journalEntries.linesTitle")}
                   </h3>
                   {canWrite && (
                     <Button
@@ -775,7 +792,7 @@ function JournalEntryFormDialog({
                       size="sm"
                       onClick={addLine}
                     >
-                      + Tambah Baris
+                      {t("journalEntries.addLine")}
                     </Button>
                   )}
                 </div>
@@ -785,23 +802,23 @@ function JournalEntryFormDialog({
                     <thead className="border-b bg-gray-50 uppercase text-gray-500">
                       <tr>
                         <th className="px-3 py-2 font-medium min-w-[200px]">
-                          Account *
+                          {t("journalEntries.lineColAccount")} *
                         </th>
                         <th className="px-3 py-2 font-medium min-w-[160px]">
-                          Contact
+                          {t("journalEntries.lineColContact")}
                         </th>
                         <th className="px-3 py-2 font-medium min-w-[150px]">
-                          Description
+                          {t("journalEntries.lineColDescription")}
                         </th>
                         <th className="px-3 py-2 text-right font-medium w-32">
-                          Debit
+                          {t("journalEntries.lineColDebit")}
                         </th>
                         <th className="px-3 py-2 text-right font-medium w-32">
-                          Credit
+                          {t("journalEntries.lineColCredit")}
                         </th>
                         {canWrite && (
                           <th className="px-3 py-2 text-center font-medium w-16">
-                            Hapus
+                            {t("journalEntries.lineColRemove")}
                           </th>
                         )}
                       </tr>
@@ -818,7 +835,7 @@ function JournalEntryFormDialog({
                               onChange={(value) =>
                                 updateLine(index, "accountId", value)
                               }
-                              placeholder="-- Pilih Akun --"
+                                placeholder={t("journalEntries.selectLineAccount")}
                               options={allAccounts.map((acc) => ({
                                 value: acc.id,
                                 label: `${acc.code} - ${acc.name}`,
@@ -834,7 +851,7 @@ function JournalEntryFormDialog({
                                 updateLine(index, "contactId", event.target.value)
                               }
                             >
-                              <option value="">-- Tanpa Kontak --</option>
+                              <option value="">{t("journalEntries.noContact")}</option>
                               {contactOptions.map((c) => (
                                 <option key={c.id} value={c.id}>
                                   {c.name} ({c.kinds.join(", ")})
@@ -846,7 +863,7 @@ function JournalEntryFormDialog({
                             <input
                               type="text"
                               className="w-full h-8 rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
-                              placeholder="Deskripsi baris"
+                                placeholder={t("journalEntries.lineDescriptionPlaceholder")}
                               value={line.description}
                               disabled={!canWrite}
                               onChange={(event) =>
@@ -904,7 +921,7 @@ function JournalEntryFormDialog({
               <div className="mt-4 border-t pt-3">
                 <div className="flex items-center justify-end gap-6">
                   <div className="text-right">
-                    <div className="text-xs text-gray-500">Total Debit</div>
+                    <div className="text-xs text-gray-500">{t("journalEntries.totalDebitLabel")}</div>
                     <div
                       className={`text-lg font-semibold ${isBalanced ? "text-gray-900" : "text-red-600"}`}
                     >
@@ -912,7 +929,7 @@ function JournalEntryFormDialog({
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xs text-gray-500">Total Credit</div>
+                    <div className="text-xs text-gray-500">{t("journalEntries.totalCreditLabel")}</div>
                     <div
                       className={`text-lg font-semibold ${isBalanced ? "text-gray-900" : "text-red-600"}`}
                     >
@@ -920,11 +937,11 @@ function JournalEntryFormDialog({
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xs text-gray-500">Status</div>
+                    <div className="text-xs text-gray-500">{t("journalEntries.statusLabel")}</div>
                     <div
                       className={`text-sm font-semibold ${isBalanced ? "text-green-700" : "text-red-600"}`}
                     >
-                      {isBalanced ? "Balance ✓" : "Belum balance"}
+                      {isBalanced ? t("journalEntries.balanced") : t("journalEntries.unbalanced")}
                     </div>
                   </div>
                 </div>
@@ -936,7 +953,7 @@ function JournalEntryFormDialog({
 
             <DialogFooter>
               <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-                Batal
+                {t("common.cancel")}
               </Button>
               {canWrite && (
                 <Button
@@ -944,8 +961,8 @@ function JournalEntryFormDialog({
                   disabled={isSubmitting || validationError !== null}
                 >
                   {isNew
-                    ? (isSubmitting ? "Menyimpan..." : "Simpan Jurnal")
-                    : (isSubmitting ? "Menyimpan..." : "Perbarui Jurnal")}
+                    ? (isSubmitting ? t("common.submitting") : t("journalEntries.submitNew"))
+                    : (isSubmitting ? t("common.submitting") : t("journalEntries.submitEdit"))}
                 </Button>
               )}
             </DialogFooter>

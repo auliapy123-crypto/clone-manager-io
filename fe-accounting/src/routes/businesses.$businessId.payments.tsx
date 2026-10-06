@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -39,6 +40,7 @@ export const Route = createFileRoute("/businesses/$businessId/payments")({
 });
 
 function PaymentsPage() {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
@@ -72,10 +74,18 @@ function PaymentsPage() {
   );
 
   const handleDelete = async (payment: Payment) => {
-    const refText = payment.reference ? ` "${payment.reference}"` : "";
     if (
       !window.confirm(
-        `Hapus pembayaran${refText} sebesar ${formatAmount(payment.totalAmount)} dari "${payment.bankAccountName}"? Jurnal terkait juga akan dihapus, dan alokasi ke Purchase Invoice/Expense Claim (jika ada) akan dikembalikan.`,
+        payment.reference
+          ? t("payments.deleteConfirmWithRef", {
+              reference: payment.reference,
+              amount: formatAmount(payment.totalAmount),
+              bankAccount: payment.bankAccountName,
+            })
+          : t("payments.deleteConfirm", {
+              amount: formatAmount(payment.totalAmount),
+              bankAccount: payment.bankAccountName,
+            }),
       )
     ) {
       return;
@@ -92,13 +102,13 @@ function PaymentsPage() {
     <div className="flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Payments</h1>
+          <h1 className="text-lg font-semibold text-gray-900">{t("payments.title")}</h1>
           {data && (
-            <p className="text-sm text-gray-500">{data.pagination.total} pembayaran</p>
+            <p className="text-sm text-gray-500">{t("payments.subtitle", { count: data.pagination.total })}</p>
           )}
         </div>
         {canWrite && (
-          <Button onClick={() => setActivePaymentId("new")}>Catat Pembayaran</Button>
+          <Button onClick={() => setActivePaymentId("new")}>{t("payments.newButton")}</Button>
         )}
       </div>
 
@@ -111,7 +121,7 @@ function PaymentsPage() {
       <div className="flex flex-wrap items-center gap-3">
         <Input
           className="max-w-xs"
-          placeholder="Cari referensi, payee, keterangan..."
+          placeholder={t("payments.searchPlaceholder")}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -120,27 +130,27 @@ function PaymentsPage() {
       <Card>
         <CardContent className="p-0">
           {isPending ? (
-            <p className="p-6 text-sm text-gray-500">Memuat pembayaran...</p>
+            <p className="p-6 text-sm text-gray-500">{t("payments.loading")}</p>
           ) : isError ? (
             <p role="alert" className="p-6 text-sm text-red-700">
               {getApiErrorMessage(error)}
             </p>
           ) : data.data.length === 0 ? (
-            <p className="p-6 text-sm text-gray-500">Belum ada pembayaran.</p>
+            <p className="p-6 text-sm text-gray-500">{t("payments.empty")}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Date</th>
-                    <th className="px-6 py-3 font-medium">Reference</th>
-                    <th className="px-6 py-3 font-medium">Paid From</th>
-                    <th className="px-6 py-3 font-medium">Payee</th>
-                    <th className="px-6 py-3 font-medium">Description</th>
+                    <th className="px-6 py-3 font-medium">{t("payments.colDate")}</th>
+                    <th className="px-6 py-3 font-medium">{t("payments.colReference")}</th>
+                    <th className="px-6 py-3 font-medium">{t("payments.colPaidFrom")}</th>
+                    <th className="px-6 py-3 font-medium">{t("payments.colPayee")}</th>
+                    <th className="px-6 py-3 font-medium">{t("payments.colDescription")}</th>
                     <th className="px-6 py-3 text-right font-medium">
-                      Total Amount
+                      {t("payments.colTotalAmount")}
                     </th>
-                    <th className="px-6 py-3 font-medium">Aksi</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colActions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -169,7 +179,7 @@ function PaymentsPage() {
                             size="sm"
                             onClick={() => setActivePaymentId(payment.id)}
                           >
-                            {canWrite ? "Edit" : "Lihat"}
+                            {canWrite ? t("common.edit") : t("common.view")}
                           </Button>
                           {canWrite && (
                             <Button
@@ -178,7 +188,7 @@ function PaymentsPage() {
                               disabled={deletePayment.isPending}
                               onClick={() => void handleDelete(payment)}
                             >
-                              Hapus
+                              {t("common.delete")}
                             </Button>
                           )}
                         </div>
@@ -189,7 +199,7 @@ function PaymentsPage() {
                 <tfoot className="border-t bg-gray-50">
                   <tr>
                     <td colSpan={5} className="px-6 py-3 font-medium text-gray-900">
-                      Total
+                      {t("common.total")}
                     </td>
                     <td className="px-6 py-3 text-right font-semibold text-gray-900">
                       {formatAmount(totalAmount)}
@@ -260,6 +270,7 @@ function PaymentFormDialog({
   canWrite,
   onClose,
 }: PaymentFormDialogProps) {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const isNew = paymentId === "new";
   const { data: existingPayment, isPending: isPaymentLoading } = usePayment(
@@ -423,37 +434,37 @@ function PaymentFormDialog({
     setFormError(null);
 
     if (!bankAccountId) {
-      setFormError("Paid from (rekening bank/kas) wajib dipilih.");
+      setFormError(t("payments.validationBankRequired"));
       return;
     }
     if (!contactId) {
-      setFormError("Payee wajib dipilih.");
+      setFormError(t("payments.validationPayeeRequired"));
       return;
     }
 
     const finalDate = date.trim() || getTodayDateString();
 
     if (lines.length === 0) {
-      setFormError("Pembayaran wajib memiliki minimal 1 baris item.");
+      setFormError(t("payments.validationMinLines"));
       return;
     }
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (!line.accountId) {
-        setFormError(`Baris #${i + 1}: Akun wajib dipilih.`);
+        setFormError(t("payments.validationLineAccount", { index: i + 1 }));
         return;
       }
       const amount = parseFloat(line.amount);
       if (!Number.isFinite(amount) || amount <= 0) {
-        setFormError(`Baris #${i + 1}: Nominal harus lebih dari 0.`);
+        setFormError(t("payments.validationLineAmount", { index: i + 1 }));
         return;
       }
       if (line.expenseClaimId) {
         const claim = claimOptions.find(c => c.id === line.expenseClaimId);
         const allocated = lines.filter(l => l.expenseClaimId === line.expenseClaimId).reduce((sum, l) => sum + Math.round(Number(l.amount) * 100), 0);
         if (claim && allocated > Math.round(claimBalance(claim.id, claim.balanceDue) * 100)) {
-          setFormError("Total alokasi melebihi sisa tagihan Expense Claim.");
+          setFormError(t("payments.validationClaimOverallocation"));
           return;
         }
       }
@@ -461,7 +472,11 @@ function PaymentFormDialog({
         const invoice = allInvoicesById.get(line.purchaseInvoiceId);
         if (invoice && amount > invoice.balanceDue) {
           setFormError(
-            `Baris #${i + 1}: Nominal (${formatAmount(amount)}) melebihi sisa tagihan invoice (${formatAmount(invoice.balanceDue)}).`,
+            t("payments.validationInvoiceOverAllocation", {
+              index: i + 1,
+              amount: formatAmount(amount),
+              balance: formatAmount(invoice.balanceDue),
+            }),
           );
           return;
         }
@@ -519,21 +534,21 @@ function PaymentFormDialog({
         <DialogHeader>
           <DialogTitle>
             {isNew
-              ? "Catat Pembayaran"
+              ? t("payments.newButton")
               : canWrite
-                ? "Edit Pembayaran"
-                : "Detail Pembayaran"}
+                ? t("payments.dialogTitleEdit")
+                : t("payments.dialogTitleDetail")}
           </DialogTitle>
           <DialogDescription>
             {isNew
-              ? "Catat pembayaran baru. Jurnal kas/bank akan otomatis diposting, dan alokasi ke Purchase Invoice/Expense Claim (kalau ada) langsung mengurangi sisa tagihannya."
-              : "Lihat atau perbarui pembayaran beserta baris itemnya."}
+              ? t("payments.dialogDescriptionNew")
+              : t("payments.dialogDescriptionEdit")}
           </DialogDescription>
         </DialogHeader>
 
         {isInitialLoading ? (
           <div className="py-12 text-center text-sm text-gray-500">
-            Memuat data pembayaran...
+            {t("payments.loadingDetail")}
           </div>
         ) : (
           <form
@@ -553,7 +568,7 @@ function PaymentFormDialog({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Date *
+                    {t("payments.fieldDate")} *
                   </label>
                   <Input
                     type="date"
@@ -566,10 +581,10 @@ function PaymentFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Reference
+                    {t("payments.fieldReference")}
                   </label>
                   <Input
-                    placeholder="Contoh: PMT-2026-001 (opsional)"
+                    placeholder={t("payments.placeholderReference")}
                     value={reference}
                     disabled={!canWrite}
                     onChange={(event) => setReference(event.target.value)}
@@ -578,7 +593,7 @@ function PaymentFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Paid From *
+                    {t("payments.fieldPaidFrom")} *
                   </label>
                   <select
                     className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
@@ -587,7 +602,7 @@ function PaymentFormDialog({
                     onChange={(event) => setBankAccountId(event.target.value)}
                     required
                   >
-                    <option value="">-- Pilih Rekening --</option>
+                    <option value="">{t("payments.selectAccount")}</option>
                     {bankAccountsData?.data.map((ba) => (
                       <option key={ba.id} value={ba.id}>
                         {ba.name} ({ba.accountCode})
@@ -598,7 +613,7 @@ function PaymentFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Payee *
+                    {t("payments.fieldPayee")} *
                   </label>
                   <select
                     className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
@@ -607,7 +622,7 @@ function PaymentFormDialog({
                     onChange={(event) => handleContactChange(event.target.value)}
                     required
                   >
-                    <option value="">-- Pilih Payee --</option>
+                    <option value="">{t("payments.selectPayee")}</option>
                     {contactOptions.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
@@ -618,10 +633,10 @@ function PaymentFormDialog({
 
                 <div className="flex flex-col gap-1 md:col-span-2">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Description
+                    {t("payments.fieldDescription")}
                   </label>
                   <Input
-                    placeholder="Keterangan pembayaran (opsional)"
+                    placeholder={t("payments.placeholderDescription")}
                     value={description}
                     disabled={!canWrite}
                     onChange={(event) => setDescription(event.target.value)}
@@ -630,7 +645,7 @@ function PaymentFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Project
+                    {t("payments.fieldProject")}
                   </label>
                   <select
                     className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
@@ -638,7 +653,7 @@ function PaymentFormDialog({
                     disabled={!canWrite}
                     onChange={(event) => setProjectId(event.target.value)}
                   >
-                    <option value="">-- Tanpa Proyek --</option>
+                    <option value="">{t("payments.noProject")}</option>
                     {projectOptions.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name} {p.code ? `(${p.code})` : ""}
@@ -649,7 +664,7 @@ function PaymentFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Division
+                    {t("payments.fieldDivision")}
                   </label>
                   <select
                     className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
@@ -657,7 +672,7 @@ function PaymentFormDialog({
                     disabled={!canWrite}
                     onChange={(event) => setDivisionId(event.target.value)}
                   >
-                    <option value="">-- Tanpa Divisi --</option>
+                    <option value="">{t("payments.noDivision")}</option>
                     {divisionOptions.map((d) => (
                       <option key={d.id} value={d.id}>
                         {d.name} {d.code ? `(${d.code})` : ""}
@@ -670,7 +685,7 @@ function PaymentFormDialog({
               <div className="mt-2 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-gray-900">
-                    Baris Item Pembayaran
+                    {t("payments.linesTitle")}
                   </h3>
                   {canWrite && (
                     <Button
@@ -679,7 +694,7 @@ function PaymentFormDialog({
                       size="sm"
                       onClick={addLine}
                     >
-                      + Tambah Baris
+                      {t("payments.addLine")}
                     </Button>
                   )}
                 </div>
@@ -689,20 +704,20 @@ function PaymentFormDialog({
                     <thead className="border-b bg-gray-50 uppercase text-gray-500">
                       <tr>
                         <th className="px-3 py-2 font-medium min-w-[220px]">
-                          Account (bukan Revenue) *
+                          {t("payments.lineColAccount")} *
                         </th>
                         <th className="px-3 py-2 font-medium min-w-[220px]">
-                          Invoice / Expense Claim
+                          {t("payments.lineColAllocation")}
                         </th>
                         <th className="px-3 py-2 font-medium min-w-[160px]">
-                          Description
+                          {t("payments.lineColDescription")}
                         </th>
                         <th className="px-3 py-2 text-right font-medium w-40">
-                          Amount *
+                          {t("payments.lineColAmount")} *
                         </th>
                         {canWrite && (
                           <th className="px-3 py-2 text-center font-medium w-16">
-                            Hapus
+                            {t("payments.lineColRemove")}
                           </th>
                         )}
                       </tr>
@@ -726,7 +741,7 @@ function PaymentFormDialog({
                                 onChange={(value) =>
                                   updateLine(index, "accountId", value)
                                 }
-                                placeholder="-- Pilih Akun --"
+                                placeholder={t("payments.selectLineAccount")}
                                 options={lineAccounts.map((acc) => ({
                                   value: acc.id,
                                   label: `${acc.code} - ${acc.name}`,
@@ -744,30 +759,33 @@ function PaymentFormDialog({
                                       updateLine(index, "purchaseInvoiceId", event.target.value)
                                     }
                                   >
-                                    <option value="">-- Tanpa Alokasi Invoice --</option>
+                                    <option value="">{t("payments.noInvoiceAllocation")}</option>
                                     {invoiceOptionsForLine(line).map((inv) => (
                                       <option key={inv.id} value={inv.id}>
-                                        {inv.reference || inv.issueDate} - Sisa{" "}
-                                        {formatAmount(inv.balanceDue)}
+                                        {t("payments.invoiceOption", {
+                                          reference: inv.reference || inv.issueDate,
+                                          balance: formatAmount(inv.balanceDue),
+                                        })}
                                       </option>
                                     ))}
                                   </select>
                                   {!contactId && (
                                     <p className="mt-0.5 text-[10px] text-amber-600">
-                                      Pilih Payee dulu.
+                                      {t("payments.selectPayeeFirst")}
                                     </p>
                                   )}
                                   {contactId &&
                                     invoiceOptionsForPayee.length === 0 &&
                                     !isInvoicesLoading && (
                                       <p className="mt-0.5 text-[10px] text-amber-600">
-                                        Payee ini tidak punya Purchase Invoice
-                                        yang belum lunas.
+                                        {t("payments.noUnpaidInvoices")}
                                       </p>
                                     )}
                                   {selectedInvoice && (
                                     <p className="mt-0.5 text-[10px] text-gray-500">
-                                      Sisa tagihan: {formatAmount(selectedInvoice.balanceDue)}
+                                      {t("payments.remainingBalance", {
+                                        balance: formatAmount(selectedInvoice.balanceDue),
+                                      })}
                                     </p>
                                   )}
                                 </>
@@ -776,18 +794,18 @@ function PaymentFormDialog({
                                   <select aria-label={`Expense Claim baris ${index + 1}`} className="w-full h-8 rounded border border-gray-300 bg-white px-2 text-xs"
                                     value={line.expenseClaimId} disabled={!canWrite || isClaimsLoading || !contactId}
                                     onChange={event => updateLine(index, "expenseClaimId", event.target.value)}>
-                                    <option value="">-- Tanpa Alokasi Expense Claim --</option>
+                                    <option value="">{t("payments.noClaimAllocation")}</option>
                                     {claimOptions.filter(c => c.status === "Unpaid" || c.id === line.expenseClaimId || (existingPayment?.lines ?? []).some(l => l.expenseClaimId === c.id)).map(c => (
-                                      <option key={c.id} value={c.id}>{c.reference || c.date} - Sisa {formatAmount(claimBalance(c.id, c.balanceDue))}</option>
+                                      <option key={c.id} value={c.id}>{t("payments.claimOption", { reference: c.reference || c.date, balance: formatAmount(claimBalance(c.id, c.balanceDue)) })}</option>
                                     ))}
-                                    {line.expenseClaimId && !claimOptions.some(c => c.id === line.expenseClaimId) && <option value={line.expenseClaimId}>Klaim tidak tersedia</option>}
+                                    {line.expenseClaimId && !claimOptions.some(c => c.id === line.expenseClaimId) && <option value={line.expenseClaimId}>{t("payments.claimUnavailable")}</option>}
                                   </select>
-                                  {!contactId && <p className="text-xs text-amber-600">Pilih Payee dulu.</p>}
+                                  {!contactId && <p className="text-xs text-amber-600">{t("payments.selectPayeeFirst")}</p>}
                                   {claimsError && <p role="alert" className="text-xs text-red-600">{getApiErrorMessage(claimsError)}</p>}
                                 </>
                               ) : (
                                 <span className="text-[10px] text-gray-400">
-                                  Pilih akun kontrol AP atau Expense Claims
+                                  {t("payments.selectControlHint")}
                                 </span>
                               )}
                             </td>
@@ -795,7 +813,7 @@ function PaymentFormDialog({
                               <input
                                 type="text"
                                 className="w-full h-8 rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
-                                placeholder="Deskripsi baris"
+                                placeholder={t("payments.lineDescriptionPlaceholder")}
                                 value={line.description}
                                 disabled={!canWrite}
                                 onChange={(event) =>
@@ -841,7 +859,7 @@ function PaymentFormDialog({
               <div className="mt-4 border-t pt-3">
                 <div className="flex items-center justify-end gap-6">
                   <div className="text-right">
-                    <div className="text-xs text-gray-500">Total Pembayaran</div>
+                    <div className="text-xs text-gray-500">{t("payments.totalLabel")}</div>
                     <div className="text-lg font-semibold text-gray-900">
                       {formatAmount(liveTotalAmount)}
                     </div>
@@ -852,13 +870,13 @@ function PaymentFormDialog({
 
             <DialogFooter>
               <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-                Batal
+                {t("common.cancel")}
               </Button>
               {canWrite && (
                 <Button type="submit" disabled={isSubmitting}>
                   {isNew
-                    ? (isSubmitting ? "Menyimpan..." : "Simpan Pembayaran")
-                    : (isSubmitting ? "Menyimpan..." : "Perbarui Pembayaran")}
+                    ? (isSubmitting ? t("common.submitting") : t("payments.submitNew"))
+                    : (isSubmitting ? t("common.submitting") : t("payments.submitEdit"))}
                 </Button>
               )}
             </DialogFooter>
