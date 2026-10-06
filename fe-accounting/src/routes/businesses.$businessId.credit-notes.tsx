@@ -26,6 +26,7 @@ import {
   useCreditNotes,
   useUpdateCreditNote,
 } from "@/hooks/use-credit-notes";
+import { useTranslation } from "react-i18next";
 import { getApiErrorMessage } from "@/lib/errors";
 import { useFormatAmount } from "@/lib/format";
 
@@ -34,6 +35,7 @@ export const Route = createFileRoute("/businesses/$businessId/credit-notes")({
 });
 
 function CreditNotesPage() {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
@@ -66,7 +68,7 @@ function CreditNotesPage() {
     const refText = note.reference ? ` "${note.reference}"` : "";
     if (
       !window.confirm(
-        `Hapus nota kredit${refText} untuk pelanggan "${note.customerName}"? Jurnal terkait juga akan dihapus.`,
+        t("creditNotes.deleteConfirm", { ref: refText, customer: note.customerName }),
       )
     ) {
       return;
@@ -83,13 +85,13 @@ function CreditNotesPage() {
     <div className="flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Credit Notes</h1>
+          <h1 className="text-lg font-semibold text-gray-900">{t("creditNotes.title")}</h1>
           {data && (
-            <p className="text-sm text-gray-500">{data.pagination.total} nota kredit</p>
+            <p className="text-sm text-gray-500">{t("creditNotes.subtitle", { count: data.pagination.total })}</p>
           )}
         </div>
         {canWrite && (
-          <Button onClick={() => setActiveNoteId("new")}>Nota Kredit Baru</Button>
+          <Button onClick={() => setActiveNoteId("new")}>{t("creditNotes.newButton")}</Button>
         )}
       </div>
 
@@ -101,7 +103,7 @@ function CreditNotesPage() {
 
       <Input
         className="max-w-xs"
-        placeholder="Cari referensi, pelanggan, keterangan..."
+        placeholder={t("creditNotes.searchPlaceholder")}
         value={search}
         onChange={(event) => setSearch(event.target.value)}
       />
@@ -109,26 +111,26 @@ function CreditNotesPage() {
       <Card>
         <CardContent className="p-0">
           {isPending ? (
-            <p className="p-6 text-sm text-gray-500">Memuat nota kredit...</p>
+            <p className="p-6 text-sm text-gray-500">{t("creditNotes.loading")}</p>
           ) : isError ? (
             <p role="alert" className="p-6 text-sm text-red-700">
               {getApiErrorMessage(error)}
             </p>
           ) : data.data.length === 0 ? (
-            <p className="p-6 text-sm text-gray-500">Belum ada nota kredit.</p>
+            <p className="p-6 text-sm text-gray-500">{t("creditNotes.empty")}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Issue Date</th>
-                    <th className="px-6 py-3 font-medium">Reference</th>
-                    <th className="px-6 py-3 font-medium">Customer</th>
-                    <th className="px-6 py-3 font-medium">Description</th>
+                    <th className="px-6 py-3 font-medium">{t("creditNotes.colIssueDate")}</th>
+                    <th className="px-6 py-3 font-medium">{t("creditNotes.colReference")}</th>
+                    <th className="px-6 py-3 font-medium">{t("creditNotes.colCustomer")}</th>
+                    <th className="px-6 py-3 font-medium">{t("creditNotes.colDescription")}</th>
                     <th className="px-6 py-3 text-right font-medium">
-                      Total Amount
+                      {t("creditNotes.colTotalAmount")}
                     </th>
-                    <th className="px-6 py-3 font-medium">Aksi</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colActions")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -147,14 +149,14 @@ function CreditNotesPage() {
                               size="sm"
                               onClick={() => setActiveNoteId(note.id)}
                             >
-                              Edit
+                              {t("common.edit")}
                             </Button>
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => handleDelete(note)}
                             >
-                              Hapus
+                              {t("common.delete")}
                             </Button>
                           </div>
                         )}
@@ -164,7 +166,7 @@ function CreditNotesPage() {
                             size="sm"
                             onClick={() => setActiveNoteId(note.id)}
                           >
-                            Detail
+                            {t("creditNotes.detailButton")}
                           </Button>
                         )}
                       </td>
@@ -174,7 +176,7 @@ function CreditNotesPage() {
                 <tfoot className="border-t bg-gray-50">
                   <tr>
                     <td colSpan={4} className="px-6 py-4 font-medium text-gray-900">
-                      Total
+                      {t("common.total")}
                     </td>
                     <td className="px-6 py-4 text-right font-medium text-gray-900">
                       {formatAmount(totalAmount)}
@@ -221,6 +223,7 @@ function CreditNoteFormDialog({
   canWrite: boolean;
 }) {
   const { formatAmount } = useFormatAmount();
+  const { t } = useTranslation();
   const { data: note, isLoading } = useCreditNote(businessId, noteId);
   const { data: customers } = useCustomers(businessId, 1, {}, 100);
   // Filter kategori Revenue di SERVER (pola Sales Invoices/Receipts).
@@ -279,22 +282,22 @@ function CreditNoteFormDialog({
 
     try {
       if (!formData.customerId) {
-        setFormError("Pelanggan wajib dipilih.");
+        setFormError(t("creditNotes.validationCustomer"));
         return;
       }
 
       if (formData.lines.length === 0) {
-        setFormError("Minimal 1 baris item diperlukan.");
+        setFormError(t("creditNotes.validationMinLines"));
         return;
       }
 
       for (const line of formData.lines) {
         if (!line.accountId) {
-          setFormError("Akun di setiap baris wajib dipilih.");
+          setFormError(t("creditNotes.validationAccount"));
           return;
         }
         if (line.quantity <= 0) {
-          setFormError("Kuantitas harus lebih dari 0.");
+          setFormError(t("creditNotes.validationQty"));
           return;
         }
       }
@@ -353,9 +356,9 @@ function CreditNoteFormDialog({
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle>{noteId ? "Edit Nota Kredit" : "Buat Nota Kredit"}</DialogTitle>
+          <DialogTitle>{noteId ? t("creditNotes.dialogTitleEdit") : t("creditNotes.dialogTitleNew")}</DialogTitle>
           <DialogDescription>
-            {noteId ? "Ubah data nota kredit" : "Buat nota kredit baru"}
+            {noteId ? t("creditNotes.dialogDescEdit") : t("creditNotes.dialogDescNew")}
           </DialogDescription>
         </DialogHeader>
 
@@ -373,7 +376,7 @@ function CreditNoteFormDialog({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Pelanggan *
+                  {t("common.customer")} *
                 </label>
                 <select
                   disabled={!canWrite || isSaving}
@@ -394,7 +397,7 @@ function CreditNoteFormDialog({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Issue Date *
+                  {t("creditNotes.colIssueDate")} *
                 </label>
                 <input
                   type="date"
@@ -409,7 +412,7 @@ function CreditNoteFormDialog({
 
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700">
-                  Reference
+                  {t("creditNotes.colReference")}
                 </label>
                 <input
                   type="text"
@@ -424,7 +427,7 @@ function CreditNoteFormDialog({
 
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700">
-                  Description
+                  {t("creditNotes.colDescription")}
                 </label>
                 <textarea
                   disabled={!canWrite || isSaving}
@@ -442,7 +445,7 @@ function CreditNoteFormDialog({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="block text-sm font-medium text-gray-700">
-                  Baris Item * (minimal 1)
+                  {t("creditNotes.linesTitle")}
                 </label>
                 {canWrite && (
                   <Button
@@ -452,7 +455,7 @@ function CreditNoteFormDialog({
                     onClick={addLine}
                     disabled={isSaving}
                   >
-                    Tambah Baris
+                    {t("creditNotes.addLine")}
                   </Button>
                 )}
               </div>
@@ -461,12 +464,12 @@ function CreditNoteFormDialog({
                 <table className="w-full text-left text-sm">
                   <thead className="border-b bg-gray-50">
                     <tr>
-                      <th className="px-3 py-2">Account</th>
-                      <th className="px-3 py-2">Description</th>
-                      <th className="px-3 py-2 text-right">Qty</th>
-                      <th className="px-3 py-2 text-right">Unit Price</th>
-                      <th className="px-3 py-2 text-right">Total</th>
-                      {canWrite && <th className="px-3 py-2">Aksi</th>}
+                      <th className="px-3 py-2">{t("creditNotes.colAccount")}</th>
+                      <th className="px-3 py-2">{t("creditNotes.colLineDescription")}</th>
+                      <th className="px-3 py-2 text-right">{t("creditNotes.colQty")}</th>
+                      <th className="px-3 py-2 text-right">{t("creditNotes.colUnitPrice")}</th>
+                      <th className="px-3 py-2 text-right">{t("creditNotes.colLineTotal")}</th>
+                      {canWrite && <th className="px-3 py-2">{t("common.colActions")}</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -481,7 +484,7 @@ function CreditNoteFormDialog({
                               onChange={(value) =>
                                 updateLine(idx, "accountId", value)
                               }
-                              placeholder="-- Account --"
+                              placeholder={t("creditNotes.accountPlaceholder")}
                               options={revenueAccounts.map((a) => ({
                                 value: a.id,
                                 label: `${a.code} - ${a.name}`,
@@ -537,7 +540,7 @@ function CreditNoteFormDialog({
                               onClick={() => removeLine(idx)}
                               disabled={formData.lines.length === 1 || isSaving}
                             >
-                              Remove
+                              {t("creditNotes.removeLine")}
                             </Button>
                           </td>
                         )}
@@ -547,7 +550,7 @@ function CreditNoteFormDialog({
                   <tfoot className="border-t bg-gray-50">
                     <tr>
                       <td colSpan={4} className="px-3 py-2 font-medium text-gray-900">
-                        Total
+                        {t("common.total")}
                       </td>
                       <td className="px-3 py-2 text-right font-medium text-gray-900">
                         {formatAmount(totalAmount)}
@@ -562,11 +565,11 @@ function CreditNoteFormDialog({
 
             <DialogFooter className="shrink-0 border-t pt-3">
               <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
-                Cancel
+                {t("creditNotes.cancel")}
               </Button>
               {canWrite && (
                 <Button type="submit" disabled={isSaving}>
-                  {isSaving ? "Menyimpan..." : noteId ? "Update" : "Buat"}
+                  {isSaving ? t("common.submitting") : noteId ? t("creditNotes.submitEdit") : t("creditNotes.submitNew")}
                 </Button>
               )}
             </DialogFooter>

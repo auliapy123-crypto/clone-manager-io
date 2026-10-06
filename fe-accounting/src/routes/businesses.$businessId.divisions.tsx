@@ -22,6 +22,7 @@ import {
   useDivisions,
   useUpdateDivision,
 } from "@/hooks/use-divisions";
+import { useTranslation } from "react-i18next";
 import { getApiErrorMessage } from "@/lib/errors";
 
 export const Route = createFileRoute("/businesses/$businessId/divisions")({
@@ -33,7 +34,8 @@ function StatusBadge({ status }: { status: DivisionStatus }) {
     status === "active"
       ? "bg-green-100 text-green-800 border border-green-200"
       : "bg-gray-100 text-gray-600 border border-gray-200";
-  const label = status === "active" ? "Active" : "Inactive";
+  const { t } = useTranslation();
+  const label = status === "active" ? t("divisions.statusActive") : t("divisions.statusInactive");
   return (
     <span
       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${style}`}
@@ -44,6 +46,7 @@ function StatusBadge({ status }: { status: DivisionStatus }) {
 }
 
 function DivisionsPage() {
+  const { t } = useTranslation();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
   const role = businesses?.find((b) => b.id === businessId)?.role;
@@ -83,7 +86,7 @@ function DivisionsPage() {
 
   const handleDelete = async (division: Division) => {
     const name = division.code ? `${division.code} - ${division.name}` : division.name;
-    if (!window.confirm(`Hapus divisi "${name}"?`)) {
+    if (!window.confirm(t("divisions.deleteConfirm", { name }))) {
       return;
     }
     setDeleteError(null);
@@ -98,15 +101,15 @@ function DivisionsPage() {
     <div className="flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Divisi</h1>
+          <h1 className="text-lg font-semibold text-gray-900">{t("divisions.title")}</h1>
           {data && (
             <p className="text-sm text-gray-500">
-              {data.pagination.total} divisi
+              {t("divisions.subtitle", { count: data.pagination.total })}
             </p>
           )}
         </div>
         {canWrite && (
-          <Button onClick={() => setActiveId("new")}>Divisi Baru</Button>
+          <Button onClick={() => setActiveId("new")}>{t("divisions.newButton")}</Button>
         )}
       </div>
 
@@ -119,7 +122,7 @@ function DivisionsPage() {
       <div className="flex flex-wrap items-center gap-3">
         <Input
           className="max-w-xs"
-          placeholder="Cari nama atau kode divisi..."
+          placeholder={t("divisions.searchPlaceholder")}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -128,31 +131,31 @@ function DivisionsPage() {
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as "" | DivisionStatus)}
         >
-          <option value="">Semua Status</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
+          <option value="">{t("common.allStatuses")}</option>
+          <option value="active">{t("divisions.statusActive")}</option>
+          <option value="inactive">{t("divisions.statusInactive")}</option>
         </select>
       </div>
 
       <Card>
         <CardContent className="p-0">
           {isPending ? (
-            <p className="p-6 text-sm text-gray-500">Memuat divisi...</p>
+            <p className="p-6 text-sm text-gray-500">{t("divisions.loading")}</p>
           ) : isError ? (
             <p role="alert" className="p-6 text-sm text-red-700">
               {getApiErrorMessage(error)}
             </p>
           ) : data.data.length === 0 ? (
-            <p className="p-6 text-sm text-gray-500">Belum ada divisi.</p>
+            <p className="p-6 text-sm text-gray-500">{t("divisions.empty")}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Code</th>
-                    <th className="px-6 py-3 font-medium">Name</th>
-                    <th className="px-6 py-3 font-medium">Status</th>
-                    <th className="px-6 py-3 font-medium">Aksi</th>
+                    <th className="px-6 py-3 font-medium">{t("divisions.colCode")}</th>
+                    <th className="px-6 py-3 font-medium">{t("divisions.colName")}</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colStatus")}</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colActions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -174,7 +177,7 @@ function DivisionsPage() {
                             size="sm"
                             onClick={() => setActiveId(division.id)}
                           >
-                            {canWrite ? "Edit" : "Lihat"}
+                            {canWrite ? t("common.edit") : t("common.view")}
                           </Button>
                           {canWrite && (
                             <Button
@@ -183,7 +186,7 @@ function DivisionsPage() {
                               disabled={deleteDivision.isPending}
                               onClick={() => void handleDelete(division)}
                             >
-                              Hapus
+                              {t("common.delete")}
                             </Button>
                           )}
                         </div>
@@ -230,6 +233,7 @@ function DivisionFormDialog({
   canWrite,
   onClose,
 }: DivisionFormDialogProps) {
+  const { t } = useTranslation();
   const isNew = divisionId === "new";
   const { data: existing, isPending: isLoading } = useDivision(
     businessId,
@@ -258,7 +262,7 @@ function DivisionFormDialog({
     setFormError(null);
 
     if (!name.trim()) {
-      setFormError("Nama divisi wajib diisi.");
+      setFormError(t("divisions.validationName"));
       return;
     }
 
@@ -291,16 +295,16 @@ function DivisionFormDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isNew ? "Divisi Baru" : canWrite ? "Edit Divisi" : "Detail Divisi"}
+            {isNew ? t("divisions.dialogTitleNew") : canWrite ? t("divisions.dialogTitleEdit") : t("divisions.dialogTitleDetail")}
           </DialogTitle>
           <DialogDescription>
-            Divisi/departemen dipakai sebagai tag pengelompokan transaksi.
+            {t("divisions.dialogDescription")}
           </DialogDescription>
         </DialogHeader>
 
         {isInitialLoading ? (
           <div className="py-8 text-center text-sm text-gray-500">
-            Memuat data divisi...
+            {t("divisions.loadingDetail")}
           </div>
         ) : (
           <form
@@ -318,10 +322,10 @@ function DivisionFormDialog({
 
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                Name *
+                {t("divisions.fieldName")} *
               </label>
               <Input
-                placeholder="Contoh: Cabang Jakarta Selatan"
+                placeholder={t("divisions.placeholderName")}
                 value={name}
                 disabled={!canWrite}
                 onChange={(event) => setName(event.target.value)}
@@ -331,10 +335,10 @@ function DivisionFormDialog({
 
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                Code
+                {t("divisions.fieldCode")}
               </label>
               <Input
-                placeholder="Contoh: DIV-JKT-SEL (opsional)"
+                placeholder={t("divisions.placeholderCode")}
                 value={code}
                 disabled={!canWrite}
                 onChange={(event) => setCode(event.target.value)}
@@ -343,7 +347,7 @@ function DivisionFormDialog({
 
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                Status
+                {t("common.colStatus")}
               </label>
               <select
                 className="h-9 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500 disabled:bg-gray-100"
@@ -353,24 +357,24 @@ function DivisionFormDialog({
                   setStatus(event.target.value as DivisionStatus)
                 }
               >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
+                <option value="active">{t("divisions.statusActive")}</option>
+                <option value="inactive">{t("divisions.statusInactive")}</option>
               </select>
             </div>
 
             <DialogFooter>
               <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-                Batal
+                {t("common.cancel")}
               </Button>
               {canWrite && (
                 <Button type="submit" disabled={isSubmitting}>
                   {isNew
                     ? isSubmitting
-                      ? "Menyimpan..."
-                      : "Simpan Divisi"
+                      ? t("common.submitting")
+                      : t("divisions.submitNew")
                     : isSubmitting
-                      ? "Menyimpan..."
-                      : "Perbarui Divisi"}
+                      ? t("common.submitting")
+                      : t("divisions.submitEdit")}
                 </Button>
               )}
             </DialogFooter>
