@@ -26,6 +26,7 @@ import {
   useWithholdingTaxReceipts,
   type WithholdingTaxReceipt,
 } from "@/hooks/use-withholding-tax-receipts";
+import { useTranslation } from "react-i18next";
 import { getApiErrorMessage } from "@/lib/errors";
 import { useFormatAmount } from "@/lib/format";
 
@@ -36,6 +37,7 @@ export const Route = createFileRoute(
 });
 
 function WithholdingTaxReceiptsPage() {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
@@ -89,7 +91,11 @@ function WithholdingTaxReceiptsPage() {
   const handleDelete = async (receipt: WithholdingTaxReceipt) => {
     if (
       !window.confirm(
-        `Hapus bukti potong ${receipt.reference || ""} untuk "${receipt.customerName}" (${formatAmount(receipt.amount)})?`,
+        t("withholdingTaxReceipts.deleteConfirm", {
+          reference: receipt.reference || "",
+          customer: receipt.customerName,
+          amount: formatAmount(receipt.amount),
+        }),
       )
     ) {
       return;
@@ -107,23 +113,23 @@ function WithholdingTaxReceiptsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold text-gray-900">
-            Withholding Tax Receipts
+            {t("withholdingTaxReceipts.title")}
           </h1>
           {data && (
             <p className="text-sm text-gray-500">
-              {data.pagination.total} bukti potong
+              {t("withholdingTaxReceipts.subtitle", { count: data.pagination.total })}
             </p>
           )}
         </div>
         {canWrite && (
-          <Button onClick={() => setActiveReceipt("new")}>Bukti Potong Baru</Button>
+          <Button onClick={() => setActiveReceipt("new")}>{t("withholdingTaxReceipts.newButton")}</Button>
         )}
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <Input
           className="max-w-xs"
-          placeholder="Cari reference atau nama customer..."
+          placeholder={t("withholdingTaxReceipts.searchPlaceholder")}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -141,27 +147,27 @@ function WithholdingTaxReceiptsPage() {
       <Card>
         <CardContent className="p-0">
           {isPending ? (
-            <p className="p-6 text-sm text-gray-500">Memuat bukti potong...</p>
+            <p className="p-6 text-sm text-gray-500">{t("withholdingTaxReceipts.loading")}</p>
           ) : isError ? (
             <p role="alert" className="p-6 text-sm text-red-700">
               {getApiErrorMessage(error)}
             </p>
           ) : data.data.length === 0 ? (
             <p className="p-6 text-sm text-gray-500">
-              Belum ada bukti potong tercatat.
+              {t("withholdingTaxReceipts.empty")}
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Date</th>
-                    <th className="px-6 py-3 font-medium">Reference</th>
-                    <th className="px-6 py-3 font-medium">Customer</th>
-                    <th className="px-6 py-3 font-medium">Sales Invoice</th>
-                    <th className="px-6 py-3 font-medium">Withholding Tax Account</th>
-                    <th className="px-6 py-3 text-right font-medium">Amount</th>
-                    <th className="px-6 py-3 font-medium">Aksi</th>
+                    <th className="px-6 py-3 font-medium">{t("withholdingTaxReceipts.colDate")}</th>
+                    <th className="px-6 py-3 font-medium">{t("withholdingTaxReceipts.colReference")}</th>
+                    <th className="px-6 py-3 font-medium">{t("common.customer")}</th>
+                    <th className="px-6 py-3 font-medium">{t("withholdingTaxReceipts.colSalesInvoice")}</th>
+                    <th className="px-6 py-3 font-medium">{t("withholdingTaxReceipts.colTaxAccount")}</th>
+                    <th className="px-6 py-3 text-right font-medium">{t("withholdingTaxReceipts.colAmount")}</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colActions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -191,7 +197,7 @@ function WithholdingTaxReceiptsPage() {
                             size="sm"
                             onClick={() => setActiveReceipt(receipt)}
                           >
-                            {canWrite ? "Edit" : "Lihat"}
+                            {canWrite ? t("common.edit") : t("common.view")}
                           </Button>
                           {canWrite && (
                             <>
@@ -209,7 +215,7 @@ function WithholdingTaxReceiptsPage() {
                                 disabled={deleteReceipt.isPending}
                                 onClick={() => void handleDelete(receipt)}
                               >
-                                Hapus
+                                {t("common.delete")}
                               </Button>
                             </>
                           )}
@@ -276,6 +282,7 @@ function WithholdingTaxReceiptFormDialog({
   canWrite,
   onClose,
 }: FormDialogProps) {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const isNew = receipt === null;
 
@@ -348,20 +355,20 @@ function WithholdingTaxReceiptFormDialog({
     event.preventDefault();
     setFormError(null);
 
-    if (!date) return setFormError("Date wajib diisi.");
-    if (!customerId) return setFormError("Customer wajib dipilih.");
-    if (!salesInvoiceId) return setFormError("Sales Invoice wajib dipilih.");
-    if (!accountId) return setFormError("Withholding Tax Account wajib dipilih.");
+    if (!date) return setFormError(t("withholdingTaxReceipts.dateRequired"));
+    if (!customerId) return setFormError(t("withholdingTaxReceipts.customerRequired"));
+    if (!salesInvoiceId) return setFormError(t("withholdingTaxReceipts.invoiceRequired"));
+    if (!accountId) return setFormError(t("withholdingTaxReceipts.accountRequired"));
     const parsedAmount = parseFloat(amount);
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      return setFormError("Amount harus lebih dari 0.");
+      return setFormError(t("withholdingTaxReceipts.amountPositive"));
     }
     if (
       maxAmount !== null &&
       Math.round(parsedAmount * 100) > Math.round(maxAmount * 100)
     ) {
       return setFormError(
-        `Amount tidak boleh melebihi sisa tagihan invoice (${formatAmount(maxAmount)}).`,
+        t("withholdingTaxReceipts.amountMax", { max: formatAmount(maxAmount) }),
       );
     }
 
@@ -416,15 +423,15 @@ function WithholdingTaxReceiptFormDialog({
         <DialogHeader className="shrink-0">
           <DialogTitle>
             {isNew
-              ? "Bukti Potong Baru"
+              ? t("withholdingTaxReceipts.dialogTitleNew")
               : canWrite
-                ? "Edit Bukti Potong"
-                : "Detail Bukti Potong"}
+                ? t("withholdingTaxReceipts.dialogTitleEdit")
+                : t("withholdingTaxReceipts.dialogTitleDetail")}
           </DialogTitle>
           <DialogDescription>
             {isNew
-              ? "Catat pajak yang dipotong pelanggan. Memposting jurnal (Debit akun pajak, Kredit Piutang Usaha) dan mengurangi sisa tagihan invoice."
-              : "Perbarui atau hapus bukti potong ini. Jurnal akan disusun ulang."}
+              ? t("withholdingTaxReceipts.dialogDescNew")
+              : t("withholdingTaxReceipts.dialogDescEdit")}
           </DialogDescription>
         </DialogHeader>
 
@@ -443,7 +450,7 @@ function WithholdingTaxReceiptFormDialog({
           )}
 
           <div className="flex flex-col gap-1">
-            <label className={labelClass}>Date *</label>
+            <label className={labelClass}>{t("withholdingTaxReceipts.fieldDate")} *</label>
             <Input
               type="date"
               value={date}
@@ -454,7 +461,7 @@ function WithholdingTaxReceiptFormDialog({
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className={labelClass}>Customer *</label>
+            <label className={labelClass}>{t("withholdingTaxReceipts.fieldCustomer")} *</label>
             <select
               className={selectClass}
               value={customerId}
@@ -472,7 +479,7 @@ function WithholdingTaxReceiptFormDialog({
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className={labelClass}>Sales Invoice *</label>
+            <label className={labelClass}>{t("withholdingTaxReceipts.fieldSalesInvoice")} *</label>
             <select
               className={selectClass}
               value={salesInvoiceId}
@@ -481,7 +488,7 @@ function WithholdingTaxReceiptFormDialog({
               required
             >
               <option value="">
-                {customerId ? "-- Pilih Sales Invoice --" : "Pilih Customer dulu"}
+                {customerId ? t("withholdingTaxReceipts.invoicePlaceholder") : t("withholdingTaxReceipts.pickCustomerFirst")}
               </option>
               {invoicesForCustomer.map((invoice) => (
                 <option key={invoice.id} value={invoice.id}>
@@ -498,13 +505,13 @@ function WithholdingTaxReceiptFormDialog({
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className={labelClass}>Withholding Tax Account *</label>
+            <label className={labelClass}>{t("withholdingTaxReceipts.fieldTaxAccount")} *</label>
                         <Combobox
-              ariaLabel="Withholding Tax Account"
+              ariaLabel={t("withholdingTaxReceipts.taxAccountAria")}
               value={accountId}
               disabled={!canWrite || isAccountsLoading}
               onChange={(value) => setAccountId(value)}
-              placeholder="-- Pilih Akun (Asset) --"
+              placeholder={t("withholdingTaxReceipts.taxAccountPlaceholder")}
               options={(accountsData?.data ?? [])
                 .filter((a) => !a.isControlAccount)
                 .map((a) => ({
@@ -515,13 +522,13 @@ function WithholdingTaxReceiptFormDialog({
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className={labelClass}>Amount *</label>
+            <label className={labelClass}>{t("withholdingTaxReceipts.fieldAmount")} *</label>
             <Input
               type="number"
               step="any"
               min="0"
               max={maxAmount ?? undefined}
-              placeholder="Contoh: 300000"
+              placeholder={t("withholdingTaxReceipts.placeholderAmount")}
               value={amount}
               disabled={!canWrite}
               onChange={(event) => setAmount(event.target.value)}
@@ -530,10 +537,10 @@ function WithholdingTaxReceiptFormDialog({
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className={labelClass}>Reference</label>
+            <label className={labelClass}>{t("withholdingTaxReceipts.fieldReference")}</label>
             <Input
               maxLength={50}
-              placeholder="Nomor bukti potong resmi"
+              placeholder={t("withholdingTaxReceipts.placeholderReference")}
               value={reference}
               disabled={!canWrite}
               onChange={(event) => setReference(event.target.value)}
@@ -541,7 +548,7 @@ function WithholdingTaxReceiptFormDialog({
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className={labelClass}>Description</label>
+            <label className={labelClass}>{t("withholdingTaxReceipts.fieldDescription")}</label>
             <Input
               value={description}
               disabled={!canWrite}
@@ -557,7 +564,7 @@ function WithholdingTaxReceiptFormDialog({
               onClick={onClose}
               disabled={isSubmitting || deleteReceipt.isPending}
             >
-              Batal
+              {t("common.cancel")}
             </Button>
             {canWrite && !isNew && (
               <Button
@@ -566,7 +573,7 @@ function WithholdingTaxReceiptFormDialog({
                 disabled={isSubmitting || deleteReceipt.isPending}
                 onClick={() => void handleDelete()}
               >
-                {deleteReceipt.isPending ? "Menghapus..." : "Delete"}
+                {deleteReceipt.isPending ? t("common.deleting") : t("withholdingTaxReceipts.deleteButton")}
               </Button>
             )}
             {canWrite && (
@@ -575,10 +582,10 @@ function WithholdingTaxReceiptFormDialog({
                 disabled={isSubmitting || deleteReceipt.isPending}
               >
                 {isSubmitting
-                  ? "Menyimpan..."
+                  ? t("common.submitting")
                   : isNew
-                    ? "Simpan Bukti Potong"
-                    : "Update"}
+                    ? t("withholdingTaxReceipts.submitNew")
+                    : t("withholdingTaxReceipts.submitEdit")}
               </Button>
             )}
           </DialogFooter>

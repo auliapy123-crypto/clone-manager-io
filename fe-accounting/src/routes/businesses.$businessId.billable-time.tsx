@@ -25,6 +25,7 @@ import {
   useBillableTimeEntry,
   useUpdateBillableTimeEntry,
 } from "@/hooks/use-billable-time";
+import { useTranslation } from "react-i18next";
 import { getApiErrorMessage } from "@/lib/errors";
 import { useFormatAmount } from "@/lib/format";
 
@@ -33,6 +34,7 @@ export const Route = createFileRoute("/businesses/$businessId/billable-time")({
 });
 
 function BillableTimePage() {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
@@ -72,7 +74,7 @@ function BillableTimePage() {
   const handleDelete = async (entry: BillableTimeEntry) => {
     if (
       !window.confirm(
-        `Hapus jam kerja "${entry.description}" untuk pelanggan "${entry.customerName}"?`,
+        t("billableTime.deleteConfirm", { description: entry.description, customer: entry.customerName }),
       )
     ) {
       return;
@@ -98,15 +100,15 @@ function BillableTimePage() {
     <div className="flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Billable Time</h1>
+          <h1 className="text-lg font-semibold text-gray-900">{t("billableTime.title")}</h1>
           {data && (
             <p className="text-sm text-gray-500">
-              {data.pagination.total} catatan jam kerja
+              {t("billableTime.subtitle", { count: data.pagination.total })}
             </p>
           )}
         </div>
         {canWrite && (
-          <Button onClick={() => setActiveEntryId("new")}>Catat Jam Kerja</Button>
+          <Button onClick={() => setActiveEntryId("new")}>{t("billableTime.newButton")}</Button>
         )}
       </div>
 
@@ -119,7 +121,7 @@ function BillableTimePage() {
       <div className="flex flex-wrap items-center gap-3">
         <Input
           className="max-w-xs"
-          placeholder="Cari pelanggan, employee, deskripsi..."
+          placeholder={t("billableTime.searchPlaceholder")}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -129,7 +131,7 @@ function BillableTimePage() {
         <CardContent className="p-0">
           {isPending ? (
             <p className="p-6 text-sm text-gray-500">
-              Memuat catatan jam kerja...
+              {t("billableTime.loading")}
             </p>
           ) : isError ? (
             <p role="alert" className="p-6 text-sm text-red-700">
@@ -137,20 +139,20 @@ function BillableTimePage() {
             </p>
           ) : data.data.length === 0 ? (
             <p className="p-6 text-sm text-gray-500">
-              Belum ada catatan jam kerja.
+              {t("billableTime.empty")}
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Date</th>
-                    <th className="px-6 py-3 font-medium">Customer</th>
-                    <th className="px-6 py-3 font-medium">Employee</th>
-                    <th className="px-6 py-3 font-medium">Description</th>
-                    <th className="px-6 py-3 text-right font-medium">Amount</th>
-                    <th className="px-6 py-3 font-medium">Status</th>
-                    <th className="px-6 py-3 font-medium">Aksi</th>
+                    <th className="px-6 py-3 font-medium">{t("common.date")}</th>
+                    <th className="px-6 py-3 font-medium">{t("common.customer")}</th>
+                    <th className="px-6 py-3 font-medium">{t("billableTime.colEmployee")}</th>
+                    <th className="px-6 py-3 font-medium">{t("billableTime.colDescription")}</th>
+                    <th className="px-6 py-3 text-right font-medium">{t("billableTime.colAmount")}</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colStatus")}</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colActions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -181,7 +183,7 @@ function BillableTimePage() {
                             size="sm"
                             onClick={() => setActiveEntryId(entry.id)}
                           >
-                            {canWrite ? "Edit" : "Lihat"}
+                            {canWrite ? t("common.edit") : t("common.view")}
                           </Button>
                           {canWrite && (
                             <Button
@@ -200,7 +202,7 @@ function BillableTimePage() {
                               disabled={deleteEntry.isPending}
                               onClick={() => void handleDelete(entry)}
                             >
-                              Hapus
+                              {t("common.delete")}
                             </Button>
                           )}
                         </div>
@@ -258,6 +260,7 @@ function BillableTimeFormDialog({
   canWrite,
   onClose,
 }: BillableTimeFormDialogProps) {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const isNew = entryId === "new";
   const { data: existingEntry, isPending: isEntryLoading } = useBillableTimeEntry(
@@ -318,40 +321,40 @@ function BillableTimeFormDialog({
     setFormError(null);
 
     if (!customerId) {
-      setFormError("Pelanggan wajib dipilih.");
+      setFormError(t("common.customerRequired"));
       return;
     }
 
     if (!employeeContactId) {
-      setFormError("Employee wajib dipilih.");
+      setFormError(t("billableTime.employeeRequired"));
       return;
     }
 
     if (!date) {
-      setFormError("Date wajib diisi.");
+      setFormError(t("billableTime.dateRequired"));
       return;
     }
 
     if (!description.trim()) {
-      setFormError("Deskripsi pekerjaan wajib diisi.");
+      setFormError(t("billableTime.descriptionRequired"));
       return;
     }
 
     const rate = parseFloat(hourlyRate);
     if (!Number.isFinite(rate) || rate < 0) {
-      setFormError("Hourly Rate tidak boleh negatif.");
+      setFormError(t("billableTime.rateNonNegative"));
       return;
     }
 
     const h = parseInt(hours, 10) || 0;
     const m = parseInt(minutes, 10) || 0;
     if (h < 0 || m < 0 || m > 59) {
-      setFormError("Menit harus di antara 0-59.");
+      setFormError(t("billableTime.minutesRange"));
       return;
     }
     const spentMinutes = h * 60 + m;
     if (spentMinutes <= 0) {
-      setFormError("Waktu yang dihabiskan harus lebih dari 0.");
+      setFormError(t("billableTime.timeSpentPositive"));
       return;
     }
 
@@ -396,21 +399,21 @@ function BillableTimeFormDialog({
         <DialogHeader>
           <DialogTitle>
             {isNew
-              ? "Catat Jam Kerja"
+              ? t("billableTime.dialogTitleNew")
               : canWrite
-                ? "Edit Jam Kerja"
-                : "Detail Jam Kerja"}
+                ? t("billableTime.dialogTitleEdit")
+                : t("billableTime.dialogTitleDetail")}
           </DialogTitle>
           <DialogDescription>
             {isNew
-              ? "Catat jam kerja yang berpotensi ditagihkan. Tanpa jurnal dan tanpa kaitan ke Sales Invoice."
-              : "Lihat atau perbarui catatan jam kerja."}
+              ? t("billableTime.dialogDescNew")
+              : t("billableTime.dialogDescEdit")}
           </DialogDescription>
         </DialogHeader>
 
         {isInitialLoading ? (
           <div className="py-12 text-center text-sm text-gray-500">
-            Memuat data jam kerja...
+            {t("billableTime.loadingDetail")}
           </div>
         ) : (
           <form
@@ -430,7 +433,7 @@ function BillableTimeFormDialog({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Customer *
+                    {t("billableTime.fieldCustomer")} *
                   </label>
                   <select
                     className={selectClassName}
@@ -439,7 +442,7 @@ function BillableTimeFormDialog({
                     onChange={(event) => setCustomerId(event.target.value)}
                     required
                   >
-                    <option value="">-- Pilih Pelanggan --</option>
+                    <option value="">{t("billableTime.customerPlaceholder")}</option>
                     {customersData?.data.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name} {c.code ? `(${c.code})` : ""}
@@ -450,7 +453,7 @@ function BillableTimeFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Employee *
+                    {t("billableTime.fieldEmployee")} *
                   </label>
                   <select
                     className={selectClassName}
@@ -459,7 +462,7 @@ function BillableTimeFormDialog({
                     onChange={(event) => setEmployeeContactId(event.target.value)}
                     required
                   >
-                    <option value="">-- Pilih Kontak Employee --</option>
+                    <option value="">{t("billableTime.employeePlaceholder")}</option>
                     {contactsData?.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name} {c.code ? `(${c.code})` : ""}
@@ -470,7 +473,7 @@ function BillableTimeFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Date *
+                    {t("billableTime.fieldDate")} *
                   </label>
                   <Input
                     type="date"
@@ -483,13 +486,13 @@ function BillableTimeFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Hourly Rate *
+                    {t("billableTime.fieldHourlyRate")} *
                   </label>
                   <Input
                     type="number"
                     step="any"
                     min="0"
-                    placeholder="Tarif per jam"
+                    placeholder={t("billableTime.placeholderRate")}
                     value={hourlyRate}
                     disabled={!canWrite}
                     onChange={(event) => setHourlyRate(event.target.value)}
@@ -499,10 +502,10 @@ function BillableTimeFormDialog({
 
                 <div className="flex flex-col gap-1 md:col-span-2">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Description *
+                    {t("billableTime.fieldDescription")} *
                   </label>
                   <Input
-                    placeholder="Pekerjaan yang dilakukan"
+                    placeholder={t("billableTime.placeholderDescription")}
                     value={description}
                     disabled={!canWrite}
                     onChange={(event) => setDescription(event.target.value)}
@@ -512,7 +515,7 @@ function BillableTimeFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Time Spent *
+                    {t("billableTime.fieldTimeSpent")} *
                   </label>
                   <div className="flex items-center gap-2">
                     <div className="flex flex-1 items-center gap-1">
@@ -525,7 +528,7 @@ function BillableTimeFormDialog({
                         onChange={(event) => setHours(event.target.value)}
                         required
                       />
-                      <span className="text-xs text-gray-500">Jam</span>
+                      <span className="text-xs text-gray-500">{t("billableTime.unitJam")}</span>
                     </div>
                     <div className="flex flex-1 items-center gap-1">
                       <Input
@@ -556,13 +559,13 @@ function BillableTimeFormDialog({
 
             <DialogFooter>
               <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-                Batal
+                {t("common.cancel")}
               </Button>
               {canWrite && (
                 <Button type="submit" disabled={isSubmitting}>
                   {isNew
-                    ? (isSubmitting ? "Menyimpan..." : "Simpan Jam Kerja")
-                    : (isSubmitting ? "Menyimpan..." : "Perbarui Jam Kerja")}
+                    ? (isSubmitting ? t("common.submitting") : t("billableTime.submitNew"))
+                    : (isSubmitting ? t("common.submitting") : t("billableTime.submitEdit"))}
                 </Button>
               )}
             </DialogFooter>
