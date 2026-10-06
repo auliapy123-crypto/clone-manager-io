@@ -282,7 +282,7 @@ function CreditNoteFormDialog({
 
     try {
       if (!formData.customerId) {
-        setFormError(t("creditNotes.validationCustomer"));
+        setFormError(t("common.customerRequired"));
         return;
       }
 

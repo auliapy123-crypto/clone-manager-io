@@ -8,12 +8,13 @@ import { queryClient } from "@/lib/query-client";
 export const CUSTOM_FIELD_ENTITY_TYPES = ["customer", "sales_invoice"] as const;
 export type CustomFieldEntityType = (typeof CUSTOM_FIELD_ENTITY_TYPES)[number];
 
-export const CUSTOM_FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
-  text: "Teks",
-  number: "Angka",
-  date: "Tanggal",
-  boolean: "Ya/Tidak",
-  select: "Pilihan",
+/** Key i18n label tipe (customFields.*) — teks via t() di pemanggil. */
+export const CUSTOM_FIELD_TYPE_LABEL_KEYS: Record<CustomFieldType, string> = {
+  text: "customFields.typeText",
+  number: "customFields.typeNumber",
+  date: "customFields.typeDate",
+  boolean: "customFields.typeBoolean",
+  select: "customFields.typeSelect",
 };
 
 type CustomFieldType = "text" | "number" | "date" | "boolean" | "select";

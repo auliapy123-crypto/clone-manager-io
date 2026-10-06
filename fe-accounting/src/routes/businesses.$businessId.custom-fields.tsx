@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -15,7 +16,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { useBusinesses } from "@/hooks/use-businesses";
 import {
   CUSTOM_FIELD_ENTITY_TYPES,
-  CUSTOM_FIELD_TYPE_LABELS,
+  CUSTOM_FIELD_TYPE_LABEL_KEYS,
   type CustomFieldDefinition,
   type CustomFieldEntityType,
   type CreateCustomFieldDefinitionInput,
@@ -31,12 +32,13 @@ export const Route = createFileRoute("/businesses/$businessId/custom-fields")({
   component: CustomFieldsPage,
 });
 
-const ENTITY_TYPE_LABELS: Record<CustomFieldEntityType, string> = {
-  customer: "Pelanggan",
-  sales_invoice: "Faktur Penjualan",
+const ENTITY_TYPE_LABEL_KEYS: Record<CustomFieldEntityType, string> = {
+  customer: "menu.customers",
+  sales_invoice: "menu.salesInvoices",
 };
 
 function StatusBadge({ isActive }: { isActive: boolean }) {
+  const { t } = useTranslation();
   const style = isActive
     ? "bg-green-100 text-green-800 border border-green-200"
     : "bg-gray-100 text-gray-600 border border-gray-200";
@@ -44,12 +46,13 @@ function StatusBadge({ isActive }: { isActive: boolean }) {
     <span
       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${style}`}
     >
-      {isActive ? "Aktif" : "Nonaktif"}
+      {isActive ? t("common.active") : t("customFields.optionInactive")}
     </span>
   );
 }
 
 function CustomFieldsPage() {
+  const { t } = useTranslation();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
   const role = businesses?.find((b) => b.id === businessId)?.role;
@@ -103,7 +106,7 @@ function CustomFieldsPage() {
   };
 
   const handleDelete = async (definition: CustomFieldDefinition) => {
-    if (!window.confirm(`Hapus field "${definition.label}" (${definition.key})?`)) {
+    if (!window.confirm(t("customFields.deleteConfirm", { label: definition.label, key: definition.key }))) {
       return;
     }
     setActionError(null);
@@ -118,15 +121,15 @@ function CustomFieldsPage() {
     <div className="flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Custom Fields</h1>
+          <h1 className="text-lg font-semibold text-gray-900">{t("customFields.title")}</h1>
           {data && (
             <p className="text-sm text-gray-500">
-              {data.pagination.total} definisi field
+              {t("customFields.subtitle", { count: data.pagination.total })}
             </p>
           )}
         </div>
         {canWrite && (
-          <Button onClick={() => setActiveId("new")}>Field Baru</Button>
+          <Button onClick={() => setActiveId("new")}>{t("customFields.newButton")}</Button>
         )}
       </div>
 
@@ -142,7 +145,7 @@ function CustomFieldsPage() {
       <div className="flex flex-wrap items-center gap-3">
         <Input
           className="max-w-xs"
-          placeholder="Cari key atau label..."
+          placeholder={t("customFields.searchPlaceholder")}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -153,10 +156,10 @@ function CustomFieldsPage() {
             setEntityFilter(e.target.value as "" | CustomFieldEntityType)
           }
         >
-          <option value="">Semua Entity</option>
+          <option value="">{t("customFields.allEntities")}</option>
           {CUSTOM_FIELD_ENTITY_TYPES.map((entityType) => (
             <option key={entityType} value={entityType}>
-              {ENTITY_TYPE_LABELS[entityType]}
+              {t(ENTITY_TYPE_LABEL_KEYS[entityType])}
             </option>
           ))}
         </select>
@@ -167,9 +170,9 @@ function CustomFieldsPage() {
             setStatusFilter(e.target.value as "" | "true" | "false")
           }
         >
-          <option value="">Semua Status</option>
-          <option value="true">Aktif</option>
-          <option value="false">Nonaktif</option>
+          <option value="">{t("common.allStatuses")}</option>
+          <option value="true">{t("common.active")}</option>
+          <option value="false">{t("customFields.optionInactive")}</option>
         </select>
       </div>
 
@@ -177,7 +180,7 @@ function CustomFieldsPage() {
         <CardContent className="p-0">
           {isPending ? (
             <p className="p-6 text-sm text-gray-500">
-              Memuat definisi custom field...
+              {t("customFields.loading")}
             </p>
           ) : isError ? (
             <p role="alert" className="p-6 text-sm text-red-700">
@@ -185,29 +188,29 @@ function CustomFieldsPage() {
             </p>
           ) : data.data.length === 0 ? (
             <p className="p-6 text-sm text-gray-500">
-              Belum ada definisi custom field.
+              {t("customFields.empty")}
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Entity</th>
-                    <th className="px-6 py-3 font-medium">Key</th>
-                    <th className="px-6 py-3 font-medium">Label</th>
-                    <th className="px-6 py-3 font-medium">Tipe</th>
-                    <th className="px-6 py-3 font-medium">Required</th>
-                    <th className="px-6 py-3 font-medium">Status</th>
-                    <th className="px-6 py-3 font-medium text-right">Terpakai</th>
-                    <th className="px-6 py-3 font-medium">Aksi</th>
+                    <th className="px-6 py-3 font-medium">{t("customFields.colEntity")}</th>
+                    <th className="px-6 py-3 font-medium">{t("customFields.colKey")}</th>
+                    <th className="px-6 py-3 font-medium">{t("customFields.colLabel")}</th>
+                    <th className="px-6 py-3 font-medium">{t("customFields.colType")}</th>
+                    <th className="px-6 py-3 font-medium">{t("customFields.colRequired")}</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colStatus")}</th>
+                    <th className="px-6 py-3 font-medium text-right">{t("common.used")}</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colActions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {data.data.map((definition) => (
                     <tr key={definition.id} className="hover:bg-gray-50">
                       <td className="px-6 py-3 text-gray-900">
-                        {ENTITY_TYPE_LABELS[definition.entityType as CustomFieldEntityType] ??
-                          definition.entityType}
+                        {t(ENTITY_TYPE_LABEL_KEYS[definition.entityType as CustomFieldEntityType] ??
+                          definition.entityType)}
                       </td>
                       <td className="px-6 py-3 font-mono text-xs text-gray-600">
                         {definition.key}
@@ -216,12 +219,12 @@ function CustomFieldsPage() {
                         {definition.label}
                       </td>
                       <td className="px-6 py-3 text-gray-600">
-                        {CUSTOM_FIELD_TYPE_LABELS[
-                          definition.fieldType as keyof typeof CUSTOM_FIELD_TYPE_LABELS
-                        ] ?? definition.fieldType}
+                        {t(CUSTOM_FIELD_TYPE_LABEL_KEYS[
+                          definition.fieldType as keyof typeof CUSTOM_FIELD_TYPE_LABEL_KEYS
+                        ] ?? definition.fieldType)}
                       </td>
                       <td className="px-6 py-3 text-gray-600">
-                        {definition.isRequired ? "Ya" : "—"}
+                        {definition.isRequired ? t("common.yes") : "—"}
                       </td>
                       <td className="px-6 py-3">
                         <StatusBadge isActive={definition.isActive} />
@@ -236,7 +239,7 @@ function CustomFieldsPage() {
                             size="sm"
                             onClick={() => setActiveId(definition.id)}
                           >
-                            {canWrite ? "Edit" : "Lihat"}
+                            {canWrite ? t("common.edit") : t("common.view")}
                           </Button>
                           {canWrite && (
                             <Button
@@ -246,8 +249,8 @@ function CustomFieldsPage() {
                               onClick={() => void handleToggleActive(definition)}
                             >
                               {definition.isActive
-                                ? "Nonaktifkan"
-                                : "Aktifkan"}
+                                ? t("customFields.deactivate")
+                                : t("customFields.activate")}
                             </Button>
                           )}
                           {canWrite && (
@@ -257,7 +260,7 @@ function CustomFieldsPage() {
                               disabled={deleteDefinition.isPending}
                               onClick={() => void handleDelete(definition)}
                             >
-                              Hapus
+                              {t("common.delete")}
                             </Button>
                           )}
                         </div>
@@ -304,6 +307,7 @@ function CustomFieldFormDialog({
   canWrite,
   onClose,
 }: CustomFieldFormDialogProps) {
+  const { t } = useTranslation();
   const isNew = definitionId === "new";
   const { data: existing, isPending: isLoading } = useCustomFieldDefinition(
     businessId,
@@ -355,25 +359,25 @@ function CustomFieldFormDialog({
     setFormError(null);
 
     if (!key.trim()) {
-      setFormError("Key wajib diisi.");
+      setFormError(t("customFields.keyRequired"));
       return;
     }
     if (!/^[a-z0-9_]+$/.test(key.trim())) {
-      setFormError("Key hanya boleh huruf kecil, angka, dan underscore.");
+      setFormError(t("customFields.keyPattern"));
       return;
     }
     if (!label.trim()) {
-      setFormError("Label wajib diisi.");
+      setFormError(t("customFields.labelRequired"));
       return;
     }
     const parsedOptions = parseOptions();
     if (fieldType === "select" && (parsedOptions?.length ?? 0) < 1) {
-      setFormError("Tipe Pilihan (select) wajib punya minimal 1 opsi.");
+      setFormError(t("customFields.selectOptionsRequired"));
       return;
     }
     const sort = parseInt(sortOrder, 10);
     if (!Number.isInteger(sort) || sort < 0) {
-      setFormError("Urutan harus bilangan bulat minimal 0.");
+      setFormError(t("customFields.orderInt"));
       return;
     }
 
@@ -417,20 +421,19 @@ function CustomFieldFormDialog({
         <DialogHeader className="shrink-0">
           <DialogTitle>
             {isNew
-              ? "Field Baru"
+              ? t("customFields.dialogTitleNew")
               : canWrite
-                ? "Edit Custom Field"
-                : "Detail Custom Field"}
+                ? t("customFields.dialogTitleEdit")
+                : t("customFields.dialogTitleDetail")}
           </DialogTitle>
           <DialogDescription>
-            Definisikan field tambahan per jenis record. Field ini muncul di
-            section "Field Tambahan" form record-nya.
+            {t("customFields.dialogDescription")}
           </DialogDescription>
         </DialogHeader>
 
         {isInitialLoading ? (
           <div className="py-8 text-center text-sm text-gray-500">
-            Memuat data definisi...
+{t("customFields.loadingDetail")}
           </div>
         ) : (
           <form
@@ -449,7 +452,7 @@ function CustomFieldFormDialog({
 
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                Entity *
+                {t("customFields.fieldEntity")} *
               </label>
               <select
                 className="h-9 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500 disabled:bg-gray-100"
@@ -462,19 +465,19 @@ function CustomFieldFormDialog({
               >
                 {CUSTOM_FIELD_ENTITY_TYPES.map((value) => (
                   <option key={value} value={value}>
-                    {ENTITY_TYPE_LABELS[value]}
+                    {t(ENTITY_TYPE_LABEL_KEYS[value])}
                   </option>
                 ))}
               </select>
-              {!isNew && <p className="text-xs text-gray-400">Entity tidak dapat diubah.</p>}
+              {!isNew && <p className="text-xs text-gray-400">{t("customFields.entityNoChange")}</p>}
             </div>
 
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                Key *
+                {t("customFields.fieldKey")} *
               </label>
               <Input
-                placeholder="Contoh: no_po_pelanggan"
+                placeholder={t("customFields.placeholderKey")}
                 value={key}
                 disabled={!canWrite || lockTypeAndKey}
                 onChange={(event) => setKey(event.target.value)}
@@ -483,18 +486,17 @@ function CustomFieldFormDialog({
               />
               {lockTypeAndKey && (
                 <p className="text-xs text-amber-600">
-                  Sudah ada {existing?.valuesCount} nilai tersimpan — key tidak
-                  dapat diubah.
+                  {t("customFields.lockKey", { count: existing?.valuesCount ?? 0 })}
                 </p>
               )}
             </div>
 
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                Label *
+                {t("customFields.fieldLabel")} *
               </label>
               <Input
-                placeholder="Contoh: No. PO Pelanggan"
+                placeholder={t("customFields.placeholderLabel")}
                 value={label}
                 disabled={!canWrite}
                 onChange={(event) => setLabel(event.target.value)}
@@ -504,7 +506,7 @@ function CustomFieldFormDialog({
 
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                Tipe *
+                {t("customFields.fieldType")} *
               </label>
               <select
                 className="h-9 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500 disabled:bg-gray-100"
@@ -519,19 +521,18 @@ function CustomFieldFormDialog({
                 required
               >
                 {(
-                  Object.keys(CUSTOM_FIELD_TYPE_LABELS) as Array<
-                    keyof typeof CUSTOM_FIELD_TYPE_LABELS
+                  Object.keys(CUSTOM_FIELD_TYPE_LABEL_KEYS) as Array<
+                    keyof typeof CUSTOM_FIELD_TYPE_LABEL_KEYS
                   >
                 ).map((value) => (
                   <option key={value} value={value}>
-                    {CUSTOM_FIELD_TYPE_LABELS[value]}
+                    {t(CUSTOM_FIELD_TYPE_LABEL_KEYS[value])}
                   </option>
                 ))}
               </select>
               {lockTypeAndKey && (
                 <p className="text-xs text-amber-600">
-                  Sudah ada {existing?.valuesCount} nilai tersimpan — tipe tidak
-                  dapat diubah.
+                  {t("customFields.lockType", { count: existing?.valuesCount ?? 0 })}
                 </p>
               )}
             </div>
@@ -539,11 +540,11 @@ function CustomFieldFormDialog({
             {fieldType === "select" && (
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                  Options * (satu opsi per baris)
+                  {t("customFields.fieldOptions")} *
                 </label>
                 <textarea
                   className="min-h-[64px] rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500 disabled:bg-gray-100"
-                  placeholder={"Kosong\nSedang\nPenuh"}
+                  placeholder={t("customFields.placeholderOptions")}
                   value={optionsText}
                   disabled={!canWrite}
                   onChange={(event) => setOptionsText(event.target.value)}
@@ -560,13 +561,13 @@ function CustomFieldFormDialog({
                   disabled={!canWrite}
                   onChange={(event) => setIsRequired(event.target.checked)}
                 />
-                Wajib diisi (required)
+                {t("customFields.fieldRequired")}
               </label>
             </div>
 
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                Urutan
+                {t("customFields.fieldOrder")}
               </label>
               <Input
                 type="number"
@@ -580,7 +581,7 @@ function CustomFieldFormDialog({
 
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                Status
+                {t("common.colStatus")}
               </label>
               <select
                 className="h-9 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500 disabled:bg-gray-100"
@@ -590,23 +591,23 @@ function CustomFieldFormDialog({
                   setIsActive(event.target.value === "active")
                 }
               >
-                <option value="active">Aktif</option>
-                <option value="inactive">Nonaktif</option>
+                <option value="active">{t("common.active")}</option>
+                <option value="inactive">{t("customFields.optionInactive")}</option>
               </select>
             </div>
             </div>
 
             <DialogFooter className="shrink-0 border-t pt-3">
               <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-                Batal
+                {t("common.cancel")}
               </Button>
               {canWrite && (
                 <Button type="submit" disabled={isSubmitting}>
                   {isSubmitting
-                    ? "Menyimpan..."
+                    ? t("common.submitting")
                     : isNew
-                      ? "Simpan Field"
-                      : "Perbarui Field"}
+                      ? t("customFields.submitNew")
+                      : t("customFields.submitEdit")}
                 </Button>
               )}
             </DialogFooter>

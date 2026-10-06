@@ -23,6 +23,7 @@ import {
   useUpdateLatePaymentFee,
 } from "@/hooks/use-late-payment-fees";
 import { useSalesInvoices } from "@/hooks/use-sales-invoices";
+import { useTranslation } from "react-i18next";
 import { getApiErrorMessage } from "@/lib/errors";
 import { useFormatAmount } from "@/lib/format";
 
@@ -33,6 +34,7 @@ export const Route = createFileRoute(
 });
 
 function LatePaymentFeesPage() {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
@@ -66,20 +68,20 @@ function LatePaymentFeesPage() {
     <div className="flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Late Payment Fees</h1>
+          <h1 className="text-lg font-semibold text-gray-900">{t("latePaymentFees.title")}</h1>
           {data && (
-            <p className="text-sm text-gray-500">{data.pagination.total} denda</p>
+            <p className="text-sm text-gray-500">{t("latePaymentFees.subtitle", { count: data.pagination.total })}</p>
           )}
         </div>
         {canWrite && (
-          <Button onClick={() => setActiveFee("new")}>Catat Denda</Button>
+          <Button onClick={() => setActiveFee("new")}>{t("latePaymentFees.newButton")}</Button>
         )}
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <Input
           className="max-w-xs"
-          placeholder="Cari nama pelanggan..."
+          placeholder={t("latePaymentFees.searchPlaceholder")}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -88,23 +90,23 @@ function LatePaymentFeesPage() {
       <Card>
         <CardContent className="p-0">
           {isPending ? (
-            <p className="p-6 text-sm text-gray-500">Memuat denda...</p>
+            <p className="p-6 text-sm text-gray-500">{t("latePaymentFees.loading")}</p>
           ) : isError ? (
             <p role="alert" className="p-6 text-sm text-red-700">
               {getApiErrorMessage(error)}
             </p>
           ) : data.data.length === 0 ? (
-            <p className="p-6 text-sm text-gray-500">Belum ada denda tercatat.</p>
+            <p className="p-6 text-sm text-gray-500">{t("latePaymentFees.empty")}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Date</th>
-                    <th className="px-6 py-3 font-medium">Customer</th>
-                    <th className="px-6 py-3 font-medium">Sales Invoice</th>
-                    <th className="px-6 py-3 text-right font-medium">Amount</th>
-                    <th className="px-6 py-3 font-medium">Aksi</th>
+                    <th className="px-6 py-3 font-medium">{t("common.date")}</th>
+                    <th className="px-6 py-3 font-medium">{t("latePaymentFees.colCustomer")}</th>
+                    <th className="px-6 py-3 font-medium">{t("latePaymentFees.colSalesInvoice")}</th>
+                    <th className="px-6 py-3 text-right font-medium">{t("latePaymentFees.colAmount")}</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colActions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -124,7 +126,7 @@ function LatePaymentFeesPage() {
                           size="sm"
                           onClick={() => setActiveFee(fee)}
                         >
-                          {canWrite ? "Edit" : "Lihat"}
+                          {canWrite ? t("common.edit") : t("common.view")}
                         </Button>
                       </td>
                     </tr>
@@ -169,6 +171,7 @@ function LatePaymentFeeFormDialog({
   canWrite,
   onClose,
 }: LatePaymentFeeFormDialogProps) {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const isNew = fee === null;
 
@@ -214,20 +217,20 @@ function LatePaymentFeeFormDialog({
     setFormError(null);
 
     if (!date) {
-      setFormError("Date wajib diisi.");
+      setFormError(t("latePaymentFees.validationDate"));
       return;
     }
     if (!customerId) {
-      setFormError("Pelanggan wajib dipilih.");
+      setFormError(t("common.customerRequired"));
       return;
     }
     if (!salesInvoiceId) {
-      setFormError("Sales Invoice wajib dipilih.");
+      setFormError(t("latePaymentFees.validationInvoice"));
       return;
     }
     const parsedAmount = parseFloat(amount);
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      setFormError("Amount harus lebih dari 0.");
+      setFormError(t("latePaymentFees.validationAmount"));
       return;
     }
 
@@ -258,7 +261,7 @@ function LatePaymentFeeFormDialog({
     if (!fee) return;
     if (
       !window.confirm(
-        `Hapus denda untuk pelanggan "${fee.customerName}" (${formatAmount(fee.amount)})?`,
+        t("latePaymentFees.deleteConfirm", { customer: fee.customerName, amount: formatAmount(fee.amount) }),
       )
     ) {
       return;
@@ -279,12 +282,12 @@ function LatePaymentFeeFormDialog({
       <DialogContent onClose={onClose}>
         <DialogHeader>
           <DialogTitle>
-            {isNew ? "Catat Denda Keterlambatan" : canWrite ? "Edit Denda" : "Detail Denda"}
+            {isNew ? t("latePaymentFees.dialogTitleNew") : canWrite ? t("latePaymentFees.dialogTitleEdit") : t("latePaymentFees.dialogTitleDetail")}
           </DialogTitle>
           <DialogDescription>
             {isNew
-              ? "Catat denda keterlambatan pembayaran. Tidak memposting jurnal apa pun."
-              : "Perbarui atau hapus catatan denda ini."}
+              ? t("latePaymentFees.dialogDescNew")
+              : t("latePaymentFees.dialogDescEdit")}
           </DialogDescription>
         </DialogHeader>
 
@@ -303,7 +306,7 @@ function LatePaymentFeeFormDialog({
 
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-              Date *
+              {t("latePaymentFees.fieldDate")} *
             </label>
             <Input
               type="date"
@@ -316,7 +319,7 @@ function LatePaymentFeeFormDialog({
 
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-              Customer *
+              {t("latePaymentFees.fieldCustomer")} *
             </label>
             <select
               className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
@@ -325,7 +328,7 @@ function LatePaymentFeeFormDialog({
               onChange={(event) => handleCustomerChange(event.target.value)}
               required
             >
-              <option value="">-- Pilih Pelanggan --</option>
+              <option value="">{t("latePaymentFees.customerPlaceholder")}</option>
               {customersData?.data.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name} {c.code ? `(${c.code})` : ""}
@@ -336,7 +339,7 @@ function LatePaymentFeeFormDialog({
 
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-              Sales Invoice *
+              {t("latePaymentFees.fieldSalesInvoice")} *
             </label>
             <select
               className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
@@ -346,7 +349,7 @@ function LatePaymentFeeFormDialog({
               required
             >
               <option value="">
-                {customerId ? "-- Pilih Sales Invoice --" : "Pilih Customer dulu"}
+                {customerId ? t("latePaymentFees.invoicePlaceholder") : t("latePaymentFees.pickCustomerFirst")}
               </option>
               {invoicesForCustomer.map((invoice) => (
                 <option key={invoice.id} value={invoice.id}>
@@ -358,13 +361,13 @@ function LatePaymentFeeFormDialog({
 
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-              Amount *
+              {t("latePaymentFees.fieldAmount")} *
             </label>
             <Input
               type="number"
               step="any"
               min="0"
-              placeholder="Contoh: 25000"
+              placeholder={t("latePaymentFees.placeholderAmount")}
               value={amount}
               disabled={!canWrite}
               onChange={(event) => setAmount(event.target.value)}
@@ -379,7 +382,7 @@ function LatePaymentFeeFormDialog({
               onClick={onClose}
               disabled={isSubmitting || deleteFee.isPending}
             >
-              Batal
+              {t("common.cancel")}
             </Button>
             {canWrite && !isNew && (
               <Button
@@ -388,14 +391,14 @@ function LatePaymentFeeFormDialog({
                 disabled={isSubmitting || deleteFee.isPending}
                 onClick={() => void handleDelete()}
               >
-                {deleteFee.isPending ? "Menghapus..." : "Delete"}
+                {deleteFee.isPending ? t("common.deleting") : t("latePaymentFees.deleteButton")}
               </Button>
             )}
             {canWrite && (
               <Button type="submit" disabled={isSubmitting || deleteFee.isPending}>
                 {isNew
-                  ? (isSubmitting ? "Menyimpan..." : "Simpan Denda")
-                  : (isSubmitting ? "Menyimpan..." : "Update")}
+                  ? (isSubmitting ? t("common.submitting") : t("latePaymentFees.submitNew"))
+                  : (isSubmitting ? t("common.submitting") : t("common.update"))}
               </Button>
             )}
           </DialogFooter>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import {
   type CustomFieldEntityType,
@@ -160,15 +161,16 @@ interface CustomFieldsSectionProps {
 }
 
 export function CustomFieldsSection({ state, canWrite }: CustomFieldsSectionProps) {
+  const { t } = useTranslation();
   const { definitions, inactiveValues } = state;
   if (definitions.length === 0 && inactiveValues.length === 0) return null;
 
   return (
     <div className="mt-2 flex flex-col gap-3 rounded-md border border-dashed border-gray-300 p-3">
-      <h3 className="text-sm font-semibold text-gray-900">Field Tambahan</h3>
+      <h3 className="text-sm font-semibold text-gray-900">{t("customFields.sectionTitle")}</h3>
 
       {state.isPending && definitions.length === 0 ? (
-        <p className="text-xs text-gray-500">Memuat field tambahan...</p>
+        <p className="text-xs text-gray-500">{t("customFields.sectionLoading")}</p>
       ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           {definitions.map((def) => {
@@ -217,7 +219,7 @@ export function CustomFieldsSection({ state, canWrite }: CustomFieldsSectionProp
                           state.setString(def.id, event.target.value)
                         }
                       >
-                        <option value="">-- Kosong --</option>
+                        <option value="">{t("customFields.optionEmpty")}</option>
                         {(def.options ?? []).map((opt) => (
                           <option key={opt} value={opt}>
                             {opt}
@@ -253,7 +255,7 @@ export function CustomFieldsSection({ state, canWrite }: CustomFieldsSectionProp
       {inactiveValues.length > 0 && (
         <div className="flex flex-col gap-1">
           <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-            Nilai dari definisi nonaktif
+            {t("customFields.inactiveValuesTitle")}
           </p>
           <dl className="flex flex-col gap-0.5">
             {inactiveValues.map((saved) => (
@@ -261,7 +263,7 @@ export function CustomFieldsSection({ state, canWrite }: CustomFieldsSectionProp
                 <dt className="text-gray-700">{saved.definition.label}</dt>
                 <dd className="text-gray-900">
                   {formatReadOnlyValue(saved.value, saved.definition.fieldType)}
-                  <span className="ml-1 text-xs text-amber-600">(nonaktif)</span>
+                  <span className="ml-1 text-xs text-amber-600">{t("customFields.inactiveTag")}</span>
                 </dd>
               </div>
             ))}
