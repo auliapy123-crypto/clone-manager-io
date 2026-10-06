@@ -48,7 +48,7 @@ export function MobileNavDrawer({ open, onClose, businessId, role }: MobileNavDr
           <button
             type="button"
             onClick={onClose}
-            aria-label="Tutup menu navigasi"
+            aria-label={t("header.closeSidebar")}
             className="rounded p-1 text-gray-400 hover:text-gray-600"
           >
             <X className="h-4 w-4" />

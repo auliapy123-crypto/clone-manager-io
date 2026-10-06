@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
@@ -51,6 +52,7 @@ export function DialogContent({
   onClose,
   ...props
 }: HTMLAttributes<HTMLDivElement> & { onClose?: () => void }) {
+  const { t } = useTranslation();
   return (
     <div
       role="dialog"
@@ -65,7 +67,7 @@ export function DialogContent({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Tutup"
+          aria-label={t("common.close")}
           className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
         >
           <X className="h-4 w-4" />

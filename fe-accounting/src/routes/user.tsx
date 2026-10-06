@@ -4,14 +4,15 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  newPasswordSchema,
-  oldPasswordSchema,
-} from "@/components/change-password-dialog";
 import { Header } from "@/components/header";
 import { useChangePassword, useMe } from "@/hooks/use-auth";
 import { getAccessToken } from "@/lib/auth/cookies";
 import { getApiErrorMessage } from "@/lib/errors";
+import { useTranslation } from "react-i18next";
+import {
+  makeNewPasswordSchema,
+  makeOldPasswordSchema,
+} from "@/components/change-password-dialog";
 import { zodFieldValidator } from "@/lib/form-validators";
 
 // Guide §9: profil user aktif + form ganti password (versi halaman, bukan dialog).
@@ -25,11 +26,12 @@ export const Route = createFileRoute("/user")({
 });
 
 function UserProfilePage() {
+  const { t } = useTranslation();
   return (
     <>
       <Header />
       <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
-        <h1 className="text-lg font-semibold text-gray-900">Profil Saya</h1>
+        <h1 className="text-lg font-semibold text-gray-900">{t("user.title")}</h1>
         <ProfileCard />
         <ChangePasswordCard />
       </div>
@@ -39,16 +41,17 @@ function UserProfilePage() {
 
 function ProfileCard() {
   const { data: user, isPending, isError, error } = useMe();
+  const { t } = useTranslation();
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Informasi Akun</CardTitle>
-        <CardDescription>Data akun yang digunakan untuk login.</CardDescription>
+        <CardTitle>{t("user.accountInfo")}</CardTitle>
+        <CardDescription>{t("user.accountInfoDesc")}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {isPending ? (
-          <p className="text-sm text-gray-500">Memuat profil...</p>
+          <p className="text-sm text-gray-500">{t("user.loadingProfile")}</p>
         ) : isError ? (
           <p role="alert" className="text-sm text-red-700">
             {getApiErrorMessage(error)}
@@ -56,11 +59,11 @@ function ProfileCard() {
         ) : (
           <>
             <div>
-              <p className="text-xs font-medium uppercase text-gray-400">Nama</p>
+              <p className="text-xs font-medium uppercase text-gray-400">{t("common.colName")}</p>
               <p className="text-sm text-gray-900">{user.name}</p>
             </div>
             <div>
-              <p className="text-xs font-medium uppercase text-gray-400">Email</p>
+              <p className="text-xs font-medium uppercase text-gray-400">{t("common.colEmail")}</p>
               <p className="text-sm text-gray-900">{user.email}</p>
             </div>
           </>
@@ -72,6 +75,7 @@ function ProfileCard() {
 
 function ChangePasswordCard() {
   const changePassword = useChangePassword();
+  const { t } = useTranslation();
   const [serverError, setServerError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
@@ -93,8 +97,8 @@ function ChangePasswordCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Ganti Password</CardTitle>
-        <CardDescription>Masukkan password lama dan password baru Anda.</CardDescription>
+        <CardTitle>{t("changePassword.title")}</CardTitle>
+        <CardDescription>{t("changePassword.description")}</CardDescription>
       </CardHeader>
       <CardContent>
         <form
@@ -107,12 +111,12 @@ function ChangePasswordCard() {
         >
           <form.Field
             name="oldPassword"
-            validators={{ onChange: zodFieldValidator(oldPasswordSchema) }}
+            validators={{ onChange: zodFieldValidator(makeOldPasswordSchema(t)) }}
           >
             {(field) => (
               <div className="flex flex-col gap-1">
                 <label htmlFor={field.name} className="text-sm font-medium text-gray-700">
-                  Password Lama
+                  {t("changePassword.oldPassword")}
                 </label>
                 <Input
                   id={field.name}
@@ -132,12 +136,12 @@ function ChangePasswordCard() {
 
           <form.Field
             name="newPassword"
-            validators={{ onChange: zodFieldValidator(newPasswordSchema) }}
+            validators={{ onChange: zodFieldValidator(makeNewPasswordSchema(t)) }}
           >
             {(field) => (
               <div className="flex flex-col gap-1">
                 <label htmlFor={field.name} className="text-sm font-medium text-gray-700">
-                  Password Baru
+                  {t("changePassword.newPassword")}
                 </label>
                 <Input
                   id={field.name}
@@ -162,14 +166,14 @@ function ChangePasswordCard() {
           )}
           {success && (
             <p role="status" className="rounded bg-green-50 px-3 py-2 text-sm text-green-700">
-              Password berhasil diubah.
+              {t("changePassword.success")}
             </p>
           )}
 
           <form.Subscribe selector={(state) => state.isSubmitting}>
             {(isSubmitting) => (
               <Button type="submit" disabled={isSubmitting} className="self-start">
-                {isSubmitting ? "Menyimpan..." : "Simpan"}
+                {isSubmitting ? t("common.submitting") : t("common.save")}
               </Button>
             )}
           </form.Subscribe>

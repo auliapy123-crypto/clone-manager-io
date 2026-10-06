@@ -17,7 +17,16 @@
     "active": "Aktif",
     "inactive": "Inactive",
     "add": "Tambah",
-    "submitting": "Menyimpan..."
+    "submitting": "Menyimpan...",
+    "used": "Terpakai",
+    "allStatuses": "Semua Status",
+    "loadingData": "Memuat data...",
+    "date": "Tanggal",
+    "description": "Deskripsi",
+    "customer": "Pelanggan",
+    "supplier": "Pemasok",
+    "yes": "Ya",
+    "no": "Tidak"
   },
   "menu": {
     "business": "Bisnis",
@@ -60,7 +69,8 @@
     "hideAmounts": "Sembunyikan nominal (Mode Privasi)",
     "obscureOn": "Matikan Mode Privasi",
     "obscureOff": "Aktifkan Mode Privasi",
-    "language": "Bahasa"
+    "language": "Bahasa",
+    "closeSidebar": "Tutup menu navigasi"
   },
   "login": {
     "title": "Masuk ke Accounting",
@@ -390,7 +400,6 @@
     "loadingLines": "Memuat baris jurnal...",
     "colAccount": "Account",
     "colContact": "Contact",
-    "colDescription": "Description",
     "colDebit": "Debit",
     "colCredit": "Credit",
     "dialogTitleEdit": "Edit Jurnal Manual",
@@ -430,5 +439,36 @@
     "validationLineOneSide": "Baris #{{index}}: isi tepat satu dari debit ATAU kredit.",
     "validationUnbalanced": "Total debit harus sama dengan total kredit.",
     "validationPositiveTotal": "Total jurnal harus lebih dari 0."
+  },
+  "changePassword": {
+    "title": "Ganti Password",
+    "description": "Masukkan password lama dan password baru Anda.",
+    "oldPassword": "Password Lama",
+    "newPassword": "Password Baru",
+    "success": "Password berhasil diubah.",
+    "oldRequired": "Password lama wajib diisi.",
+    "newMinLength": "Password baru minimal 8 karakter."
+  },
+  "user": {
+    "title": "Profil Saya",
+    "accountInfo": "Informasi Akun",
+    "accountInfoDesc": "Data akun yang digunakan untuk login.",
+    "loadingProfile": "Memuat profil..."
+  },
+  "attachments": {
+    "title": "Lampiran",
+    "upload": "Unggah File",
+    "uploading": "Mengunggah...",
+    "maxInfo": "Maksimal 10MB per file. Tipe yang diizinkan: PDF, JPG, JPEG, PNG, WEBP, DOC, DOCX, XLS, XLSX.",
+    "loading": "Memuat lampiran...",
+    "empty": "Belum ada lampiran.",
+    "download": "Unduh",
+    "deleteConfirm": "Hapus lampiran \"{{name}}\"? File fisik di server tetap disimpan.",
+    "uploadedNotice": "File \"{{name}}\" berhasil diunggah.",
+    "deletedNotice": "Lampiran \"{{name}}\" dihapus.",
+    "pickFile": "Pilih file untuk diunggah",
+    "errorTooLarge": "Ukuran file melebihi batas maksimal 10MB (file ini {{size}}).",
+    "errorEmpty": "File kosong (0 byte) tidak bisa diunggah.",
+    "errorType": "Tipe file \"{{name}}\" tidak diizinkan. Yang diizinkan: PDF, JPG, JPEG, PNG, WEBP, DOC, DOCX, XLS, XLSX."
   }
 }

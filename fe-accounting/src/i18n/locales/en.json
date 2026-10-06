@@ -17,7 +17,16 @@
     "active": "Active",
     "inactive": "Inactive",
     "add": "Add",
-    "submitting": "Saving..."
+    "submitting": "Saving...",
+    "used": "Used",
+    "allStatuses": "All Statuses",
+    "loadingData": "Loading data...",
+    "date": "Date",
+    "description": "Description",
+    "customer": "Customer",
+    "supplier": "Supplier",
+    "yes": "Yes",
+    "no": "No"
   },
   "menu": {
     "business": "Businesses",
@@ -60,7 +69,8 @@
     "hideAmounts": "Hide amounts (Privacy Mode)",
     "obscureOn": "Turn off Privacy Mode",
     "obscureOff": "Turn on Privacy Mode",
-    "language": "Language"
+    "language": "Language",
+    "closeSidebar": "Close navigation menu"
   },
   "login": {
     "title": "Sign in to Accounting",
@@ -390,7 +400,6 @@
     "loadingLines": "Loading journal lines...",
     "colAccount": "Account",
     "colContact": "Contact",
-    "colDescription": "Description",
     "colDebit": "Debit",
     "colCredit": "Credit",
     "dialogTitleEdit": "Edit Manual Journal",
@@ -430,5 +439,36 @@
     "validationLineOneSide": "Line #{{index}}: fill exactly one of debit OR credit.",
     "validationUnbalanced": "Total debit must equal total credit.",
     "validationPositiveTotal": "Journal total must be greater than 0."
+  },
+  "changePassword": {
+    "title": "Change Password",
+    "description": "Enter your old and new password.",
+    "oldPassword": "Old Password",
+    "newPassword": "New Password",
+    "success": "Password changed successfully.",
+    "oldRequired": "Old password is required.",
+    "newMinLength": "New password must be at least 8 characters."
+  },
+  "user": {
+    "title": "My Profile",
+    "accountInfo": "Account Information",
+    "accountInfoDesc": "Account data used for sign-in.",
+    "loadingProfile": "Loading profile..."
+  },
+  "attachments": {
+    "title": "Attachments",
+    "upload": "Upload File",
+    "uploading": "Uploading...",
+    "maxInfo": "Max 10MB per file. Allowed types: PDF, JPG, JPEG, PNG, WEBP, DOC, DOCX, XLS, XLSX.",
+    "loading": "Loading attachments...",
+    "empty": "No attachments yet.",
+    "download": "Download",
+    "deleteConfirm": "Delete attachment \"{{name}}\"? The file remains stored on the server.",
+    "uploadedNotice": "File \"{{name}}\" uploaded successfully.",
+    "deletedNotice": "Attachment \"{{name}}\" deleted.",
+    "pickFile": "Choose file to upload",
+    "errorTooLarge": "File exceeds the 10MB limit (this file is {{size}}).",
+    "errorEmpty": "Empty file (0 bytes) cannot be uploaded.",
+    "errorType": "File type \"{{name}}\" is not allowed. Allowed: PDF, JPG, JPEG, PNG, WEBP, DOC, DOCX, XLS, XLSX."
   }
 }

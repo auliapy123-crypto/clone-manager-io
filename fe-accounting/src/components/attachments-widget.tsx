@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
   downloadAttachment,
@@ -27,7 +28,7 @@ export function AttachmentsWidget({
   entityType,
   entityId,
   canWrite,
-  title = "Lampiran",
+  title,
 }: {
   businessId: string;
   entityType: string;
@@ -35,6 +36,7 @@ export function AttachmentsWidget({
   canWrite: boolean;
   title?: string;
 }) {
+  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -64,7 +66,7 @@ export function AttachmentsWidget({
 
     try {
       const created = await upload.mutateAsync(file);
-      setNotice(`File "${created.originalFilename}" berhasil diunggah.`);
+      setNotice(t("attachments.uploadedNotice", { name: created.originalFilename }));
     } catch (err) {
       setError(getApiErrorMessage(err));
     } finally {
@@ -86,7 +88,7 @@ export function AttachmentsWidget({
   async function handleDelete(attachment: Attachment) {
     if (
       !window.confirm(
-        `Hapus lampiran "${attachment.originalFilename}"? File fisik di server tetap disimpan.`,
+        t("attachments.deleteConfirm", { name: attachment.originalFilename }),
       )
     ) {
       return;
@@ -95,7 +97,7 @@ export function AttachmentsWidget({
     setNotice(null);
     try {
       await remove.mutateAsync(attachment.id);
-      setNotice(`Lampiran "${attachment.originalFilename}" dihapus.`);
+      setNotice(t("attachments.deletedNotice", { name: attachment.originalFilename }));
     } catch (err) {
       setError(getApiErrorMessage(err));
     }
@@ -107,7 +109,7 @@ export function AttachmentsWidget({
     <section className="flex flex-col gap-2 rounded-md border border-gray-200 p-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-900">
-          {title}
+          {title ?? t("attachments.title")}
           {attachments ? ` (${count})` : ""}
         </h3>
         {canWrite && (
@@ -116,7 +118,7 @@ export function AttachmentsWidget({
               ref={fileInputRef}
               type="file"
               className="hidden"
-              aria-label="Pilih file untuk diunggah"
+              aria-label={t("attachments.pickFile")}
               accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx"
               onChange={(event) => {
                 const file = event.target.files?.[0];
@@ -130,15 +132,14 @@ export function AttachmentsWidget({
               disabled={upload.isPending}
               onClick={() => fileInputRef.current?.click()}
             >
-              {upload.isPending ? "Mengunggah..." : "Unggah File"}
+              {upload.isPending ? t("attachments.uploading") : t("attachments.upload")}
             </Button>
           </>
         )}
       </div>
 
       <p className="text-xs text-gray-500">
-        Maksimal 10MB per file. Tipe yang diizinkan: PDF, JPG, JPEG, PNG, WEBP,
-        DOC, DOCX, XLS, XLSX.
+        {t("attachments.maxInfo")}
       </p>
 
       {notice && (
@@ -154,13 +155,13 @@ export function AttachmentsWidget({
       )}
 
       {isPending ? (
-        <p className="text-sm text-gray-500">Memuat lampiran...</p>
+        <p className="text-sm text-gray-500">{t("attachments.loading")}</p>
       ) : isError ? (
         <p role="alert" className="text-sm text-red-700">
           {getApiErrorMessage(loadError)}
         </p>
       ) : count === 0 ? (
-        <p className="text-sm text-gray-500">Belum ada lampiran.</p>
+        <p className="text-sm text-gray-500">{t("attachments.empty")}</p>
       ) : (
         <ul className="divide-y">
           {attachments.map((attachment) => (
@@ -184,7 +185,7 @@ export function AttachmentsWidget({
                   size="sm"
                   onClick={() => void handleDownload(attachment)}
                 >
-                  Unduh
+                  {t("attachments.download")}
                 </Button>
                 {canWrite && (
                   <Button
@@ -194,7 +195,7 @@ export function AttachmentsWidget({
                     disabled={remove.isPending}
                     onClick={() => void handleDelete(attachment)}
                   >
-                    Hapus
+                    {t("common.delete")}
                   </Button>
                 )}
               </div>

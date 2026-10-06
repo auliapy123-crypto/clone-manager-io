@@ -1,5 +1,6 @@
 import { formDataBodySerializer } from "@hey-api/client-fetch";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import i18n from "@/i18n";
 import { apiClient } from "@/integrations/setup";
 import { ApiError, type ApiErrorBody } from "@/lib/errors";
 import { queryClient } from "@/lib/query-client";
@@ -69,15 +70,15 @@ function invalidate(
 /** Validasi cepat di frontend (backend tetap memvalidasi ulang). */
 export function validateAttachmentFile(file: File): string | null {
   if (file.size > ATTACHMENT_MAX_BYTES) {
-    return `Ukuran file melebihi batas maksimal 10MB (file ini ${formatFileSize(file.size)}).`;
+    return i18n.t("attachments.errorTooLarge", { size: formatFileSize(file.size) });
   }
   if (file.size === 0) {
-    return "File kosong (0 byte) tidak bisa diunggah.";
+    return i18n.t("attachments.errorEmpty");
   }
   const dot = file.name.lastIndexOf(".");
   const ext = dot >= 0 ? file.name.slice(dot).toLowerCase() : "";
   if (!ext || !ATTACHMENT_ALLOWED_EXTENSIONS.includes(ext)) {
-    return `Tipe file "${ext || file.name}" tidak diizinkan. Yang diizinkan: PDF, JPG, JPEG, PNG, WEBP, DOC, DOCX, XLS, XLSX.`;
+    return i18n.t("attachments.errorType", { name: ext || file.name });
   }
   return null;
 }

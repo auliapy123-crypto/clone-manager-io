@@ -1,4 +1,6 @@
 import { useForm } from "@tanstack/react-form";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -20,12 +22,18 @@ export interface ChangePasswordDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-// Diekspor supaya halaman /user (form ganti password non-dialog) pakai aturan yang sama.
-export const oldPasswordSchema = z.string().min(1, "Password lama wajib diisi.");
-export const newPasswordSchema = z.string().min(8, "Password baru minimal 8 karakter.");
+// Diekspor supaya halaman /user (form ganti password non-dialog) pakai aturan
+// yang sama. Factory per-render: pesan validasi ikut bahasa aktif (reaktif).
+export function makeOldPasswordSchema(t: TFunction) {
+  return z.string().min(1, t("changePassword.oldRequired"));
+}
+export function makeNewPasswordSchema(t: TFunction) {
+  return z.string().min(8, t("changePassword.newMinLength"));
+}
 
 // Guide §9: aksi cepat ganti password dari dropdown header, tanpa pindah halaman.
 export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialogProps) {
+  const { t } = useTranslation();
   const changePassword = useChangePassword();
   const [serverError, setServerError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -55,13 +63,13 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
     <Dialog open={open} onOpenChange={close}>
       <DialogContent onClose={close}>
         <DialogHeader>
-          <DialogTitle>Ganti Password</DialogTitle>
-          <DialogDescription>Masukkan password lama dan password baru Anda.</DialogDescription>
+          <DialogTitle>{t("changePassword.title")}</DialogTitle>
+          <DialogDescription>{t("changePassword.description")}</DialogDescription>
         </DialogHeader>
 
         {success ? (
           <p role="status" className="rounded bg-green-50 px-3 py-2 text-sm text-green-700">
-            Password berhasil diubah.
+            {t("changePassword.success")}
           </p>
         ) : (
           <form
@@ -74,12 +82,12 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
           >
             <form.Field
               name="oldPassword"
-              validators={{ onChange: zodFieldValidator(oldPasswordSchema) }}
+              validators={{ onChange: zodFieldValidator(makeOldPasswordSchema(t)) }}
             >
               {(field) => (
                 <div className="flex flex-col gap-1">
                   <label htmlFor={field.name} className="text-sm font-medium text-gray-700">
-                    Password Lama
+                    {t("changePassword.oldPassword")}
                   </label>
                   <Input
                     id={field.name}
@@ -99,12 +107,12 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
 
             <form.Field
               name="newPassword"
-              validators={{ onChange: zodFieldValidator(newPasswordSchema) }}
+              validators={{ onChange: zodFieldValidator(makeNewPasswordSchema(t)) }}
             >
               {(field) => (
                 <div className="flex flex-col gap-1">
                   <label htmlFor={field.name} className="text-sm font-medium text-gray-700">
-                    Password Baru
+                    {t("changePassword.newPassword")}
                   </label>
                   <Input
                     id={field.name}
@@ -130,12 +138,12 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={close}>
-                Batal
+                {t("common.cancel")}
               </Button>
               <form.Subscribe selector={(state) => state.isSubmitting}>
                 {(isSubmitting) => (
                   <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? "Menyimpan..." : "Simpan"}
+                    {isSubmitting ? t("common.submitting") : t("common.save")}
                   </Button>
                 )}
               </form.Subscribe>
