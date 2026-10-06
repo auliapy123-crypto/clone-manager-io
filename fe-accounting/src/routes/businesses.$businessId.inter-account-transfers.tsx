@@ -23,6 +23,7 @@ import {
   useInterAccountTransfers,
   useUpdateInterAccountTransfer,
 } from "@/hooks/use-inter-account-transfers";
+import { useTranslation } from "react-i18next";
 import { getApiErrorMessage } from "@/lib/errors";
 import { useFormatAmount } from "@/lib/format";
 
@@ -31,6 +32,7 @@ export const Route = createFileRoute("/businesses/$businessId/inter-account-tran
 });
 
 function InterAccountTransfersPage() {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
@@ -67,7 +69,12 @@ function InterAccountTransfersPage() {
     const refText = transfer.reference ? ` "${transfer.reference}"` : "";
     if (
       !window.confirm(
-        `Hapus transfer${refText} sebesar ${formatAmount(transfer.amount)} dari "${transfer.fromBankAccountName}" ke "${transfer.toBankAccountName}"? Jurnal terkait juga akan dihapus.`,
+        t("interAccountTransfers.deleteConfirm", {
+          ref: refText,
+          amount: formatAmount(transfer.amount),
+          from: transfer.fromBankAccountName,
+          to: transfer.toBankAccountName,
+        }),
       )
     ) {
       return;
@@ -84,13 +91,13 @@ function InterAccountTransfersPage() {
     <div className="flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Inter Account Transfers</h1>
+          <h1 className="text-lg font-semibold text-gray-900">{t("interAccountTransfers.title")}</h1>
           {data && (
-            <p className="text-sm text-gray-500">{data.pagination.total} transfer</p>
+            <p className="text-sm text-gray-500">{t("interAccountTransfers.subtitle", { count: data.pagination.total })}</p>
           )}
         </div>
         {canWrite && (
-          <Button onClick={() => setActiveTransferId("new")}>Buat Transfer</Button>
+          <Button onClick={() => setActiveTransferId("new")}>{t("interAccountTransfers.newButton")}</Button>
         )}
       </div>
 
@@ -103,7 +110,7 @@ function InterAccountTransfersPage() {
       <div className="flex flex-wrap items-center gap-3">
         <Input
           className="max-w-xs"
-          placeholder="Cari referensi, akun, keterangan..."
+          placeholder={t("interAccountTransfers.searchPlaceholder")}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -112,24 +119,24 @@ function InterAccountTransfersPage() {
       <Card>
         <CardContent className="p-0">
           {isPending ? (
-            <p className="p-6 text-sm text-gray-500">Memuat transfer...</p>
+            <p className="p-6 text-sm text-gray-500">{t("interAccountTransfers.loading")}</p>
           ) : isError ? (
             <p role="alert" className="p-6 text-sm text-red-700">
               {getApiErrorMessage(error)}
             </p>
           ) : data.data.length === 0 ? (
-            <p className="p-6 text-sm text-gray-500">Belum ada transfer.</p>
+            <p className="p-6 text-sm text-gray-500">{t("interAccountTransfers.empty")}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Date</th>
-                    <th className="px-6 py-3 font-medium">Paid From</th>
-                    <th className="px-6 py-3 font-medium">Received In</th>
-                    <th className="px-6 py-3 font-medium">Description</th>
-                    <th className="px-6 py-3 text-right font-medium">Amount</th>
-                    <th className="px-6 py-3 font-medium">Aksi</th>
+                    <th className="px-6 py-3 font-medium">{t("common.date")}</th>
+                    <th className="px-6 py-3 font-medium">{t("interAccountTransfers.colPaidFrom")}</th>
+                    <th className="px-6 py-3 font-medium">{t("interAccountTransfers.colReceivedIn")}</th>
+                    <th className="px-6 py-3 font-medium">{t("interAccountTransfers.colDescription")}</th>
+                    <th className="px-6 py-3 text-right font-medium">{t("interAccountTransfers.colAmount")}</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colActions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -155,7 +162,7 @@ function InterAccountTransfersPage() {
                             size="sm"
                             onClick={() => setActiveTransferId(transfer.id)}
                           >
-                            {canWrite ? "Edit" : "Lihat"}
+                            {canWrite ? t("common.edit") : t("common.view")}
                           </Button>
                           {canWrite && (
                             <Button
@@ -164,7 +171,7 @@ function InterAccountTransfersPage() {
                               disabled={deleteTransfer.isPending}
                               onClick={() => void handleDelete(transfer)}
                             >
-                              Hapus
+                              {t("common.delete")}
                             </Button>
                           )}
                         </div>
@@ -222,6 +229,7 @@ function InterAccountTransferFormDialog({
   canWrite,
   onClose,
 }: InterAccountTransferFormDialogProps) {
+  const { t } = useTranslation();
   const isNew = transferId === "new";
   const { data: existingTransfer, isPending: isTransferLoading } = useInterAccountTransfer(
     businessId,
@@ -262,21 +270,21 @@ function InterAccountTransferFormDialog({
     setFormError(null);
 
     if (!fromBankAccountId) {
-      setFormError("Akun sumber (Paid from) wajib dipilih.");
+      setFormError(t("interAccountTransfers.validationFrom"));
       return;
     }
     if (!toBankAccountId) {
-      setFormError("Akun tujuan (Received in) wajib dipilih.");
+      setFormError(t("interAccountTransfers.validationTo"));
       return;
     }
     if (fromBankAccountId === toBankAccountId) {
-      setFormError("Akun tujuan harus berbeda dari akun sumber.");
+      setFormError(t("interAccountTransfers.validationDifferent"));
       return;
     }
 
     const parsedAmount = parseFloat(amount);
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      setFormError("Nominal transfer harus lebih dari 0.");
+      setFormError(t("interAccountTransfers.validationAmount"));
       return;
     }
 
@@ -322,21 +330,21 @@ function InterAccountTransferFormDialog({
         <DialogHeader>
           <DialogTitle>
             {isNew
-              ? "Buat Transfer"
+              ? t("interAccountTransfers.dialogTitleNew")
               : canWrite
-                ? "Edit Transfer"
-                : "Detail Transfer"}
+                ? t("interAccountTransfers.dialogTitleEdit")
+                : t("interAccountTransfers.dialogTitleDetail")}
           </DialogTitle>
           <DialogDescription>
             {isNew
-              ? "Pindahkan saldo antar akun. Jurnal debit/kredit akan otomatis diposting."
-              : "Lihat atau perbarui transfer antar akun."}
+              ? t("interAccountTransfers.dialogDescNew")
+              : t("interAccountTransfers.dialogDescEdit")}
           </DialogDescription>
         </DialogHeader>
 
         {isInitialLoading ? (
           <div className="py-12 text-center text-sm text-gray-500">
-            Memuat data transfer...
+            {t("interAccountTransfers.loadingDetail")}
           </div>
         ) : (
           <form
@@ -356,7 +364,7 @@ function InterAccountTransferFormDialog({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Date *
+                    {t("interAccountTransfers.fieldDate")} *
                   </label>
                   <Input
                     type="date"
@@ -369,10 +377,10 @@ function InterAccountTransferFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Reference
+                    {t("interAccountTransfers.fieldReference")}
                   </label>
                   <Input
-                    placeholder="Contoh: TRF-2026-001 (opsional)"
+                    placeholder={t("interAccountTransfers.placeholderReference")}
                     value={reference}
                     disabled={!canWrite}
                     onChange={(event) => setReference(event.target.value)}
@@ -381,7 +389,7 @@ function InterAccountTransferFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Paid From *
+                    {t("interAccountTransfers.fieldPaidFrom")} *
                   </label>
                   <select
                     className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
@@ -390,7 +398,7 @@ function InterAccountTransferFormDialog({
                     onChange={(event) => setFromBankAccountId(event.target.value)}
                     required
                   >
-                    <option value="">-- Pilih Akun Sumber --</option>
+                    <option value="">{t("interAccountTransfers.fromPlaceholder")}</option>
                     {bankAccounts.map((ba) => (
                       <option key={ba.id} value={ba.id}>
                         {ba.name} ({ba.accountCode})
@@ -401,7 +409,7 @@ function InterAccountTransferFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Received In *
+                    {t("interAccountTransfers.fieldReceivedIn")} *
                   </label>
                   <select
                     className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
@@ -410,7 +418,7 @@ function InterAccountTransferFormDialog({
                     onChange={(event) => setToBankAccountId(event.target.value)}
                     required
                   >
-                    <option value="">-- Pilih Akun Tujuan --</option>
+                    <option value="">{t("interAccountTransfers.toPlaceholder")}</option>
                     {bankAccounts.map((ba) => (
                       <option key={ba.id} value={ba.id}>
                         {ba.name} ({ba.accountCode})
@@ -421,7 +429,7 @@ function InterAccountTransferFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Amount *
+                    {t("interAccountTransfers.fieldAmount")} *
                   </label>
                   <Input
                     type="number"
@@ -437,10 +445,10 @@ function InterAccountTransferFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Description
+                    {t("interAccountTransfers.fieldDescription")}
                   </label>
                   <Input
-                    placeholder="Keterangan transfer (opsional)"
+                    placeholder={t("interAccountTransfers.placeholderDescription")}
                     value={description}
                     disabled={!canWrite}
                     onChange={(event) => setDescription(event.target.value)}
@@ -451,13 +459,13 @@ function InterAccountTransferFormDialog({
 
             <DialogFooter>
               <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-                Batal
+                {t("common.cancel")}
               </Button>
               {canWrite && (
                 <Button type="submit" disabled={isSubmitting}>
                   {isNew
-                    ? (isSubmitting ? "Menyimpan..." : "Simpan Transfer")
-                    : (isSubmitting ? "Menyimpan..." : "Perbarui Transfer")}
+                    ? (isSubmitting ? t("common.submitting") : t("interAccountTransfers.submitNew"))
+                    : (isSubmitting ? t("common.submitting") : t("interAccountTransfers.submitEdit"))}
                 </Button>
               )}
             </DialogFooter>
