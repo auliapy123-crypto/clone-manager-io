@@ -24,6 +24,7 @@ import {
   useSalesOrders,
   useUpdateSalesOrder,
 } from "@/hooks/use-sales-orders";
+import { useTranslation } from "react-i18next";
 import { getApiErrorMessage } from "@/lib/errors";
 import { useFormatAmount } from "@/lib/format";
 
@@ -32,6 +33,7 @@ export const Route = createFileRoute("/businesses/$businessId/sales-orders")({
 });
 
 function SalesOrdersPage() {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
@@ -68,7 +70,7 @@ function SalesOrdersPage() {
     const refText = order.reference ? ` "${order.reference}"` : "";
     if (
       !window.confirm(
-        `Hapus pesanan${refText} untuk pelanggan "${order.customerName}"?`,
+        t("salesOrders.deleteConfirm", { ref: refText, customer: order.customerName }),
       )
     ) {
       return;
@@ -85,13 +87,13 @@ function SalesOrdersPage() {
     <div className="flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Sales Orders</h1>
+          <h1 className="text-lg font-semibold text-gray-900">{t("salesOrders.title")}</h1>
           {data && (
-            <p className="text-sm text-gray-500">{data.pagination.total} pesanan</p>
+            <p className="text-sm text-gray-500">{t("salesOrders.subtitle", { count: data.pagination.total })}</p>
           )}
         </div>
         {canWrite && (
-          <Button onClick={() => setActiveOrderId("new")}>Pesanan Baru</Button>
+          <Button onClick={() => setActiveOrderId("new")}>{t("salesOrders.newButton")}</Button>
         )}
       </div>
 
@@ -104,7 +106,7 @@ function SalesOrdersPage() {
       <div className="flex flex-wrap items-center gap-3">
         <Input
           className="max-w-xs"
-          placeholder="Cari referensi, pelanggan, keterangan..."
+          placeholder={t("salesOrders.searchPlaceholder")}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -113,26 +115,26 @@ function SalesOrdersPage() {
       <Card>
         <CardContent className="p-0">
           {isPending ? (
-            <p className="p-6 text-sm text-gray-500">Memuat pesanan...</p>
+            <p className="p-6 text-sm text-gray-500">{t("salesOrders.loading")}</p>
           ) : isError ? (
             <p role="alert" className="p-6 text-sm text-red-700">
               {getApiErrorMessage(error)}
             </p>
           ) : data.data.length === 0 ? (
-            <p className="p-6 text-sm text-gray-500">Belum ada pesanan.</p>
+            <p className="p-6 text-sm text-gray-500">{t("salesOrders.empty")}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Issue Date</th>
-                    <th className="px-6 py-3 font-medium">Reference</th>
-                    <th className="px-6 py-3 font-medium">Customer</th>
-                    <th className="px-6 py-3 font-medium">Description</th>
+                    <th className="px-6 py-3 font-medium">{t("salesOrders.colIssueDate")}</th>
+                    <th className="px-6 py-3 font-medium">{t("salesOrders.colReference")}</th>
+                    <th className="px-6 py-3 font-medium">{t("common.customer")}</th>
+                    <th className="px-6 py-3 font-medium">{t("salesOrders.colDescription")}</th>
                     <th className="px-6 py-3 text-right font-medium">
-                      Total Amount
+                      {t("salesOrders.colTotalAmount")}
                     </th>
-                    <th className="px-6 py-3 font-medium">Aksi</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colActions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -158,7 +160,7 @@ function SalesOrdersPage() {
                             size="sm"
                             onClick={() => setActiveOrderId(order.id)}
                           >
-                            {canWrite ? "Edit" : "Lihat"}
+                            {canWrite ? t("common.edit") : t("common.view")}
                           </Button>
                           {canWrite && (
                             <Button
@@ -167,7 +169,7 @@ function SalesOrdersPage() {
                               disabled={deleteOrder.isPending}
                               onClick={() => void handleDelete(order)}
                             >
-                              Hapus
+                              {t("common.delete")}
                             </Button>
                           )}
                         </div>
@@ -247,6 +249,7 @@ function SalesOrderFormDialog({
   canWrite,
   onClose,
 }: SalesOrderFormDialogProps) {
+  const { t } = useTranslation();
   const { formatAmount } = useFormatAmount();
   const isNew = orderId === "new";
   const { data: existingOrder, isPending: isOrderLoading } = useSalesOrder(
@@ -317,34 +320,34 @@ function SalesOrderFormDialog({
     setFormError(null);
 
     if (!customerId) {
-      setFormError("Pelanggan wajib dipilih.");
+      setFormError(t("common.customerRequired"));
       return;
     }
 
     if (!issueDate) {
-      setFormError("Issue Date wajib diisi.");
+      setFormError(t("common.issueDateRequired"));
       return;
     }
 
     if (lines.length === 0) {
-      setFormError("Pesanan wajib memiliki minimal 1 baris item.");
+      setFormError(t("salesOrders.validationMinLines"));
       return;
     }
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (!line.description.trim()) {
-        setFormError(`Baris #${i + 1}: Deskripsi item wajib diisi.`);
+        setFormError(t("salesOrders.validationDescriptionLine", { index: i + 1 }));
         return;
       }
       const qty = parseFloat(line.quantity);
       if (!Number.isFinite(qty) || qty <= 0) {
-        setFormError(`Baris #${i + 1}: Kuantitas harus lebih dari 0.`);
+        setFormError(t("salesOrders.validationQtyLine", { index: i + 1 }));
         return;
       }
       const price = parseFloat(line.unitPrice);
       if (!Number.isFinite(price) || price < 0) {
-        setFormError(`Baris #${i + 1}: Harga satuan tidak boleh negatif.`);
+        setFormError(t("salesOrders.validationPriceLine", { index: i + 1 }));
         return;
       }
     }
@@ -391,12 +394,12 @@ function SalesOrderFormDialog({
       >
         <DialogHeader>
           <DialogTitle>
-            {isNew ? "Pesanan Baru" : canWrite ? "Edit Pesanan" : "Detail Pesanan"}
+            {isNew ? t("salesOrders.dialogTitleNew") : canWrite ? t("salesOrders.dialogTitleEdit") : t("salesOrders.dialogTitleDetail")}
           </DialogTitle>
           <DialogDescription>
             {isNew
-              ? "Buat pesanan penjualan. Pesanan tidak memposting jurnal apa pun."
-              : "Lihat atau perbarui pesanan beserta baris itemnya."}
+              ? t("salesOrders.dialogDescNew")
+              : t("salesOrders.dialogDescEdit")}
           </DialogDescription>
         </DialogHeader>
 
@@ -422,7 +425,7 @@ function SalesOrderFormDialog({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Issue Date *
+                    {t("salesOrders.fieldIssueDate")} *
                   </label>
                   <Input
                     type="date"
@@ -435,7 +438,7 @@ function SalesOrderFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Customer *
+                    {t("salesOrders.fieldCustomer")} *
                   </label>
                   <select
                     className="h-9 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
@@ -444,7 +447,7 @@ function SalesOrderFormDialog({
                     onChange={(event) => setCustomerId(event.target.value)}
                     required
                   >
-                    <option value="">-- Pilih Pelanggan --</option>
+                    <option value="">{t("salesOrders.customerPlaceholder")}</option>
                     {customersData?.data.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name} {c.code ? `(${c.code})` : ""}
@@ -455,7 +458,7 @@ function SalesOrderFormDialog({
 
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                    Reference
+                    {t("salesOrders.fieldReference")}
                   </label>
                   <Input
                     placeholder="Contoh: 1"
@@ -481,7 +484,7 @@ function SalesOrderFormDialog({
               <div className="mt-2 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-gray-900">
-                    Baris Item Pesanan
+                    {t("salesOrders.linesTitle")}
                   </h3>
                   {canWrite && (
                     <Button
@@ -500,16 +503,16 @@ function SalesOrderFormDialog({
                     <thead className="border-b bg-gray-50 uppercase text-gray-500">
                       <tr>
                         <th className="px-3 py-2 font-medium min-w-[260px]">
-                          Description *
+                          {t("salesOrders.colDescriptionHeader")} *
                         </th>
-                        <th className="px-3 py-2 font-medium w-28">Qty *</th>
-                        <th className="px-3 py-2 font-medium w-40">Unit Price *</th>
+                        <th className="px-3 py-2 font-medium w-28">{t("common.qty")} *</th>
+                        <th className="px-3 py-2 font-medium w-40">{t("purchaseQuotes.colUnitPrice")} *</th>
                         <th className="px-3 py-2 text-right font-medium w-40">
-                          Total
+                          {t("common.total")}
                         </th>
                         {canWrite && (
                           <th className="px-3 py-2 text-center font-medium w-16">
-                            Hapus
+                            {t("common.delete")}
                           </th>
                         )}
                       </tr>
@@ -521,7 +524,7 @@ function SalesOrderFormDialog({
                             <input
                               type="text"
                               className="w-full h-8 rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
-                              placeholder="Nama barang/jasa yang dipesan"
+                              placeholder={t("salesOrders.lineItemPlaceholder")}
                               value={line.description}
                               disabled={!canWrite}
                               onChange={(event) =>
@@ -594,13 +597,13 @@ function SalesOrderFormDialog({
 
             <DialogFooter>
               <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-                Batal
+                {t("common.cancel")}
               </Button>
               {canWrite && (
                 <Button type="submit" disabled={isSubmitting}>
                   {isNew
-                    ? (isSubmitting ? "Menyimpan..." : "Simpan Pesanan")
-                    : (isSubmitting ? "Menyimpan..." : "Perbarui Pesanan")}
+                    ? (isSubmitting ? t("common.submitting") : t("salesOrders.submitNew"))
+                    : (isSubmitting ? t("common.submitting") : t("salesOrders.submitEdit"))}
                 </Button>
               )}
             </DialogFooter>

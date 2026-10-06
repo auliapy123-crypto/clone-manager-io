@@ -38,7 +38,8 @@
     "update": "Update",
     "supplierRequired": "Supplier wajib dipilih.",
     "accountRowAria": "Akun baris {{index}}",
-    "accountPlaceholder": "-- Pilih Akun --"
+    "accountPlaceholder": "-- Pilih Akun --",
+    "issueDateRequired": "Issue Date wajib diisi."
   },
   "menu": {
     "business": "Bisnis",
@@ -753,5 +754,36 @@
     "lineDescriptionPlaceholder": "Deskripsi item",
     "submitNew": "Simpan Penawaran",
     "submitEdit": "Perbarui Penawaran"
+  },
+  "salesOrders": {
+    "title": "Sales Orders",
+    "subtitle": "{{count}} pesanan",
+    "newButton": "Pesanan Baru",
+    "searchPlaceholder": "Cari referensi, pelanggan, keterangan...",
+    "loading": "Memuat pesanan...",
+    "empty": "Belum ada pesanan.",
+    "deleteConfirm": "Hapus pesanan{{ref}} untuk pelanggan \"{{customer}}\"?",
+    "colIssueDate": "Issue Date",
+    "colReference": "Reference",
+    "colDescription": "Description",
+    "colTotalAmount": "Total Amount",
+    "dialogTitleNew": "Pesanan Baru",
+    "dialogTitleEdit": "Edit Pesanan",
+    "dialogTitleDetail": "Detail Pesanan",
+    "dialogDescNew": "Buat pesanan penjualan. Pesanan tidak memposting jurnal apa pun.",
+    "dialogDescEdit": "Lihat atau perbarui pesanan beserta baris itemnya.",
+    "fieldIssueDate": "Issue Date",
+    "fieldCustomer": "Customer",
+    "customerPlaceholder": "-- Pilih Pelanggan --",
+    "fieldReference": "Reference",
+    "linesTitle": "Baris Item Pesanan",
+    "colDescriptionHeader": "Description",
+    "lineItemPlaceholder": "Nama barang/jasa yang dipesan",
+    "validationMinLines": "Pesanan wajib memiliki minimal 1 baris item.",
+    "validationDescriptionLine": "Baris #{{index}}: Deskripsi item wajib diisi.",
+    "validationQtyLine": "Baris #{{index}}: Kuantitas harus lebih dari 0.",
+    "validationPriceLine": "Baris #{{index}}: Harga satuan tidak boleh negatif.",
+    "submitNew": "Simpan Pesanan",
+    "submitEdit": "Perbarui Pesanan"
   }
 }

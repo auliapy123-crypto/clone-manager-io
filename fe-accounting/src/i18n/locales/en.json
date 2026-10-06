@@ -38,7 +38,8 @@
     "update": "Update",
     "supplierRequired": "Supplier is required.",
     "accountRowAria": "Account line {{index}}",
-    "accountPlaceholder": "-- Choose account --"
+    "accountPlaceholder": "-- Choose account --",
+    "issueDateRequired": "Issue date is required."
   },
   "menu": {
     "business": "Businesses",
@@ -753,5 +754,36 @@
     "lineDescriptionPlaceholder": "Item description",
     "submitNew": "Save Quote",
     "submitEdit": "Update Quote"
+  },
+  "salesOrders": {
+    "title": "Sales Orders",
+    "subtitle": "{{count}} orders",
+    "newButton": "New Order",
+    "searchPlaceholder": "Search reference, customer, description...",
+    "loading": "Loading orders...",
+    "empty": "No orders yet.",
+    "deleteConfirm": "Delete order{{ref}} for customer \"{{customer}}\"?",
+    "colIssueDate": "Issue Date",
+    "colReference": "Reference",
+    "colDescription": "Description",
+    "colTotalAmount": "Total Amount",
+    "dialogTitleNew": "New Order",
+    "dialogTitleEdit": "Edit Order",
+    "dialogTitleDetail": "Order Details",
+    "dialogDescNew": "Create a sales order. Orders post no journal.",
+    "dialogDescEdit": "View or update the order including its line items.",
+    "fieldIssueDate": "Issue Date",
+    "fieldCustomer": "Customer",
+    "customerPlaceholder": "-- Choose customer --",
+    "fieldReference": "Reference",
+    "linesTitle": "Order Line Items",
+    "colDescriptionHeader": "Description",
+    "lineItemPlaceholder": "Name of goods/services ordered",
+    "validationMinLines": "An order must have at least 1 line item.",
+    "validationDescriptionLine": "Line #{{index}}: Item description is required.",
+    "validationQtyLine": "Line #{{index}}: Quantity must be greater than 0.",
+    "validationPriceLine": "Line #{{index}}: Unit price cannot be negative.",
+    "submitNew": "Save Order",
+    "submitEdit": "Update Order"
   }
 }
