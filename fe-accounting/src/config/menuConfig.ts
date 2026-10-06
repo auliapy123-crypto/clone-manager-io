@@ -5,7 +5,8 @@ import { ArrowLeftRight, ArrowUpFromLine, BadgePercent, BookMarked, BookOpen, Bu
 export type BusinessRole = "admin" | "accountant" | "viewer";
 
 export interface MenuItem {
-  label: string;
+  /** Key i18n (grup "menu.*") — teks via t() di renderer. */
+  labelKey: string;
   to: string;
   icon: LucideIcon;
   /** Kosong = tampil untuk semua role. */
@@ -17,8 +18,8 @@ export interface MenuItem {
  * tidak terikat konteks/role bisnis tertentu -- jadi tanpa allowedRoles.
  */
 export const headerMenuItems: MenuItem[] = [
-  { label: "Bisnis", to: "/businesses", icon: Building2 },
-  { label: "Pengguna", to: "/user", icon: User },
+  { labelKey: "menu.business", to: "/businesses", icon: Building2 },
+  { labelKey: "menu.users", to: "/user", icon: User },
 ];
 
 /**
@@ -27,160 +28,160 @@ export const headerMenuItems: MenuItem[] = [
  * terhadap "/businesses/$businessId".
  */
 export const businessMenuItems: MenuItem[] = [
-  { label: "Ringkasan", to: "/businesses/$businessId", icon: LayoutDashboard },
+  { labelKey: "menu.summary", to: "/businesses/$businessId", icon: LayoutDashboard },
   {
-    label: "Anggota",
+    labelKey: "menu.members",
     to: "/businesses/$businessId/members",
     icon: Users,
     allowedRoles: ["admin", "accountant"],
   },
   {
-    label: "Bagan Akun",
+    labelKey: "menu.chartOfAccounts",
     to: "/businesses/$businessId/accounts",
     icon: BookOpen,
     allowedRoles: ["admin", "accountant"],
   },
   {
-    label: "Pelanggan",
+    labelKey: "menu.customers",
     to: "/businesses/$businessId/customers",
     icon: User,
     allowedRoles: ["admin", "accountant"],
   },
   {
-    label: "Pemasok",
+    labelKey: "menu.suppliers",
     to: "/businesses/$businessId/suppliers",
     icon: Truck,
     allowedRoles: ["admin", "accountant"],
   },
   {
-    label: "Akun Bank dan Kas",
+    labelKey: "menu.bankAccounts",
     to: "/businesses/$businessId/bank-accounts",
     icon: Landmark,
     allowedRoles: ["admin", "accountant"],
   },
   {
-    label: "Penawaran Penjualan",
+    labelKey: "menu.salesQuotes",
     to: "/businesses/$businessId/sales-quotes",
     icon: Quote,
     allowedRoles: ["admin", "accountant"],
   },
   {
-    label: "Pesanan Penjualan",
+    labelKey: "menu.salesOrders",
     to: "/businesses/$businessId/sales-orders",
     icon: ShoppingCart,
     allowedRoles: ["admin", "accountant"],
   },
   {
-    label: "Faktur Penjualan",
+    labelKey: "menu.salesInvoices",
     to: "/businesses/$businessId/sales-invoices",
     icon: Receipt,
     allowedRoles: ["admin", "accountant"],
   },
   {
-    label: "Nota Kredit",
+    labelKey: "menu.creditNotes",
     to: "/businesses/$businessId/credit-notes",
     icon: FileText,
     allowedRoles: ["admin", "accountant"],
   },
   {
-    label: "Nota Debet",
+    labelKey: "menu.debitNotes",
     to: "/businesses/$businessId/debit-notes",
     icon: FileMinus,
     allowedRoles: ["admin", "accountant"],
   },
   {
-    label: "Denda Keterlambatan",
+    labelKey: "menu.latePaymentFees",
     to: "/businesses/$businessId/late-payment-fees",
     icon: Hourglass,
     allowedRoles: ["admin", "accountant"],
   },
   {
-    label: "Surat Jalan",
+    labelKey: "menu.deliveryNotes",
     to: "/businesses/$businessId/delivery-notes",
     icon: PackageCheck,
     allowedRoles: ["admin", "accountant"],
   },
   {
-    label: "Waktu yang Ditagihkan",
+    labelKey: "menu.billableTime",
     to: "/businesses/$businessId/billable-time",
     icon: Timer,
     allowedRoles: ["admin", "accountant"],
   },
   {
-    label: "Bukti Potong PPh",
+    labelKey: "menu.withholdingTaxReceipts",
     to: "/businesses/$businessId/withholding-tax-receipts",
     icon: BadgePercent,
     allowedRoles: ["admin", "accountant"],
   },
   {
-    label: "Penawaran Pembelian",
+    labelKey: "menu.purchaseQuotes",
     to: "/businesses/$businessId/purchase-quotes",
     icon: Stamp,
     allowedRoles: ["admin", "accountant"],
   },
   {
-    label: "Pesanan Pembelian",
+    labelKey: "menu.purchaseOrders",
     to: "/businesses/$businessId/purchase-orders",
     icon: ClipboardList,
     allowedRoles: ["admin", "accountant"],
   },
   {
-    label: "Faktur Pembelian",
+    labelKey: "menu.purchaseInvoices",
     to: "/businesses/$businessId/purchase-invoices",
     icon: Receipt,
     allowedRoles: ["admin", "accountant"],
   },
   {
-    label: "Penerimaan Kas",
+    labelKey: "menu.receipts",
     to: "/businesses/$businessId/receipts",
     icon: Wallet,
     allowedRoles: ["admin", "accountant"],
   },
-  { label: "Klaim Biaya", to: "/businesses/$businessId/expense-claims", icon: UserRound, allowedRoles: ["admin", "accountant"] },
+  { labelKey: "menu.expenseClaims", to: "/businesses/$businessId/expense-claims", icon: UserRound, allowedRoles: ["admin", "accountant"] },
   {
-    label: "Pembayaran",
+    labelKey: "menu.payments",
     to: "/businesses/$businessId/payments",
     icon: ArrowUpFromLine,
     allowedRoles: ["admin", "accountant"],
   },
   {
-    label: "Transfer Antar Akun",
+    labelKey: "menu.interAccountTransfers",
     to: "/businesses/$businessId/inter-account-transfers",
     icon: ArrowLeftRight,
     allowedRoles: ["admin", "accountant"],
   },
   {
-    label: "Rekonsiliasi Bank",
+    labelKey: "menu.bankReconciliations",
     to: "/businesses/$businessId/bank-reconciliations",
     icon: Scale,
     allowedRoles: ["admin", "accountant"],
   },
   {
-    label: "Jurnal Umum",
+    labelKey: "menu.journalEntries",
     to: "/businesses/$businessId/journal-entries",
     icon: BookMarked,
     allowedRoles: ["admin", "accountant", "viewer"],
   },
   {
-    label: "Proyek",
+    labelKey: "menu.projects",
     to: "/businesses/$businessId/projects",
     icon: FolderKanban,
     allowedRoles: ["admin", "accountant"],
   },
   {
-    label: "Divisi",
+    labelKey: "menu.divisions",
     to: "/businesses/$businessId/divisions",
     icon: Waypoints,
     allowedRoles: ["admin", "accountant"],
   },
   {
-    label: "Kode Pajak",
+    labelKey: "menu.taxCodes",
     to: "/businesses/$businessId/tax-codes",
     icon: Percent,
     allowedRoles: ["admin", "accountant"],
   },
   {
-    label: "Custom Fields",
+    labelKey: "menu.customFields",
     to: "/businesses/$businessId/custom-fields",
     icon: ListPlus,
     allowedRoles: ["admin", "accountant"],
@@ -188,7 +189,7 @@ export const businessMenuItems: MenuItem[] = [
   {
     // Fitur observasi (read-only) -- satu-satunya modul yang viewer juga
     // boleh selain Jurnal Umum.
-    label: "Riwayat",
+    labelKey: "menu.history",
     to: "/businesses/$businessId/history",
     icon: History,
     allowedRoles: ["admin", "accountant", "viewer"],

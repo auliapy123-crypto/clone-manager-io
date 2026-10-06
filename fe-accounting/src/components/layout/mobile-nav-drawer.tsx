@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { type BusinessRole, businessMenuItems, canAccessMenuItem } from "@/config/menuConfig";
+import { useTranslation } from "react-i18next";
 
 export interface MobileNavDrawerProps {
   open: boolean;
@@ -14,6 +15,7 @@ export interface MobileNavDrawerProps {
 // Guide §10.1/§10.2: drawer overlay mobile (< 768px), reuse menuConfig yang
 // sama dengan BusinessSidebar desktop -- tidak ada daftar menu dobel.
 export function MobileNavDrawer({ open, onClose, businessId, role }: MobileNavDrawerProps) {
+  const { t } = useTranslation();
   useEffect(() => {
     if (!open) return;
 
@@ -64,13 +66,13 @@ export function MobileNavDrawer({ open, onClose, businessId, role }: MobileNavDr
               // Label disembunyikan visual (sr-only = tetap dibaca screen
               // reader); title memberi tooltip nama menu penuh saat
               // hover/tekan lama.
-              title={item.label}
+              title={t(item.labelKey)}
               className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
               activeProps={{ className: "bg-gray-100 text-gray-900" }}
               activeOptions={{ exact: item.to === "/businesses/$businessId" }}
             >
               <item.icon className="h-4 w-4 shrink-0" />
-              <span className="sr-only">{item.label}</span>
+              <span className="sr-only">{t(item.labelKey)}</span>
             </Link>
           ))}
       </nav>

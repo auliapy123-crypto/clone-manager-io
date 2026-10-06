@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { MobileNavDrawer } from "@/components/layout/mobile-nav-drawer";
 import { type BusinessRole, businessMenuItems, canAccessMenuItem } from "@/config/menuConfig";
+import { useTranslation } from "react-i18next";
 
 export interface BusinessSidebarProps {
   businessId: string;
@@ -29,6 +30,7 @@ export function BusinessSidebar({
   isOpen,
   onClose,
 }: BusinessSidebarProps) {
+  const { t } = useTranslation();
   const visibleItems = businessMenuItems.filter((item) => canAccessMenuItem(item, role));
 
   return (
@@ -52,13 +54,13 @@ export function BusinessSidebar({
               key={item.to}
               to={item.to}
               params={{ businessId }}
-              title={item.label}
+              title={t(item.labelKey)}
               className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
               activeProps={{ className: "bg-gray-100 text-gray-900" }}
               activeOptions={{ exact: item.to === "/businesses/$businessId" }}
             >
               <item.icon className="h-4 w-4 shrink-0" />
-              <span className="hidden lg:inline">{item.label}</span>
+              <span className="hidden lg:inline">{t(item.labelKey)}</span>
             </Link>
           ))}
         </nav>

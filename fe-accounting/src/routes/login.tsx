@@ -2,15 +2,13 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
 import { useState } from "react";
 import { z } from "zod";
+import { useTranslation } from "react-i18next";
 import { useLogin } from "@/hooks/use-auth";
 import { getApiErrorMessage } from "@/lib/errors";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
-
-const emailSchema = z.string().min(1, "Email wajib diisi.").email("Email tidak valid.");
-const passwordSchema = z.string().min(1, "Password wajib diisi.");
 
 // Package validator-adapter TanStack Form belum dipasang -- validasi per
 // field dijalankan manual lewat zod, bukan lewat opsi `validators` bawaan.
@@ -25,6 +23,15 @@ function LoginPage() {
   const navigate = useNavigate();
   const login = useLogin();
   const [serverError, setServerError] = useState<string | null>(null);
+  const { t } = useTranslation();
+
+  // Skema dibuat per render dengan t() supaya pesan validasi ikut berubah
+  // saat bahasa diganti (Localization Fase 1).
+  const emailSchema = z
+    .string()
+    .min(1, t("login.emailRequired"))
+    .email(t("login.emailInvalid"));
+  const passwordSchema = z.string().min(1, t("login.passwordRequired"));
 
   const form = useForm({
     defaultValues: { email: "", password: "" },
@@ -34,6 +41,7 @@ function LoginPage() {
         await login.mutateAsync(value);
         await navigate({ to: "/businesses" });
       } catch (err) {
+        // Pesan error API tetap bahasa asli backend (out of scope Fase 1).
         setServerError(getApiErrorMessage(err));
       }
     },
@@ -42,7 +50,7 @@ function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-sm rounded-lg border bg-white p-6 shadow-sm">
-        <h1 className="mb-6 text-xl font-semibold text-gray-900">Masuk ke Accounting</h1>
+        <h1 className="mb-6 text-xl font-semibold text-gray-900">{t("login.title")}</h1>
 
         <form
           className="flex flex-col gap-4"
@@ -56,7 +64,7 @@ function LoginPage() {
             {(field) => (
               <div className="flex flex-col gap-1">
                 <label htmlFor={field.name} className="text-sm font-medium text-gray-700">
-                  Email
+                  {t("login.email")}
                 </label>
                 <input
                   id={field.name}
@@ -79,7 +87,7 @@ function LoginPage() {
             {(field) => (
               <div className="flex flex-col gap-1">
                 <label htmlFor={field.name} className="text-sm font-medium text-gray-700">
-                  Password
+                  {t("login.password")}
                 </label>
                 <input
                   id={field.name}
@@ -111,7 +119,7 @@ function LoginPage() {
                 disabled={isSubmitting}
                 className="rounded bg-gray-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
               >
-                {isSubmitting ? "Memproses..." : "Masuk"}
+                {isSubmitting ? t("login.submitting") : t("login.submit")}
               </button>
             )}
           </form.Subscribe>

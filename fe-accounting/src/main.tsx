@@ -5,6 +5,9 @@ import { createRoot } from "react-dom/client";
 import { setupApiClient } from "@/integrations/setup";
 import { queryClient } from "@/lib/query-client";
 import { ObscureProvider } from "@/lib/format";
+// Init i18n SEBELUM render pertama (side-effect import, init sinkron —
+// tidak ada flash bahasa salah).
+import "@/i18n";
 import { routeTree } from "./routeTree.gen";
 import "./index.css";
 

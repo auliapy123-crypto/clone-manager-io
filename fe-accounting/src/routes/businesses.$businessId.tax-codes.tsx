@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/businesses/$businessId/tax-codes")({
 });
 
 function StatusBadge({ isActive }: { isActive: boolean }) {
+  const { t } = useTranslation();
   const style = isActive
     ? "bg-green-100 text-green-800 border border-green-200"
     : "bg-gray-100 text-gray-600 border border-gray-200";
@@ -34,13 +36,14 @@ function StatusBadge({ isActive }: { isActive: boolean }) {
     <span
       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${style}`}
     >
-      {isActive ? "Active" : "Inactive"}
+      {t(isActive ? "taxCodes.statusActive" : "taxCodes.statusInactive")}
     </span>
   );
 }
 
 function TaxCodesPage() {
   const { businessId } = Route.useParams();
+  const { t } = useTranslation();
   const { data: businesses } = useBusinesses();
   const role = businesses?.find((b) => b.id === businessId)?.role;
   const canWrite = role === "admin" || role === "accountant";
@@ -78,7 +81,11 @@ function TaxCodesPage() {
   const deleteTaxCode = useDeleteTaxCode(businessId);
 
   const handleDelete = async (code: { id: string; code: string; name: string }) => {
-    if (!window.confirm(`Hapus kode pajak "${code.code} - ${code.name}"?`)) {
+    if (
+      !window.confirm(
+        t("taxCodes.deleteConfirm", { item: `${code.code} - ${code.name}` }),
+      )
+    ) {
       return;
     }
     setDeleteError(null);
@@ -93,15 +100,15 @@ function TaxCodesPage() {
     <div className="flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Kode Pajak</h1>
+          <h1 className="text-lg font-semibold text-gray-900">{t("taxCodes.title")}</h1>
           {data && (
             <p className="text-sm text-gray-500">
-              {data.pagination.total} kode pajak
+              {t("taxCodes.subtitle", { count: data.pagination.total })}
             </p>
           )}
         </div>
         {canWrite && (
-          <Button onClick={() => setActiveId("new")}>Kode Pajak Baru</Button>
+          <Button onClick={() => setActiveId("new")}>{t("taxCodes.newButton")}</Button>
         )}
       </div>
 
@@ -114,7 +121,7 @@ function TaxCodesPage() {
       <div className="flex flex-wrap items-center gap-3">
         <Input
           className="max-w-xs"
-          placeholder="Cari kode atau nama pajak..."
+          placeholder={t("taxCodes.searchPlaceholder")}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -125,33 +132,33 @@ function TaxCodesPage() {
             setStatusFilter(e.target.value as "" | "true" | "false")
           }
         >
-          <option value="">Semua Status</option>
-          <option value="true">Active</option>
-          <option value="false">Inactive</option>
+          <option value="">{t("taxCodes.allStatuses")}</option>
+          <option value="true">{t("taxCodes.statusActive")}</option>
+          <option value="false">{t("taxCodes.statusInactive")}</option>
         </select>
       </div>
 
       <Card>
         <CardContent className="p-0">
           {isPending ? (
-            <p className="p-6 text-sm text-gray-500">Memuat kode pajak...</p>
+            <p className="p-6 text-sm text-gray-500">{t("taxCodes.loading")}</p>
           ) : isError ? (
             <p role="alert" className="p-6 text-sm text-red-700">
               {getApiErrorMessage(error)}
             </p>
           ) : data.data.length === 0 ? (
-            <p className="p-6 text-sm text-gray-500">Belum ada kode pajak.</p>
+            <p className="p-6 text-sm text-gray-500">{t("taxCodes.empty")}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Code</th>
-                    <th className="px-6 py-3 font-medium">Name</th>
-                    <th className="px-6 py-3 font-medium text-right">Rate %</th>
-                    <th className="px-6 py-3 font-medium">Status</th>
-                    <th className="px-6 py-3 font-medium text-right">Terpakai</th>
-                    <th className="px-6 py-3 font-medium">Aksi</th>
+                    <th className="px-6 py-3 font-medium">{t("taxCodes.colCode")}</th>
+                    <th className="px-6 py-3 font-medium">{t("taxCodes.colName")}</th>
+                    <th className="px-6 py-3 font-medium text-right">{t("taxCodes.colRate")}</th>
+                    <th className="px-6 py-3 font-medium">{t("taxCodes.colStatus")}</th>
+                    <th className="px-6 py-3 font-medium text-right">{t("taxCodes.colUsed")}</th>
+                    <th className="px-6 py-3 font-medium">{t("taxCodes.colActions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -179,7 +186,7 @@ function TaxCodesPage() {
                             size="sm"
                             onClick={() => setActiveId(taxCode.id)}
                           >
-                            {canWrite ? "Edit" : "Lihat"}
+                            {canWrite ? t("common.edit") : t("common.view")}
                           </Button>
                           {canWrite && (
                             <Button
@@ -188,7 +195,7 @@ function TaxCodesPage() {
                               disabled={deleteTaxCode.isPending}
                               onClick={() => void handleDelete(taxCode)}
                             >
-                              Hapus
+                              {t("common.delete")}
                             </Button>
                           )}
                         </div>
@@ -236,6 +243,7 @@ function TaxCodeFormDialog({
   onClose,
 }: TaxCodeFormDialogProps) {
   const isNew = taxCodeId === "new";
+  const { t } = useTranslation();
   const { data: existing, isPending: isLoading } = useTaxCode(
     businessId,
     isNew ? null : taxCodeId,
@@ -267,16 +275,16 @@ function TaxCodeFormDialog({
     setFormError(null);
 
     if (!code.trim()) {
-      setFormError("Kode pajak wajib diisi.");
+      setFormError(t("taxCodes.validationCodeRequired"));
       return;
     }
     if (!name.trim()) {
-      setFormError("Nama pajak wajib diisi.");
+      setFormError(t("taxCodes.validationNameRequired"));
       return;
     }
     const rate = parseFloat(ratePercent);
     if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
-      setFormError("Tarif pajak harus antara 0 dan 100.");
+      setFormError(t("taxCodes.validationRate"));
       return;
     }
 
@@ -313,18 +321,20 @@ function TaxCodeFormDialog({
       <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle>
-            {isNew ? "Kode Pajak Baru" : canWrite ? "Edit Kode Pajak" : "Detail Kode Pajak"}
+            {isNew
+              ? t("taxCodes.dialogTitleNew")
+              : canWrite
+                ? t("taxCodes.dialogTitleEdit")
+                : t("taxCodes.dialogTitleDetail")}
           </DialogTitle>
           <DialogDescription>
-            Referensi tarif pajak yang bisa dipilih di baris faktur penjualan.
-            Rate di-snapshot ke tiap baris — mengubah tarif di sini tidak
-            mengubah faktur lama.
+            {t("taxCodes.dialogDescription")}
           </DialogDescription>
         </DialogHeader>
 
         {isInitialLoading ? (
           <div className="py-8 text-center text-sm text-gray-500">
-            Memuat data kode pajak...
+            {t("taxCodes.loadingDetail")}
           </div>
         ) : (
           <form
@@ -343,10 +353,10 @@ function TaxCodeFormDialog({
 
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                Code *
+                {t("taxCodes.fieldCode")} *
               </label>
               <Input
-                placeholder="Contoh: PPN11"
+                placeholder={t("taxCodes.placeholderCode")}
                 value={code}
                 disabled={!canWrite}
                 onChange={(event) => setCode(event.target.value)}
@@ -356,10 +366,10 @@ function TaxCodeFormDialog({
 
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                Name *
+                {t("taxCodes.fieldName")} *
               </label>
               <Input
-                placeholder="Contoh: PPN 11%"
+                placeholder={t("taxCodes.placeholderName")}
                 value={name}
                 disabled={!canWrite}
                 onChange={(event) => setName(event.target.value)}
@@ -369,14 +379,14 @@ function TaxCodeFormDialog({
 
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                Rate % *
+                {t("taxCodes.fieldRate")} *
               </label>
               <Input
                 type="number"
                 step="any"
                 min="0"
                 max="100"
-                placeholder="Contoh: 11"
+                placeholder={t("taxCodes.placeholderRate")}
                 value={ratePercent}
                 disabled={!canWrite}
                 onChange={(event) => setRatePercent(event.target.value)}
@@ -386,7 +396,7 @@ function TaxCodeFormDialog({
 
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                Status
+                {t("taxCodes.fieldStatus")}
               </label>
               <select
                 className="h-9 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500 disabled:bg-gray-100"
@@ -394,24 +404,23 @@ function TaxCodeFormDialog({
                 disabled={!canWrite}
                 onChange={(event) => setIsActive(event.target.value === "active")}
               >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
+                <option value="active">{t("taxCodes.statusActive")}</option>
+                <option value="inactive">{t("taxCodes.statusInactive")}</option>
               </select>
               {!isNew && existing && existing.usageCount > 0 && (
                 <p className="text-xs text-amber-600">
-                  Masih dipakai {existing.usageCount} baris faktur —
-                  nonaktifkan/hapus akan ditolak.
+                  {t("taxCodes.usageWarning", { count: existing.usageCount })}
                 </p>
               )}
             </div>
 
             <div className="flex flex-col gap-1">
               <label className="text-xs font-semibold uppercase tracking-wider text-gray-700">
-                Description
+                {t("taxCodes.fieldDescription")}
               </label>
               <textarea
                 className="min-h-[64px] rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500 disabled:bg-gray-100"
-                placeholder="Catatan opsional"
+                placeholder={t("taxCodes.placeholderDescription")}
                 value={description}
                 disabled={!canWrite}
                 onChange={(event) => setDescription(event.target.value)}
@@ -421,17 +430,17 @@ function TaxCodeFormDialog({
 
             <DialogFooter className="shrink-0 border-t pt-3">
               <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-                Batal
+                {canWrite ? t("common.cancel") : t("common.close")}
               </Button>
               {canWrite && (
                 <Button type="submit" disabled={isSubmitting}>
                   {isNew
                     ? isSubmitting
-                      ? "Menyimpan..."
-                      : "Simpan Kode Pajak"
+                      ? t("taxCodes.submitting")
+                      : t("taxCodes.submitNew")
                     : isSubmitting
-                      ? "Menyimpan..."
-                      : "Perbarui Kode Pajak"}
+                      ? t("taxCodes.submitting")
+                      : t("taxCodes.submitEdit")}
                 </Button>
               )}
             </DialogFooter>

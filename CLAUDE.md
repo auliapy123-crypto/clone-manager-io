@@ -389,12 +389,19 @@ environment variable atau `.env` yang sudah di-gitignore.
   (infra EAV generik + section dinamis di form/detail Customers &
   Sales Invoices level header), Obscure Mode (mode privasi angka —
   frontend saja: `formatAmount` terpusat di `src/lib/format.ts` +
-  toggle ikon mata di header, persist `localStorage`). Sisa roadmap Fase 4:
+  toggle ikon mata di header, persist `localStorage`), Localization
+  Fase 1 (react-i18next: infra + switcher ID|EN di header — z-60
+  supaya bisa dipakai saat dialog terbuka; katalog
+  `src/i18n/locales/id+en.json`, key `<halaman>.<elemen>` +
+  `common.*`; TERKONVERSI: menu/header, login, tax-codes; halaman
+  lain sengaja masih hardcode Indonesia — konversi Fase 2).
+  Sisa roadmap Fase 4:
   Backup/Export (download data user — BUKAN backup DB, Neon sudah
   handle itu), lanjutan Custom Fields (entity modul lain, field per
   baris, kolom list, laporan — cukup dari frontend), Emails,
-  Reports, Localization, Custom themes; lanjutan Tax
-  Codes (Purchase Invoices dkk) & Divisions di modul sisa. Fase 5
+  Reports, lanjutan Localization (halaman Fase 2, pesan error
+  backend, format angka/tanggal per locale), Custom themes; lanjutan
+  Tax Codes (Purchase Invoices dkk) & Divisions di modul sisa. Fase 5
   (QA), Fase 6 (deployment) menyusul.
 
 ### Pola yang sudah terbukti (pakai lagi di Fase 3)
@@ -441,6 +448,10 @@ asumsi dari nama file doang.**
 - Pola tiap modul: `hooks/use-X.ts` (useX list+CRUD via TanStack Query) +
   `routes/businesses.$businessId.X.tsx` (tabel + search + filter + dialog
   form tambah/edit + hapus dengan `window.confirm`).
+- **Modul/halaman baru WAJIB pakai `t()` dengan key yang ada di
+  `src/i18n/locales/id.json` + `en.json` sejak awal** (jangan hardcode lalu
+  konversi belakangan); teks berulang pakai `common.*` — dilarang bikin key
+  duplikat per halaman (Localization.md §5).
 - Modul dengan baris item dinamis: form pakai tabel baris yang bisa
   tambah/hapus (minimal 1 baris), kalkulasi subtotal/total dihitung LIVE
   di frontend untuk preview, tapi backend yang menghitung nilai final.
@@ -462,7 +473,7 @@ asumsi dari nama file doang.**
   Credit Notes, Late Payment Fees, Delivery Notes, Billable Time,
   Withholding Tax Receipts, Purchase Quotes, Debit Notes (9 modul Fase 3),
   History, Divisions, Tax Codes, Custom Fields (Fase 4, plus widget
-  Attachments), Obscure Mode
+  Attachments), Localization Fase 1 (infra i18n + switcher bahasa), Obscure Mode
 
 ## Aturan Kerja
 
