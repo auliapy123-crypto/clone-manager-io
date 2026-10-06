@@ -25,17 +25,11 @@ import {
   useUpdateProject,
 } from "@/hooks/use-projects";
 import { getApiErrorMessage } from "@/lib/errors";
+import { useFormatAmount } from "@/lib/format";
 
 export const Route = createFileRoute("/businesses/$businessId/projects")({
   component: ProjectsPage,
 });
-
-function formatAmount(value: number) {
-  return new Intl.NumberFormat("id-ID", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
 
 function StatusBadge({ status }: { status: ProjectStatus }) {
   if (status === "active") {
@@ -60,6 +54,7 @@ function StatusBadge({ status }: { status: ProjectStatus }) {
 }
 
 function ProjectsPage() {
+  const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
   const role = businesses?.find((business) => business.id === businessId)?.role;
@@ -227,6 +222,7 @@ function ProjectRow({
   project: Project;
   canWrite: boolean;
 }) {
+  const { formatAmount } = useFormatAmount();
   const deleteProject = useDeleteProject(businessId);
   const [editOpen, setEditOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
@@ -329,6 +325,7 @@ function ProjectSummaryDialog({
   onOpenChange: (open: boolean) => void;
   project: Project;
 }) {
+  const { formatAmount } = useFormatAmount();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent onClose={() => onOpenChange(false)}>

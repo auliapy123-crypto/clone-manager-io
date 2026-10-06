@@ -35,17 +35,11 @@ import {
   useUpdateSalesInvoice,
 } from "@/hooks/use-sales-invoices";
 import { getApiErrorMessage } from "@/lib/errors";
+import { useFormatAmount } from "@/lib/format";
 
 export const Route = createFileRoute("/businesses/$businessId/sales-invoices")({
   component: SalesInvoicesPage,
 });
-
-function formatAmount(value: number) {
-  return new Intl.NumberFormat("id-ID", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
 
 function addDaysToDateString(dateStr: string, days: number): string {
   if (!dateStr) return "";
@@ -80,6 +74,7 @@ function StatusBadge({ status }: { status: SalesInvoiceStatus }) {
 }
 
 function SalesInvoicesPage() {
+  const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
   const role = businesses?.find((b) => b.id === businessId)?.role;
@@ -340,6 +335,7 @@ function SalesInvoiceFormDialog({
   canWrite,
   onClose,
 }: SalesInvoiceFormDialogProps) {
+  const { formatAmount } = useFormatAmount();
   const isNew = invoiceId === "new";
   const { data: existingInvoice, isPending: isInvoiceLoading } = useSalesInvoice(
     businessId,

@@ -26,19 +26,14 @@ import {
   useUpdateBillableTimeEntry,
 } from "@/hooks/use-billable-time";
 import { getApiErrorMessage } from "@/lib/errors";
+import { useFormatAmount } from "@/lib/format";
 
 export const Route = createFileRoute("/businesses/$businessId/billable-time")({
   component: BillableTimePage,
 });
 
-function formatAmount(value: number) {
-  return new Intl.NumberFormat("id-ID", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
 function BillableTimePage() {
+  const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
   const role = businesses?.find((b) => b.id === businessId)?.role;
@@ -263,6 +258,7 @@ function BillableTimeFormDialog({
   canWrite,
   onClose,
 }: BillableTimeFormDialogProps) {
+  const { formatAmount } = useFormatAmount();
   const isNew = entryId === "new";
   const { data: existingEntry, isPending: isEntryLoading } = useBillableTimeEntry(
     businessId,

@@ -32,19 +32,14 @@ import {
 } from "@/hooks/use-payments";
 import { usePurchaseInvoices } from "@/hooks/use-purchase-invoices";
 import { getApiErrorMessage } from "@/lib/errors";
+import { useFormatAmount } from "@/lib/format";
 
 export const Route = createFileRoute("/businesses/$businessId/payments")({
   component: PaymentsPage,
 });
 
-function formatAmount(value: number) {
-  return new Intl.NumberFormat("id-ID", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
 function PaymentsPage() {
+  const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
   const role = businesses?.find((b) => b.id === businessId)?.role;
@@ -265,6 +260,7 @@ function PaymentFormDialog({
   canWrite,
   onClose,
 }: PaymentFormDialogProps) {
+  const { formatAmount } = useFormatAmount();
   const isNew = paymentId === "new";
   const { data: existingPayment, isPending: isPaymentLoading } = usePayment(
     businessId,

@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { KeyRound, LogOut, Menu } from "lucide-react";
+import { Eye, EyeOff, KeyRound, LogOut, Menu } from "lucide-react";
 import { useState } from "react";
 import { ChangePasswordDialog } from "@/components/change-password-dialog";
 import {
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { headerMenuItems } from "@/config/menuConfig";
 import { useLogout, useMe } from "@/hooks/use-auth";
+import { useObscure } from "@/lib/format";
 
 export interface HeaderProps {
   /**
@@ -30,6 +31,7 @@ export function Header({ onOpenSidebar }: HeaderProps) {
   const { data: user } = useMe();
   const logout = useLogout();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const { obscure, toggle } = useObscure();
 
   const handleLogout = async () => {
     await logout.mutateAsync();
@@ -66,7 +68,18 @@ export function Header({ onOpenSidebar }: HeaderProps) {
         ))}
       </nav>
 
-      <div className="ml-auto">
+      <div className="ml-auto flex items-center gap-2">
+        {/* Obscure Mode toggle */}
+        <button
+          type="button"
+          onClick={toggle}
+          title={obscure ? "Tampilkan nominal (matikan Mode Privasi)" : "Sembunyikan nominal (Mode Privasi)"}
+          aria-label={obscure ? "Matikan Mode Privasi" : "Aktifkan Mode Privasi"}
+          className="rounded p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+        >
+          {obscure ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+        </button>
+
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 hover:bg-gray-100">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-900 text-xs font-semibold text-white">

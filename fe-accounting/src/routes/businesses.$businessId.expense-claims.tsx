@@ -14,14 +14,15 @@ import { getTodayDateString, useExpenseClaims, useExpenseClaim, useCreateExpense
 import { useProjectOptions } from "@/hooks/use-projects";
 import { useDivisionOptions } from "@/hooks/use-divisions";
 import { getApiErrorMessage } from "@/lib/errors";
+import { useFormatAmount } from "@/lib/format";
 
 export const Route = createFileRoute("/businesses/$businessId/expense-claims")({ component: ExpenseClaimsPage });
-const formatAmount = (value: number) => new Intl.NumberFormat("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 const selectClass = "h-9 w-full rounded-md border border-gray-300 bg-white px-2 text-sm disabled:bg-gray-100";
 function Status({ status }: { status: "Paid" | "Unpaid" }) {
   return <span className={`rounded-full px-2 py-1 text-xs font-medium ${status === "Paid" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}`}>{status}</span>;
 }
 function ExpenseClaimsPage() {
+  const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
   const role = businesses?.find(b => b.id === businessId)?.role;
@@ -65,6 +66,7 @@ function ExpenseClaimsPage() {
 interface FormLine { id: string; accountId: string; description: string; amount: string }
 const emptyLine = (): FormLine => ({ id: crypto.randomUUID(), accountId: "", description: "", amount: "" });
 function ClaimForm({ businessId, id, canWrite, onClose }: { businessId: string; id: string; canWrite: boolean; onClose: () => void }) {
+  const { formatAmount } = useFormatAmount();
   const isNew = id === "new";
   const { data: existing, isPending, error: detailError } = useExpenseClaim(businessId, isNew ? null : id);
   const { data: contacts = [], error: contactsError } = useContacts(businessId);

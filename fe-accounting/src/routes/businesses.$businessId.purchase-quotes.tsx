@@ -31,6 +31,7 @@ import {
 } from "@/hooks/use-purchase-quotes";
 import { getTodayDateString } from "@/hooks/use-purchase-orders";
 import { getApiErrorMessage } from "@/lib/errors";
+import { useFormatAmount } from "@/lib/format";
 
 export const Route = createFileRoute("/businesses/$businessId/purchase-quotes")({
   validateSearch: z.object({
@@ -38,13 +39,6 @@ export const Route = createFileRoute("/businesses/$businessId/purchase-quotes")(
   }),
   component: PurchaseQuotesPage,
 });
-
-function formatAmount(value: number) {
-  return new Intl.NumberFormat("id-ID", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
 
 function StatusBadge({ status }: { status: PurchaseQuoteStatus }) {
   if (status === "Accepted") {
@@ -69,6 +63,7 @@ function StatusBadge({ status }: { status: PurchaseQuoteStatus }) {
 }
 
 function PurchaseQuotesPage() {
+  const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const navigate = Route.useNavigate();
   const { data: businesses } = useBusinesses();
@@ -344,6 +339,7 @@ function PurchaseQuoteFormDialog({
   canWrite,
   onClose,
 }: PurchaseQuoteFormDialogProps) {
+  const { formatAmount } = useFormatAmount();
   const isNew = quoteId === "new";
   const { data: existingQuote, isPending: isQuoteLoading } = usePurchaseQuote(
     businessId,

@@ -23,6 +23,7 @@ import {
 } from "@/hooks/use-customers";
 import { getApiErrorMessage } from "@/lib/errors";
 import { zodFieldValidator } from "@/lib/form-validators";
+import { useFormatAmount } from "@/lib/format";
 
 export const Route = createFileRoute("/businesses/$businessId/customers")({
   component: CustomersPage,
@@ -34,15 +35,12 @@ const emailSchema = z.string().email("Email tidak valid.").or(z.literal(""));
 const nonNegativeNumberSchema = z.string().refine((value) => value === "" || (Number.isFinite(Number(value)) && Number(value) >= 0), "Harus angka minimal 0.");
 const dueDaysSchema = z.string().refine((value) => value === "" || (Number.isInteger(Number(value)) && Number(value) >= 0), "Harus bilangan bulat minimal 0.");
 
-function formatAmount(value: number) {
-  return new Intl.NumberFormat("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
-}
-
 function isInactive(customer: Customer) {
   return customer.isInactive === true || customer.deletedAt != null;
 }
 
 function CustomersPage() {
+  const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
   const role = businesses?.find((business) => business.id === businessId)?.role;
@@ -109,6 +107,7 @@ function CustomersPage() {
 }
 
 function CustomerRow({ businessId, customer, canWrite }: { businessId: string; customer: Customer; canWrite: boolean }) {
+  const { formatAmount } = useFormatAmount();
   const deleteCustomer = useDeleteCustomer(businessId);
   const [editOpen, setEditOpen] = useState(false);
   const [rowError, setRowError] = useState<string | null>(null);

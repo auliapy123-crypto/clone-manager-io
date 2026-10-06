@@ -20,6 +20,7 @@ import {
 } from "@/hooks/use-bank-accounts";
 import { getApiErrorMessage } from "@/lib/errors";
 import { zodFieldValidator } from "@/lib/form-validators";
+import { useFormatAmount } from "@/lib/format";
 
 export const Route = createFileRoute("/businesses/$businessId/bank-accounts")({
   component: BankAccountsPage,
@@ -29,12 +30,9 @@ const nameSchema = z.string().trim().min(3, "Minimal 3 karakter.").max(100, "Mak
 const bankNameSchema = z.string().trim().max(100, "Maksimal 100 karakter.").optional().nullable();
 const accNumSchema = z.string().trim().max(50, "Maksimal 50 karakter.").optional().nullable();
 
-function formatAmount(value: number) {
-  return new Intl.NumberFormat("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
-}
-
 function BankAccountsPage() {
   const { businessId } = Route.useParams();
+  const { formatAmount } = useFormatAmount();
   const { data: businesses } = useBusinesses();
   const role = businesses?.find((b) => b.id === businessId)?.role;
   const canWrite = role === "admin" || role === "accountant";
@@ -105,6 +103,7 @@ function BankAccountsPage() {
 }
 
 function AccountRow({ businessId, account, canWrite }: { businessId: string; account: BankAccount; canWrite: boolean }) {
+  const { formatAmount } = useFormatAmount();
   const deleteAccount = useDeleteBankAccount(businessId);
   const updateStatus = useUpdateBankAccountStatus(businessId);
   const [editOpen, setEditOpen] = useState(false);

@@ -27,6 +27,7 @@ import {
   type WithholdingTaxReceipt,
 } from "@/hooks/use-withholding-tax-receipts";
 import { getApiErrorMessage } from "@/lib/errors";
+import { useFormatAmount } from "@/lib/format";
 
 export const Route = createFileRoute(
   "/businesses/$businessId/withholding-tax-receipts",
@@ -34,14 +35,8 @@ export const Route = createFileRoute(
   component: WithholdingTaxReceiptsPage,
 });
 
-function formatAmount(value: number) {
-  return new Intl.NumberFormat("id-ID", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
 function WithholdingTaxReceiptsPage() {
+  const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
   const role = businesses?.find((b) => b.id === businessId)?.role;
@@ -281,6 +276,7 @@ function WithholdingTaxReceiptFormDialog({
   canWrite,
   onClose,
 }: FormDialogProps) {
+  const { formatAmount } = useFormatAmount();
   const isNew = receipt === null;
 
   const { data: customersData, isPending: isCustomersLoading } = useCustomers(

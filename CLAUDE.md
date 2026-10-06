@@ -387,11 +387,13 @@ environment variable atau `.env` yang sudah di-gitignore.
   tagging `division_id` di 6 tabel), Tax Codes (master rate +
   snapshot `tax_code_id` di Sales Invoices), Custom Fields Fase 1
   (infra EAV generik + section dinamis di form/detail Customers &
-  Sales Invoices level header). Sisa roadmap Fase 4:
+  Sales Invoices level header), Obscure Mode (mode privasi angka —
+  frontend saja: `formatAmount` terpusat di `src/lib/format.ts` +
+  toggle ikon mata di header, persist `localStorage`). Sisa roadmap Fase 4:
   Backup/Export (download data user — BUKAN backup DB, Neon sudah
   handle itu), lanjutan Custom Fields (entity modul lain, field per
   baris, kolom list, laporan — cukup dari frontend), Emails,
-  Obscure mode, Reports, Localization, Custom themes; lanjutan Tax
+  Reports, Localization, Custom themes; lanjutan Tax
   Codes (Purchase Invoices dkk) & Divisions di modul sisa. Fase 5
   (QA), Fase 6 (deployment) menyusul.
 
@@ -460,7 +462,7 @@ asumsi dari nama file doang.**
   Credit Notes, Late Payment Fees, Delivery Notes, Billable Time,
   Withholding Tax Receipts, Purchase Quotes, Debit Notes (9 modul Fase 3),
   History, Divisions, Tax Codes, Custom Fields (Fase 4, plus widget
-  Attachments)
+  Attachments), Obscure Mode
 
 ## Aturan Kerja
 
@@ -503,3 +505,109 @@ Port 3000/4000 hanya boleh dipakai SATU mode: container Docker ATAU pnpm dev lok
 Mode Docker TIDAK hot-reload (source di-copy ke image): setiap perubahan kode harus docker compose up --build. Alur: ngoding = pnpm dev lokal, verifikasi sebelum push/demo = Docker.
 backend/uploads/ di-bind-mount supaya lampiran (modul Attachments) tidak hilang saat container di-recreate.
 AI agent hanya boleh menyentuh file Docker kalau tugasnya memang soal Docker. Kalau menghapus file yang sudah terlacak Git, SEBUTKAN nama filenya eksplisit di laporan (pernah ada penghapusan "dua file sementara TanStack" tanpa nama, jadi tidak bisa diaudit).
+### Pelajaran tambahan Fase 3-4 (per 5 Okt 2026)
+
+- **Unique + soft-delete adalah jebakan.** Kolom unik pada tabel yang
+  punya `deleted_at` HARUS memakai partial unique index
+  `WHERE deleted_at IS NULL`. Kalau tidak, kode/key bekas hapus tidak
+  bisa dipakai lagi (error 409 yang membingungkan). Sudah diperbaiki di
+  `custom_field_definitions`. BELUM diaudit di modul lain (cek
+  `tax_codes.code`, `chart_of_accounts.code`, dst).
+- **Tabel generik (entity_type + entity_id, seperti Attachments dan
+  Custom Fields)** wajib memvalidasi bahwa record yang dituju ADA, milik
+  bisnis yang sama, dan sesuai jenisnya. Hitungan "dipakai" hanya boleh
+  menghitung record AKTIF: record yang di-soft-delete meninggalkan data
+  yatim yang tidak boleh memblokir penghapusan definisi.
+- **Alur simpan dua tahap** (simpan record utama dulu, baru data
+  pendamping seperti nilai field atau lampiran): validasi field wajib di
+  form SEBELUM mengirim record utama, dan simpan id record yang baru
+  dibuat supaya submit ulang menjadi UPDATE. Kalau tidak, user bisa
+  membuat dokumen ganda (untuk Sales Invoices berarti jurnal ganda).
+- **Uji SEMUA tipe data dan kasus negatif**, bukan hanya jalur sukses
+  (tipe salah, nilai di luar opsi, null/kosong, boolean false). Audit
+  Custom Fields menemukan bug justru di tipe yang belum pernah diuji.
+- **`pnpm typecheck` bersih BUKAN bukti fitur jalan.** Perubahan yang
+  menyentuh klien API atau perilaku runtime wajib dijalankan sungguhan
+  (bug `bodySerializer` di Attachments dan tombol hamburger yang tidak
+  pernah muncul sama-sama lolos typecheck).
+- **Jangan menaruh context/state bersama di berkas route.** Plugin
+  TanStack Router memecah berkas route (`?tsr-split=component`) sehingga
+  modul termuat dua salinan. Taruh di modul netral (contoh:
+  `components/layout/sidebar-toggle.ts`). Obscure Mode aman karena
+  context-nya di `src/lib/format.ts` (modul netral, bukan berkas route).
+- **Nominal uang WAJIB lewat `formatAmount` terpusat (`src/lib/format.ts`).**
+  JANGAN bikin copy lokal `formatAmount` di berkas route (sebelumnya ada
+  ~21 copy tersebar). Karena Obscure Mode memakai React context, pola
+  pemakaiannya hook: `const { formatAmount } = useFormatAmount();` di
+  **SETIAP komponen** yang memakainya — termasuk sub-komponen/dialog di
+  berkas yang sama (`CustomerRow`, `ClaimForm`, dialog form/detail, drill
+  dialog). Lupa memanggilnya di sub-komponen adalah jebakan yang membuat
+  typecheck merah (`Cannot find name 'formatAmount'`). Untuk nilai yang
+  tidak ditampilkan sebagai uang (mis. nilai awal input), pakai
+  `formatAmountRaw()` — jangan untuk tampilan tabel.
+- **`pageSize` maksimal 100 di backend.** Permintaan lebih besar ditolak
+  400 dan di UI tampil sebagai dropdown kosong tanpa pesan. Pakai filter
+  di sisi server (mis. `category=Revenue`), bukan menarik semua data lalu
+  menyaring di klien.
+- **Skrip transformasi massal (sed/regex di banyak berkas)** harus
+  idempotent, memverifikasi jumlah kemunculan sebelum menulis, tidak
+  dijalankan dua kali tanpa cek, dan selalu diikuti typecheck serta
+  `git diff --stat`. Pernah menghasilkan blok ganda dan satu berkas yang
+  dilaporkan "OK" tetapi tidak tersimpan.
+- **Laporan akhir alat AI tidak sama dengan isi commit.** Ringkasan "N
+  files changed" di UI beberapa alat memuat semua berkas yang disentuh
+  selama sesi, termasuk skrip sementara yang sudah dihapus. Verifikasi
+  dengan `git show --stat <hash>`. Kalau agent menghapus berkas yang
+  terlacak Git, ia WAJIB menyebut nama filenya di laporan.
+- **Pembersihan data uji hanya lewat ID yang dicatat.** Hard-delete
+  berdasarkan prefix (mis. `zz_`) pernah dipakai sebagai jalan pintas.
+  Hasilnya aman, tetapi menyimpang dari aturan #9. Kalau terpaksa,
+  pastikan dulu data milik user tidak ikut terkena dan laporkan sebagai
+  penyimpangan.
+- **Desain dari sumber publik/forum bersifat sementara** sampai
+  dikonfirmasi lewat eksplorasi langsung ke aplikasi aslinya (kasus
+  Billable Time: mekanisme "jadikan faktur" ternyata tidak ada).
+- **Field wajib (Custom Fields):** record lama tidak bisa diedit sebelum
+  field wajib yang baru ditambahkan diisi. Ini perilaku yang disengaja.
+- **Terminal Windows:** `git show` dan `git log` membuka pager (tanda
+  `:`), tekan `q` sebelum mengetik perintah lain (ketikan di pager
+  pernah membuat berkas nyasar bernama `tatus`). PowerShell yang dibuka
+  sebagai Administrator mulai di `C:\Windows\System32`: jangan
+  menjalankan git di sana dan jangan menambahkan `safe.directory` untuk
+  folder itu. Satu perintah per baris.
+
+### Status dan pekerjaan tertunda (per 5 Okt 2026)
+
+- Fase 2 selesai (13/13). Fase 3: 9 modul selesai. Modul sisanya ditunda
+  (Goods Receipts dan seluruh rantai Inventory, Production Orders,
+  Payroll, Fixed/Intangible Assets, Capital/Special Accounts, Folders)
+  karena belum ada spesifikasi atau bergantung modul lain. JANGAN
+  menyusun spesifikasinya dari tebakan.
+- Fase 4 selesai: sidebar seluler ikon-only, pagination bernomor (semua
+  halaman daftar), Combobox untuk dropdown akun, Attachments Tahap 1
+  (baru Expense Claims + Customers), History, Divisions (6 dokumen),
+  Tax Codes (baru Sales Invoices), Custom Fields Fase 1 (baru Customers
+  + Sales Invoices, level header), Obscure Mode (toggle privasi angka di
+  header, persist lokal), Docker minimal.
+- Fase 4 belum dikerjakan: Backup/Export, Emails, Reports,
+  Localization, Custom themes.
+- Tahap lanjutan yang tertunda: sebar Attachments dan Custom Fields ke
+  modul lain; Tax Codes ke Purchase Invoices; Hidden Modul (menu yang
+  bisa di-customize + halaman Summary) dan Overview berbentuk kartu
+  (dijadwalkan SETELAH Fase 3 dan 4 selesai, sesuai arahan manager).
+- Audit lanjutan yang belum dilakukan: (1) unique + soft-delete di modul
+  lain, (2) validasi `entityId` di Attachments.
+- Fase 5 (QA) dan seterusnya: JANGAN dimulai sendiri. Menunggu keputusan
+  senior dan penyesuaian dengan peserta magang lain.
+
+### Aturan untuk AI agent di awal sesi
+
+1. Baca seluruh CLAUDE.md, lalu dokumen modul yang relevan di
+   `Dokumentasi Modul/`, lalu `git status` dan `git log --oneline -5`.
+2. Cek `docker ps`. Kalau container proyek jalan, `docker compose down`
+   sebelum menjalankan `pnpm dev`.
+3. Struktur Neon dan `schema.ts` TIDAK diasumsikan sinkron: cek struktur
+   asli dulu.
+4. Jangan menyimpulkan "selesai" hanya dari typecheck. Untuk fitur lintas
+   modul atau transaksi yang posting jurnal, uji juga skenario simpan
+   ulang, duplikat, dan input salah.

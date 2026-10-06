@@ -31,19 +31,14 @@ import {
 } from "@/hooks/use-receipts";
 import { useSuppliers } from "@/hooks/use-suppliers";
 import { getApiErrorMessage } from "@/lib/errors";
+import { useFormatAmount } from "@/lib/format";
 
 export const Route = createFileRoute("/businesses/$businessId/receipts")({
   component: ReceiptsPage,
 });
 
-function formatAmount(value: number) {
-  return new Intl.NumberFormat("id-ID", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
 function ReceiptsPage() {
+  const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
   const role = businesses?.find((b) => b.id === businessId)?.role;
@@ -267,6 +262,7 @@ function ReceiptFormDialog({
   canWrite,
   onClose,
 }: ReceiptFormDialogProps) {
+  const { formatAmount } = useFormatAmount();
   const isNew = receiptId === "new";
   const { data: existingReceipt, isPending: isReceiptLoading } = useReceipt(
     businessId,

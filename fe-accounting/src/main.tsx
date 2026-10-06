@@ -4,6 +4,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { setupApiClient } from "@/integrations/setup";
 import { queryClient } from "@/lib/query-client";
+import { ObscureProvider } from "@/lib/format";
 import { routeTree } from "./routeTree.gen";
 import "./index.css";
 
@@ -26,9 +27,11 @@ if (!rootElement.innerHTML) {
   const root = createRoot(rootElement);
   root.render(
     <StrictMode>
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
+      <ObscureProvider>
+        <QueryClientProvider client={queryClient}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </ObscureProvider>
     </StrictMode>,
   );
 }

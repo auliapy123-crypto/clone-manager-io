@@ -28,15 +28,13 @@ const codeSchema = z.string().max(50, "Kode maksimal 50 karakter.");
 const emailSchema = z.string().email("Email tidak valid.").or(z.literal(""));
 const dueDaysSchema = z.string().refine((value) => value === "" || (Number.isInteger(Number(value)) && Number(value) >= 0), "Harus bilangan bulat minimal 0.");
 
-function formatAmount(value: number) {
-  return new Intl.NumberFormat("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
-}
-
+import { useFormatAmount } from "@/lib/format";
 function isInactive(supplier: Supplier) {
   return supplier.isInactive === true || supplier.deletedAt != null;
 }
 
 function SuppliersPage() {
+  const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
   const role = businesses?.find((business) => business.id === businessId)?.role;
@@ -103,6 +101,7 @@ function SuppliersPage() {
 }
 
 function SupplierRow({ businessId, supplier, canWrite }: { businessId: string; supplier: Supplier; canWrite: boolean }) {
+  const { formatAmount } = useFormatAmount();
   const deleteSupplier = useDeleteSupplier(businessId);
   const [editOpen, setEditOpen] = useState(false);
   const [rowError, setRowError] = useState<string | null>(null);

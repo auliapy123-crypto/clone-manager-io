@@ -30,6 +30,7 @@ import {
 import { useSuppliers } from "@/hooks/use-suppliers";
 import { usePurchaseQuote } from "@/hooks/use-purchase-quotes";
 import { getApiErrorMessage } from "@/lib/errors";
+import { useFormatAmount } from "@/lib/format";
 
 export const Route = createFileRoute("/businesses/$businessId/purchase-orders")({
   validateSearch: z.object({
@@ -37,13 +38,6 @@ export const Route = createFileRoute("/businesses/$businessId/purchase-orders")(
   }),
   component: PurchaseOrdersPage,
 });
-
-function formatAmount(value: number) {
-  return new Intl.NumberFormat("id-ID", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
 
 function StatusBadge({ status }: { status: PurchaseOrderStatus }) {
   if (status === "Fully Invoiced/Closed") {
@@ -68,6 +62,7 @@ function StatusBadge({ status }: { status: PurchaseOrderStatus }) {
 }
 
 function PurchaseOrdersPage() {
+  const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const navigate = Route.useNavigate();
   const { convertFromQuote } = Route.useSearch();
@@ -398,6 +393,7 @@ function PurchaseOrderFormDialog({
   onClose,
   convertPrefill,
 }: PurchaseOrderFormDialogProps) {
+  const { formatAmount } = useFormatAmount();
   const isNew = orderId === "new";
   const { data: existingOrder, isPending: isOrderLoading } = usePurchaseOrder(
     businessId,

@@ -30,17 +30,11 @@ import {
 } from "@/hooks/use-journal-entries";
 import { useSuppliers } from "@/hooks/use-suppliers";
 import { getApiErrorMessage } from "@/lib/errors";
+import { useFormatAmount } from "@/lib/format";
 
 export const Route = createFileRoute("/businesses/$businessId/journal-entries")({
   component: JournalEntriesPage,
 });
-
-function formatAmount(value: number) {
-  return new Intl.NumberFormat("id-ID", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
 
 const SOURCE_MODULE_LABELS: Record<string, string> = {
   manual_journal: "Manual",
@@ -81,6 +75,7 @@ const SOURCE_FILTER_OPTIONS = [
 ];
 
 function JournalEntriesPage() {
+  const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
   const role = businesses?.find((b) => b.id === businessId)?.role;
@@ -330,6 +325,7 @@ function JournalEntryDetailDialog({
   entryId: string;
   onClose: () => void;
 }) {
+  const { formatAmount } = useFormatAmount();
   const { data: entry, isPending } = useJournalEntry(businessId, entryId);
 
   const totalDebit = entry?.lines.reduce((s, l) => s + l.debit, 0) ?? 0;
@@ -462,6 +458,7 @@ function JournalEntryFormDialog({
   canWrite,
   onClose,
 }: JournalEntryFormDialogProps) {
+  const { formatAmount } = useFormatAmount();
   const isNew = entryId === "new";
   const { data: existingEntry, isPending: isEntryLoading } = useJournalEntry(
     businessId,

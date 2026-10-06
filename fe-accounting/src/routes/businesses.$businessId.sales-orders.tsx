@@ -25,19 +25,14 @@ import {
   useUpdateSalesOrder,
 } from "@/hooks/use-sales-orders";
 import { getApiErrorMessage } from "@/lib/errors";
+import { useFormatAmount } from "@/lib/format";
 
 export const Route = createFileRoute("/businesses/$businessId/sales-orders")({
   component: SalesOrdersPage,
 });
 
-function formatAmount(value: number) {
-  return new Intl.NumberFormat("id-ID", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
 function SalesOrdersPage() {
+  const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
   const role = businesses?.find((b) => b.id === businessId)?.role;
@@ -252,6 +247,7 @@ function SalesOrderFormDialog({
   canWrite,
   onClose,
 }: SalesOrderFormDialogProps) {
+  const { formatAmount } = useFormatAmount();
   const isNew = orderId === "new";
   const { data: existingOrder, isPending: isOrderLoading } = useSalesOrder(
     businessId,

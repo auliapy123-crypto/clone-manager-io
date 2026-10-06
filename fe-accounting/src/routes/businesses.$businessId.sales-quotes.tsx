@@ -25,17 +25,11 @@ import {
   useUpdateSalesQuote,
 } from "@/hooks/use-sales-quotes";
 import { getApiErrorMessage } from "@/lib/errors";
+import { useFormatAmount } from "@/lib/format";
 
 export const Route = createFileRoute("/businesses/$businessId/sales-quotes")({
   component: SalesQuotesPage,
 });
-
-function formatAmount(value: number) {
-  return new Intl.NumberFormat("id-ID", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
 
 function addDaysToDateString(dateStr: string, days: number): string {
   if (!dateStr) return "";
@@ -48,6 +42,7 @@ function addDaysToDateString(dateStr: string, days: number): string {
 }
 
 function SalesQuotesPage() {
+  const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
   const role = businesses?.find((b) => b.id === businessId)?.role;
@@ -266,6 +261,7 @@ function SalesQuoteFormDialog({
   canWrite,
   onClose,
 }: SalesQuoteFormDialogProps) {
+  const { formatAmount } = useFormatAmount();
   const isNew = quoteId === "new";
   const { data: existingQuote, isPending: isQuoteLoading } = useSalesQuote(
     businessId,

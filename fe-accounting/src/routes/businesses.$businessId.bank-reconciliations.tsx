@@ -28,17 +28,11 @@ import { useInterAccountTransfers } from "@/hooks/use-inter-account-transfers";
 import { usePayments } from "@/hooks/use-payments";
 import { useReceipts } from "@/hooks/use-receipts";
 import { getApiErrorMessage } from "@/lib/errors";
+import { useFormatAmount } from "@/lib/format";
 
 export const Route = createFileRoute("/businesses/$businessId/bank-reconciliations")({
   component: BankReconciliationsPage,
 });
-
-function formatAmount(value: number) {
-  return new Intl.NumberFormat("id-ID", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
 
 function StatusBadge({ status }: { status: BankReconciliationStatus }) {
   if (status === "Reconciled") {
@@ -56,6 +50,7 @@ function StatusBadge({ status }: { status: BankReconciliationStatus }) {
 }
 
 function BankReconciliationsPage() {
+  const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
   const role = businesses?.find((b) => b.id === businessId)?.role;
@@ -270,6 +265,7 @@ function BankReconciliationFormDialog({
   canWrite,
   onClose,
 }: BankReconciliationFormDialogProps) {
+  const { formatAmount } = useFormatAmount();
   const isNew = reconciliationId === "new";
   const { data: existingReconciliation, isPending: isReconciliationLoading } =
     useBankReconciliation(businessId, isNew ? null : reconciliationId);
@@ -503,6 +499,7 @@ function DiscrepancyDrillDialog({
   reconciliation: BankReconciliation;
   onClose: () => void;
 }) {
+  const { formatAmount } = useFormatAmount();
   const cutoff = reconciliation.date;
   const accountId = reconciliation.bankAccountId;
 

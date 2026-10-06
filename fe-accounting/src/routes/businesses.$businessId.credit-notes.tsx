@@ -27,19 +27,14 @@ import {
   useUpdateCreditNote,
 } from "@/hooks/use-credit-notes";
 import { getApiErrorMessage } from "@/lib/errors";
+import { useFormatAmount } from "@/lib/format";
 
 export const Route = createFileRoute("/businesses/$businessId/credit-notes")({
   component: CreditNotesPage,
 });
 
-function formatAmount(value: number) {
-  return new Intl.NumberFormat("id-ID", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
 function CreditNotesPage() {
+  const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
   const role = businesses?.find((b) => b.id === businessId)?.role;
@@ -225,6 +220,7 @@ function CreditNoteFormDialog({
   onClose: () => void;
   canWrite: boolean;
 }) {
+  const { formatAmount } = useFormatAmount();
   const { data: note, isLoading } = useCreditNote(businessId, noteId);
   const { data: customers } = useCustomers(businessId, 1, {}, 100);
   // Filter kategori Revenue di SERVER (pola Sales Invoices/Receipts).

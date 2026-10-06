@@ -33,6 +33,7 @@ import {
 import { usePurchaseOrder } from "@/hooks/use-purchase-orders";
 import { usePurchaseQuote } from "@/hooks/use-purchase-quotes";
 import { getApiErrorMessage } from "@/lib/errors";
+import { useFormatAmount } from "@/lib/format";
 
 export const Route = createFileRoute("/businesses/$businessId/purchase-invoices")({
   validateSearch: z.object({
@@ -41,13 +42,6 @@ export const Route = createFileRoute("/businesses/$businessId/purchase-invoices"
   }),
   component: PurchaseInvoicesPage,
 });
-
-function formatAmount(value: number) {
-  return new Intl.NumberFormat("id-ID", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
 
 function addDaysToDateString(dateStr: string, days: number): string {
   if (!dateStr) return "";
@@ -82,6 +76,7 @@ function StatusBadge({ status }: { status: PurchaseInvoiceStatus }) {
 }
 
 function PurchaseInvoicesPage() {
+  const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const navigate = Route.useNavigate();
   const { convertFromPO, convertFromQuote } = Route.useSearch();
@@ -401,6 +396,7 @@ function PurchaseInvoiceFormDialog({
   onClose,
   convertPrefill,
 }: PurchaseInvoiceFormDialogProps) {
+  const { formatAmount } = useFormatAmount();
   const isNew = invoiceId === "new";
   const { data: existingInvoice, isPending: isInvoiceLoading } = usePurchaseInvoice(
     businessId,

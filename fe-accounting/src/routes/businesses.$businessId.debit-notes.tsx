@@ -29,19 +29,14 @@ import {
 import { usePurchaseInvoices } from "@/hooks/use-purchase-invoices";
 import { useSuppliers } from "@/hooks/use-suppliers";
 import { getApiErrorMessage } from "@/lib/errors";
+import { useFormatAmount } from "@/lib/format";
 
 export const Route = createFileRoute("/businesses/$businessId/debit-notes")({
   component: DebitNotesPage,
 });
 
-function formatAmount(value: number) {
-  return new Intl.NumberFormat("id-ID", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
 function DebitNotesPage() {
+  const { formatAmount } = useFormatAmount();
   const { businessId } = Route.useParams();
   const { data: businesses } = useBusinesses();
   const role = businesses?.find((b) => b.id === businessId)?.role;
@@ -265,6 +260,7 @@ function DebitNoteFormDialog({
   onClose: () => void;
   canWrite: boolean;
 }) {
+  const { formatAmount } = useFormatAmount();
   const { data: note, isLoading } = useDebitNote(businessId, noteId);
   const { data: suppliers } = useSuppliers(businessId, 1, {}, 100);
   // Filter kategori Expense di server (pageSize > 100 selalu ditolak
