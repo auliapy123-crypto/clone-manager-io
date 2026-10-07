@@ -7,6 +7,9 @@ import {
   computeBalanceSheet,
   computeProfitAndLoss,
   computeTrialBalance,
+  computeGeneralLedgerSummary,
+  computeGeneralLedgerTransactions,
+  computeAgedReceivables,
 } from "../repositories/ReportQueryRepository.js";
 import {
   createReportDefinition,
@@ -14,6 +17,7 @@ import {
   getReportDefinitionById,
   listReportDefinitions,
   updateReportDefinition,
+  validateReportAccount,
 } from "../repositories/ReportDefinitionRepository.js";
 import { BusinessIdParamsSchema } from "../schemas/Business.js";
 import {
@@ -260,6 +264,21 @@ export async function reportRoutesPlugin(fastify: FastifyInstance) {
       }
 
       // Validasi ulang parameter per tipe (definisi lama bisa inkonsisten).
+      const validation = CreateReportDefinitionSchema.safeParse(definition);
+      if (!validation.success) return sendError(reply, 400, ErrorCode.BAD_REQUEST, validation.error.issues[0].message);
+      if (definition.type === "general_ledger_summary") {
+        return sendData(reply, await computeGeneralLedgerSummary(request.params.businessId, definition.title,
+          definition.dateFrom!, definition.dateTo!, definition.excludeZeroBalances));
+      }
+      if (definition.type === "general_ledger_transactions") {
+        await validateReportAccount(request.params.businessId, definition.accountId);
+        return sendData(reply, await computeGeneralLedgerTransactions(request.params.businessId, definition.title,
+          definition.dateFrom!, definition.dateTo!, definition.accountId));
+      }
+      if (definition.type === "aged_receivables") {
+        return sendData(reply, await computeAgedReceivables(request.params.businessId, definition.title,
+          definition.asOfDate!, definition.sortBy ?? "total", definition.showInvoices));
+      }
       if (
         definition.type === "trial_balance" ||
         definition.type === "profit_and_loss"

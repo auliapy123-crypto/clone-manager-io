@@ -6,8 +6,10 @@ import { and, asc, count, eq, ilike, isNull } from "drizzle-orm";
 import db from "../db/index.js";
 import {
   reportDefinitions,
+  chartOfAccounts,
   type ReportType,
 } from "../db/schema.js";
+import { CreateReportDefinitionSchema } from "../schemas/ReportDefinition.js";
 import type {
   CreateReportDefinitionInput,
   UpdateReportDefinitionInput,
@@ -22,6 +24,9 @@ export interface ReportDefinitionRecord {
   dateFrom: string | null;
   dateTo: string | null;
   asOfDate: string | null;
+  accountId: string | null;
+  sortBy: string | null;
+  showInvoices: boolean;
   accountingMethod: string;
   showAccountCodes: boolean;
   excludeZeroBalances: boolean;
@@ -41,6 +46,9 @@ function toRecord(row: typeof reportDefinitions.$inferSelect): ReportDefinitionR
     dateFrom: row.dateFrom ?? null,
     dateTo: row.dateTo ?? null,
     asOfDate: row.asOfDate ?? null,
+    accountId: row.accountId ?? null,
+    sortBy: row.sortBy ?? null,
+    showInvoices: row.showInvoices ?? false,
     accountingMethod: row.accountingMethod,
     showAccountCodes: row.showAccountCodes,
     excludeZeroBalances: row.excludeZeroBalances,
@@ -97,6 +105,7 @@ export async function createReportDefinition(
   businessId: string,
   input: CreateReportDefinitionInput,
 ): Promise<ReportDefinitionRecord> {
+  await validateReportAccount(businessId, input.accountId);
   const [created] = await db
     .insert(reportDefinitions)
     .values({
@@ -106,9 +115,12 @@ export async function createReportDefinition(
       description: input.description ?? null,
       // Field tanggal yang tidak relevan untuk tipe DIABAIKAN (Report.md §3).
       dateFrom:
-        input.type === "balance_sheet" ? null : (input.dateFrom ?? null),
-      dateTo: input.type === "balance_sheet" ? null : (input.dateTo ?? null),
-      asOfDate: input.type === "balance_sheet" ? (input.asOfDate ?? null) : null,
+        input.dateFrom,
+      dateTo: input.dateTo,
+      asOfDate: input.asOfDate,
+      accountId: input.accountId,
+      sortBy: input.sortBy,
+      showInvoices: input.showInvoices,
       accountingMethod: input.accountingMethod,
       showAccountCodes: input.showAccountCodes ?? false,
       excludeZeroBalances: input.excludeZeroBalances ?? false,
@@ -128,26 +140,10 @@ export async function updateReportDefinition(
   const existing = await getReportDefinitionById(businessId, id);
   if (!existing) return null;
 
-  const type = input.type ?? existing.type;
-  const updateValues: Partial<typeof reportDefinitions.$inferInsert> = {
-    updatedAt: new Date(),
-  };
-  if (input.title !== undefined) updateValues.title = input.title.trim();
-  if (input.description !== undefined) updateValues.description = input.description;
-  if (input.accountingMethod !== undefined) updateValues.accountingMethod = input.accountingMethod;
-  if (input.showAccountCodes !== undefined) updateValues.showAccountCodes = input.showAccountCodes;
-  if (input.excludeZeroBalances !== undefined) updateValues.excludeZeroBalances = input.excludeZeroBalances;
-  if (input.footer !== undefined) updateValues.footer = input.footer;
-
-  if (type === "balance_sheet") {
-    if (input.asOfDate !== undefined) updateValues.asOfDate = input.asOfDate;
-    updateValues.dateFrom = null;
-    updateValues.dateTo = null;
-  } else {
-    if (input.dateFrom !== undefined) updateValues.dateFrom = input.dateFrom;
-    if (input.dateTo !== undefined) updateValues.dateTo = input.dateTo;
-    updateValues.asOfDate = null;
-  }
+  const parsed = CreateReportDefinitionSchema.safeParse({ ...existing, ...input });
+  if (!parsed.success) throw Object.assign(new Error(parsed.error.issues[0].message), { statusCode: 400 });
+  await validateReportAccount(businessId, parsed.data.accountId);
+  const updateValues = { ...parsed.data, updatedAt: new Date() };
 
   await db
     .update(reportDefinitions)
@@ -160,6 +156,13 @@ export async function updateReportDefinition(
       ),
     );
   return getReportDefinitionById(businessId, id);
+}
+
+export async function validateReportAccount(businessId: string, accountId: string | null | undefined) {
+  if (!accountId) return;
+  const [account] = await db.select({ id: chartOfAccounts.id }).from(chartOfAccounts)
+    .where(and(eq(chartOfAccounts.id, accountId), eq(chartOfAccounts.businessId, businessId), isNull(chartOfAccounts.deletedAt))).limit(1);
+  if (!account) throw Object.assign(new Error("Akun tidak ditemukan dalam bisnis ini."), { statusCode: 400 });
 }
 
 export async function deleteReportDefinition(

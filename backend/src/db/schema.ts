@@ -1326,6 +1326,9 @@ export const REPORT_TYPES = [
   "trial_balance",
   "profit_and_loss",
   "balance_sheet",
+  "general_ledger_summary",
+  "general_ledger_transactions",
+  "aged_receivables",
 ] as const;
 export type ReportType = (typeof REPORT_TYPES)[number];
 
@@ -1342,6 +1345,9 @@ export const reportDefinitions = pgTable(
     dateFrom: date(),
     dateTo: date(),
     asOfDate: date(),
+    accountId: uuid().references(() => chartOfAccounts.id),
+    sortBy: varchar({ length: 20 }),
+    showInvoices: boolean().default(false),
     accountingMethod: varchar({ length: 20 }).notNull().default("accrual"),
     showAccountCodes: boolean().notNull().default(false),
     excludeZeroBalances: boolean().notNull().default(false),
@@ -2110,4 +2116,3 @@ export type CustomFieldValue = typeof customFieldValues.$inferSelect;
 export type ReportDefinition = typeof reportDefinitions.$inferSelect;
 export type NewReportDefinition = typeof reportDefinitions.$inferInsert;
 export type NewCustomFieldValue = typeof customFieldValues.$inferInsert;
-
