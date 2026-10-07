@@ -12,7 +12,8 @@ import {
   type ReportType,
   useReportResult,
   useReportDefinition,
-  isStage1b,
+  isParameterOnlyReport,
+  isAgedReport,
 } from "@/hooks/use-reports";
 import { useFormatAmount } from "@/lib/format";
 import { getApiErrorMessage } from "@/lib/errors";
@@ -45,9 +46,9 @@ function ReportResultPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold text-gray-900">
-            {isStage1b(reportType) ? t(`reports.${reportType}`) : REPORT_TYPE_LABELS[reportType]}
+            {isParameterOnlyReport(reportType) ? t(`reports.${reportType}`) : REPORT_TYPE_LABELS[reportType]}
           </h1>
-          {data && <p className="text-sm text-gray-500">{reportType === "aged_receivables" ? t("reports.asAt", { date: data.headerDate.replace("As at ", "") }) : data.headerDate}</p>}
+          {data && <p className="text-sm text-gray-500">{isAgedReport(reportType) ? t("reports.asAt", { date: data.headerDate.replace("As at ", "") }) : data.headerDate}</p>}
         </div>
         <div className="flex gap-2 print:hidden">
           <Button variant="outline" onClick={print}>
@@ -65,7 +66,7 @@ function ReportResultPage() {
         <p role="alert" className="p-6 text-sm text-red-700">
           {getApiErrorMessage(error)}
         </p>
-      ) : data && isStage1b(reportType) ? (
+      ) : data && isParameterOnlyReport(reportType) ? (
         <ReportStage1bTable result={data} />
       ) : (
         <Card>
@@ -133,7 +134,7 @@ function ReportResultPage() {
       )}
 
       {data?.footer && <p className="text-sm text-gray-500">{data.footer}</p>}
-      {reportType === "aged_receivables" && <p className="text-sm text-gray-500">{t("reports.historicalHint")}</p>}
+      {isAgedReport(reportType) && <p className="text-sm text-gray-500">{t("reports.historicalHint")}</p>}
       {definition.isError && <p role="alert" className="text-sm text-red-700">{getApiErrorMessage(definition.error)}</p>}
 
       <Link

@@ -14,7 +14,7 @@ import {
   type ReportType,
   useDeleteReportDefinition,
   useReportDefinitions,
-  isStage1b,
+  isParameterOnlyReport,
   type ReportDefinition,
 } from "@/hooks/use-reports";
 import { getApiErrorMessage } from "@/lib/errors";
@@ -80,7 +80,7 @@ function ReportTypeListPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold text-gray-900">
-            {isStage1b(reportType) ? t(`reports.${reportType}`) : REPORT_TYPE_LABELS[reportType]}
+            {isParameterOnlyReport(reportType) ? t(`reports.${reportType}`) : REPORT_TYPE_LABELS[reportType]}
           </h1>
           {data && <p className="text-sm text-gray-500">{t("reports.definitionCount", { count: data.pagination.total })}</p>}
         </div>

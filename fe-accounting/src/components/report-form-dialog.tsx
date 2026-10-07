@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Combobox } from "@/components/ui/combobox";
-import { REPORT_TYPE_LABELS, isStage1b, type ReportDefinition, type ReportDefinitionInput, type ReportType,
+import { REPORT_TYPE_LABELS, isParameterOnlyReport, isAgedReport, type ReportDefinition, type ReportDefinitionInput, type ReportType,
   useCreateReportDefinition, useUpdateReportDefinition, useReportAccounts } from "@/hooks/use-reports";
 import { getApiErrorMessage } from "@/lib/errors";
 
@@ -15,8 +15,8 @@ interface ReportFormDialogProps {
 export function ReportFormDialog({ businessId, type, definition, canWrite, onClose }: ReportFormDialogProps) {
   const { t } = useTranslation();
   const isNew = definition === null;
-  const stage1b = isStage1b(type);
-  const asOf = type === "balance_sheet" || type === "aged_receivables";
+  const parameterOnly = isParameterOnlyReport(type);
+  const asOf = type === "balance_sheet" || isAgedReport(type);
   const create = useCreateReportDefinition(businessId, type);
   const update = useUpdateReportDefinition(businessId, type);
   const accounts = useReportAccounts(businessId, type === "general_ledger_transactions");
@@ -33,21 +33,21 @@ export function ReportFormDialog({ businessId, type, definition, canWrite, onClo
   const [footer, setFooter] = useState(definition?.footer ?? "");
   const [formError, setFormError] = useState<string | null>(null);
   const isSubmitting = create.isPending || update.isPending;
-  const label = stage1b ? t(`reports.${type}`) : REPORT_TYPE_LABELS[type];
+  const label = parameterOnly ? t(`reports.${type}`) : REPORT_TYPE_LABELS[type];
   const fieldClass = "flex flex-col gap-1 text-sm font-medium text-gray-700";
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault(); setFormError(null);
-    if (!stage1b && !title.trim()) { setFormError(t("reports.titleRequired")); return; }
+    if (!parameterOnly && !title.trim()) { setFormError(t("reports.titleRequired")); return; }
     if (!asOf && (!dateFrom || !dateTo)) { setFormError(t("reports.rangeRequired")); return; }
     if (!asOf && dateFrom > dateTo) { setFormError(t("reports.rangeInvalid")); return; }
     if (asOf && !asOfDate) { setFormError(t("reports.dateRequired")); return; }
     const input: ReportDefinitionInput = {
       type, ...(asOf ? { asOfDate } : { dateFrom, dateTo }),
-      ...(!stage1b ? { title: title.trim(), description: description.trim() || null, accountingMethod: "accrual" as const,
+      ...(!parameterOnly ? { title: title.trim(), description: description.trim() || null, accountingMethod: "accrual" as const,
         showAccountCodes, excludeZeroBalances, footer: footer.trim() || null } : {}),
       ...(type === "general_ledger_transactions" ? { accountId: accountId || null } : {}),
-      ...(type === "aged_receivables" ? { sortBy, showInvoices } : {}),
+      ...(isAgedReport(type) ? { sortBy, showInvoices } : {}),
     };
     try {
       if (isNew) {
@@ -66,7 +66,7 @@ export function ReportFormDialog({ businessId, type, definition, canWrite, onClo
       <form onSubmit={(event) => void handleSubmit(event)} className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
           {formError && <p role="alert" className="rounded bg-red-50 p-3 text-sm text-red-700">{formError}</p>}
-          {!stage1b && <>
+          {!parameterOnly && <>
             <label className={fieldClass}>{t("reports.title")} *<Input value={title} disabled={!canWrite} onChange={e => setTitle(e.target.value)} required /></label>
             <label className={fieldClass}>{t("common.description")}<Input value={description} disabled={!canWrite} onChange={e => setDescription(e.target.value)} /></label>
           </>}
@@ -81,7 +81,7 @@ export function ReportFormDialog({ businessId, type, definition, canWrite, onClo
               options={[{ value: "", label: t("reports.allAccounts") }, ...(accounts.data ?? []).map(a => ({ value: a.id, label: `${a.code} - ${a.name}` }))]} />
             {accounts.isError && <p role="alert" className="text-red-700">{getApiErrorMessage(accounts.error)}</p>}
           </div>}
-          {type === "aged_receivables" && <>
+          {isAgedReport(type) && <>
             <label className={fieldClass}>{t("reports.sortBy")}
               <select className="h-9 rounded-md border border-gray-300 px-3" value={sortBy} disabled={!canWrite} onChange={e => setSortBy(e.target.value as "total" | "name")}>
                 <option value="total">{t("reports.sortTotal")}</option><option value="name">{t("reports.sortName")}</option>
@@ -89,7 +89,7 @@ export function ReportFormDialog({ businessId, type, definition, canWrite, onClo
             </label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showInvoices} disabled={!canWrite} onChange={e => setShowInvoices(e.target.checked)} />{t("reports.showInvoices")}</label>
           </>}
-          {!stage1b && <>
+          {!parameterOnly && <>
             <label className={fieldClass}>{t("reports.accountingMethod")}<select disabled className="h-9 rounded-md border border-gray-300 bg-gray-100 px-3"><option>{t("reports.accrual")}</option></select></label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showAccountCodes} disabled={!canWrite} onChange={e => setShowAccountCodes(e.target.checked)} />{t("reports.showAccountCodes")}</label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={excludeZeroBalances} disabled={!canWrite} onChange={e => setExcludeZeroBalances(e.target.checked)} />{t("reports.excludeZeroBalances")}</label>

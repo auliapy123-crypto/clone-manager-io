@@ -1,5 +1,12 @@
 {
   "reports": {
+    "aged_payables": "Umur Utang",
+    "customer_summary": "Ringkasan Pelanggan",
+    "supplier_summary": "Ringkasan Pemasok",
+    "invoices": "Faktur",
+    "creditNotes": "Nota Kredit",
+    "lateFees": "Denda keterlambatan",
+    "payments": "Pembayaran",
     "definitionCount": "{{count}} definisi",
     "empty": "Belum ada laporan tersimpan.",
     "general_ledger_summary": "Ringkasan Buku Besar",
