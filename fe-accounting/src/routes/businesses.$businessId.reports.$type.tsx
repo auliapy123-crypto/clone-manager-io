@@ -1,6 +1,7 @@
-import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { z } from "zod";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,8 @@ import {
   type ReportType,
   useDeleteReportDefinition,
   useReportDefinitions,
+  isStage1b,
+  type ReportDefinition,
 } from "@/hooks/use-reports";
 import { getApiErrorMessage } from "@/lib/errors";
 
@@ -26,10 +29,16 @@ export const Route = createFileRoute("/businesses/$businessId/reports/$type")({
       throw new Error("Jenis laporan tidak dikenal");
     }
   },
-  component: ReportTypeListPage,
+  component: ReportTypePage,
 });
 
+function ReportTypePage() {
+  const isList = useRouterState({ select: state => state.matches.at(-1)?.routeId === Route.id });
+  return isList ? <ReportTypeListPage /> : <Outlet />;
+}
+
 function ReportTypeListPage() {
+  const { t } = useTranslation();
   const { businessId, type } = Route.useParams();
   const reportType = type as ReportType;
   const { data: businesses } = useBusinesses();
@@ -49,9 +58,15 @@ function ReportTypeListPage() {
   const deleteDefinition = useDeleteReportDefinition(businessId, reportType);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<ReportDefinition | null>(null);
+  useEffect(() => {
+    if (search === q) return;
+    const timeout = setTimeout(() => void navigate({ search: { page: 1, q: search.trim() } }), 300);
+    return () => clearTimeout(timeout);
+  }, [search, q, navigate]);
 
   const handleDelete = async (id: string, title: string) => {
-    if (!window.confirm(`Hapus definisi laporan "${title}"?`)) return;
+    if (!window.confirm(t("common.deleteConfirmItem", { item: title }))) return;
     setDeleteError(null);
     try {
       await deleteDefinition.mutateAsync(id);
@@ -65,11 +80,11 @@ function ReportTypeListPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold text-gray-900">
-            {REPORT_TYPE_LABELS[reportType]}
+            {isStage1b(reportType) ? t(`reports.${reportType}`) : REPORT_TYPE_LABELS[reportType]}
           </h1>
-          {data && <p className="text-sm text-gray-500">{data.pagination.total} definisi</p>}
+          {data && <p className="text-sm text-gray-500">{t("reports.definitionCount", { count: data.pagination.total })}</p>}
         </div>
-        {canWrite && <Button onClick={() => setFormOpen(true)}>New Report</Button>}
+        {canWrite && <Button onClick={() => { setEditing(null); setFormOpen(true); }}>{t("reports.newReport")}</Button>}
       </div>
 
       {deleteError && (
@@ -80,35 +95,29 @@ function ReportTypeListPage() {
 
       <Input
         className="max-w-xs"
-        placeholder="Cari title..."
+        placeholder={t("common.search")}
         value={search}
-        onChange={(event) => {
-          setSearch(event.target.value);
-          const timeout = setTimeout(() => {
-            void navigate({ search: { page: 1, q: event.target.value.trim() } });
-          }, 300);
-          void timeout;
-        }}
+        onChange={(event) => setSearch(event.target.value)}
       />
 
       <Card>
         <CardContent className="p-0">
           {isPending ? (
-            <p className="p-6 text-sm text-gray-500">Memuat definisi...</p>
+            <p className="p-6 text-sm text-gray-500">{t("common.loading")}</p>
           ) : isError ? (
             <p role="alert" className="p-6 text-sm text-red-700">
               {getApiErrorMessage(error)}
             </p>
           ) : data.data.length === 0 ? (
-            <p className="p-6 text-sm text-gray-500">Belum ada laporan tersimpan.</p>
+            <p className="p-6 text-sm text-gray-500">{t("reports.empty")}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Title</th>
-                    <th className="px-6 py-3 font-medium">Periode</th>
-                    <th className="px-6 py-3 font-medium">Aksi</th>
+                    <th className="px-6 py-3 font-medium">{t("reports.title")}</th>
+                    <th className="px-6 py-3 font-medium">{t("reports.period")}</th>
+                    <th className="px-6 py-3 font-medium">{t("common.colActions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -127,15 +136,15 @@ function ReportTypeListPage() {
                         )}
                       </td>
                       <td className="px-6 py-3 text-gray-600">
-                        {definition.type === "balance_sheet"
-                          ? `As at ${definition.asOfDate}`
+                        {definition.type === "balance_sheet" || definition.type === "aged_receivables"
+                          ? t("reports.asAt", { date: definition.asOfDate })
                           : `${definition.dateFrom} — ${definition.dateTo}`}
                       </td>
                       <td className="px-6 py-3">
                         {canWrite && (
                           <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm" onClick={() => setFormOpen(true)}>
-                              Edit
+                            <Button variant="outline" size="sm" onClick={() => { setEditing(definition); setFormOpen(true); }}>
+                              {t("common.edit")}
                             </Button>
                             <Button
                               variant="destructive"
@@ -143,7 +152,7 @@ function ReportTypeListPage() {
                               disabled={deleteDefinition.isPending}
                               onClick={() => void handleDelete(definition.id, definition.title)}
                             >
-                              Hapus
+                              {t("common.delete")}
                             </Button>
                           </div>
                         )}
@@ -165,14 +174,12 @@ function ReportTypeListPage() {
         <ReportFormDialog
           businessId={businessId}
           type={reportType}
-          definition={null}
+          definition={editing}
           canWrite={canWrite}
           onClose={() => setFormOpen(false)}
         />
       )}
 
-      {/* Route anak $id (hasil laporan) dirender di sini */}
-      <Outlet />
     </div>
   );
 }

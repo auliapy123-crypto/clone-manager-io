@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useTranslation } from "react-i18next";
+import { isStage1b, type ReportType } from "@/hooks/use-reports";
 
 export const Route = createFileRoute("/businesses/$businessId/reports/")({
   component: ReportsIndexPage,
@@ -29,8 +31,8 @@ const GROUPS: Array<{
   {
     group: "General Ledger",
     items: [
-      { label: "General Ledger Summary" },
-      { label: "General Ledger Transactions" },
+      { type: "general_ledger_summary", label: "General Ledger Summary", enabled: true },
+      { type: "general_ledger_transactions", label: "General Ledger Transactions", enabled: true },
       { label: "Journal" },
       { label: "Tax Transactions" },
     ],
@@ -40,7 +42,7 @@ const GROUPS: Array<{
     items: [
       { label: "Customer Balance Summary" },
       { label: "Customer Balance Detail" },
-      { label: "Aged Receivables" },
+      { type: "aged_receivables", label: "Aged Receivables", enabled: true },
     ],
   },
   {
@@ -66,6 +68,7 @@ const GROUPS: Array<{
 ];
 
 function ReportsIndexPage() {
+  const { t } = useTranslation();
   const { businessId } = Route.useParams();
   return (
     <div className="flex flex-col gap-4 p-6">
@@ -85,7 +88,7 @@ function ReportsIndexPage() {
                     params={{ businessId, type: item.type }}
                     className="text-sm font-medium text-blue-700 hover:underline"
                   >
-                    {item.label}
+                    {isStage1b(item.type as ReportType) ? t(`reports.${item.type}`) : item.label}
                   </Link>
                 ) : (
                   <span key={item.label} className="text-sm text-gray-400">
