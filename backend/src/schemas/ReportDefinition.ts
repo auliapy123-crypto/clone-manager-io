@@ -103,21 +103,12 @@ export const CreateReportDefinitionSchema = z.preprocess(ignoreStage1cFields,
     ...(val.type === "aged_payables" || isContactSummary(val.type) ? { description: null, showAccountCodes: false, excludeZeroBalances: false, footer: null } : {}),
   })));
 
-export const UpdateReportDefinitionSchema = z.preprocess(ignoreStage1cFields,
-  definitionBase.partial().superRefine((val, ctx) => {
-    if (
-      (val.type === "trial_balance" || val.type === "profit_and_loss") &&
-      val.dateFrom &&
-      val.dateTo &&
-      val.dateFrom > val.dateTo
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["dateFrom"],
-        message: "From tidak boleh lebih besar dari To",
-      });
-    }
-  }));
+// A partial edit can omit type. Validate all parameters against the stored type
+// in updateReportDefinition, after merging, so irrelevant fields are ignored
+// consistently even when the request does not repeat type (Report.md §9.2).
+export const UpdateReportDefinitionSchema = z.object({
+  type: ReportTypeSchema.optional(),
+}).catchall(z.unknown());
 
 export type CreateReportDefinitionInput = z.infer<typeof CreateReportDefinitionSchema>;
 export type UpdateReportDefinitionInput = z.infer<typeof UpdateReportDefinitionSchema>;

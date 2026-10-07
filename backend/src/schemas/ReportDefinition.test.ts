@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CreateReportDefinitionSchema as create } from './ReportDefinition.js';
+import { CreateReportDefinitionSchema as create, UpdateReportDefinitionSchema as update } from './ReportDefinition.js';
 
 describe('Reports stage 1c parameters', () => {
   it('defaults aged title, accrual and sorting; requires a real as-of date', () => {
@@ -16,5 +16,12 @@ describe('Reports stage 1c parameters', () => {
         .toMatchObject({ footer: null, showAccountCodes: false, asOfDate: null });
     }
     expect(create.safeParse({ type: 'customer_balance', dateFrom: '2026-10-01', dateTo: '2026-10-07' }).success).toBe(false);
+  });
+  it('validates partial edits after merging with the stored report type', () => {
+    const stored = create.parse({ type: 'customer_summary', dateFrom: '2026-10-01', dateTo: '2026-10-07' });
+    expect(create.parse({ ...stored, ...update.parse({ sortBy: 'ignored', asOfDate: 'ignored', accountingMethod: null }) }))
+      .toMatchObject({ sortBy: null, asOfDate: null, accountingMethod: 'accrual' });
+    expect(create.safeParse({ ...stored, ...update.parse({ dateFrom: '2026-10-08' }) }).success).toBe(false);
+    expect(create.safeParse({ type: 'aged_payables', asOfDate: '2026-10-07', ...update.parse({ sortBy: 'foreign' }) }).success).toBe(false);
   });
 });

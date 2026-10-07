@@ -1,6 +1,7 @@
 {
   "reports": {
     "aged_payables": "Umur Utang",
+    "historicalPayablesHint": "Umur utang memakai saldo faktur saat ini; tanggal lampau bersifat perkiraan.",
     "customer_summary": "Ringkasan Pelanggan",
     "supplier_summary": "Ringkasan Pemasok",
     "invoices": "Faktur",

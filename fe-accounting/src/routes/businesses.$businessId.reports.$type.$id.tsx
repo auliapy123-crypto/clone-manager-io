@@ -134,7 +134,7 @@ function ReportResultPage() {
       )}
 
       {data?.footer && <p className="text-sm text-gray-500">{data.footer}</p>}
-      {isAgedReport(reportType) && <p className="text-sm text-gray-500">{t("reports.historicalHint")}</p>}
+      {isAgedReport(reportType) && <p className="text-sm text-gray-500">{t(reportType === "aged_payables" ? "reports.historicalPayablesHint" : "reports.historicalHint")}</p>}
       {definition.isError && <p role="alert" className="text-sm text-red-700">{getApiErrorMessage(definition.error)}</p>}
 
       <Link

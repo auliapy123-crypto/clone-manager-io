@@ -15,6 +15,7 @@ import {
   useDeleteReportDefinition,
   useReportDefinitions,
   isParameterOnlyReport,
+  isAgedReport,
   type ReportDefinition,
 } from "@/hooks/use-reports";
 import { getApiErrorMessage } from "@/lib/errors";
@@ -136,7 +137,7 @@ function ReportTypeListPage() {
                         )}
                       </td>
                       <td className="px-6 py-3 text-gray-600">
-                        {definition.type === "balance_sheet" || definition.type === "aged_receivables"
+                        {definition.type === "balance_sheet" || isAgedReport(definition.type)
                           ? t("reports.asAt", { date: definition.asOfDate })
                           : `${definition.dateFrom} — ${definition.dateTo}`}
                       </td>

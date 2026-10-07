@@ -6,6 +6,7 @@
     "general_ledger_transactions": "General Ledger Transactions",
     "aged_receivables": "Aged Receivables",
     "aged_payables": "Aged Payables",
+    "historicalPayablesHint": "Historical payable ageing uses current invoice balances; past dates are approximate.",
     "customer_summary": "Customer Summary",
     "supplier_summary": "Supplier Summary",
     "invoices": "Invoices",
