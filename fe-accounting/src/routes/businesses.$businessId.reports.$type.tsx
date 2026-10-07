@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
 import { z } from "zod";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -170,6 +170,9 @@ function ReportTypeListPage() {
           onClose={() => setFormOpen(false)}
         />
       )}
+
+      {/* Route anak $id (hasil laporan) dirender di sini */}
+      <Outlet />
     </div>
   );
 }
