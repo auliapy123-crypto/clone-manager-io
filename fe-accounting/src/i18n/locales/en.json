@@ -72,7 +72,8 @@
     "divisions": "Divisions",
     "taxCodes": "Tax Codes",
     "customFields": "Custom Fields",
-    "history": "History"
+    "history": "History",
+    "reports": "Reports"
   },
   "header": {
     "changePassword": "Change Password",

@@ -72,7 +72,8 @@
     "divisions": "Divisi",
     "taxCodes": "Kode Pajak",
     "customFields": "Custom Fields",
-    "history": "Riwayat"
+    "history": "Riwayat",
+    "reports": "Laporan"
   },
   "header": {
     "changePassword": "Ganti Password",
