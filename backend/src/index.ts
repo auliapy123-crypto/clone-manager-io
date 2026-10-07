@@ -67,6 +67,7 @@ import salesInvoiceRoutesPlugin from "./plugins/SalesInvoiceRoutes.js";
 import salesOrderRoutesPlugin from "./plugins/SalesOrderRoutes.js";
 import salesQuoteRoutesPlugin from "./plugins/SalesQuoteRoutes.js";
 import supplierRoutesPlugin from "./plugins/SupplierRoutes.js";
+import reportRoutesPlugin from "./plugins/ReportRoutes.js";
 import taxCodeRoutesPlugin from "./plugins/TaxCodeRoutes.js";
 import userRoutesPlugin from "./plugins/UserRoutes.js";
 
@@ -348,6 +349,7 @@ export async function buildApp() {
             { name: "Divisions", description: "Divisi/departemen per bisnis (label/tag pengelompokan, non-posting)" },
             { name: "TaxCodes", description: "Master tarif pajak (tax codes) per bisnis" },
             { name: "CustomFields", description: "Field tambahan bebas per jenis record (definisi + nilai, EAV generik)" },
+            { name: "Reports", description: "Laporan keuangan (Trial Balance, Profit and Loss, Balance Sheet) dari buku besar" },
          ],
       },
       transform: jsonSchemaTransform,
@@ -393,6 +395,7 @@ export async function buildApp() {
   await app.register(divisionRoutesPlugin);
   await app.register(taxCodeRoutesPlugin);
   await app.register(customFieldRoutesPlugin);
+  await app.register(reportRoutesPlugin);
   await app.register(historyRoutesPlugin);
 
   return app;

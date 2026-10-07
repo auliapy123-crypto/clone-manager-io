@@ -1317,6 +1317,47 @@ export const customFieldValues = pgTable(
 );
 
 // =====================================================================
+// 27. REPORT_DEFINITIONS (Reports Tahap 1 — definisi laporan tersimpan)
+//
+// Hanya DEFINISI yang disimpan; isi laporan dihitung saat dibuka dari
+// journal_entries/journal_entry_lines (murni baca, tidak posting).
+// =====================================================================
+export const REPORT_TYPES = [
+  "trial_balance",
+  "profit_and_loss",
+  "balance_sheet",
+] as const;
+export type ReportType = (typeof REPORT_TYPES)[number];
+
+export const reportDefinitions = pgTable(
+  "report_definitions",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    businessId: uuid()
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    type: varchar({ length: 50 }).$type<ReportType>().notNull(),
+    title: varchar({ length: 200 }).notNull(),
+    description: text(),
+    dateFrom: date(),
+    dateTo: date(),
+    asOfDate: date(),
+    accountingMethod: varchar({ length: 20 }).notNull().default("accrual"),
+    showAccountCodes: boolean().notNull().default(false),
+    excludeZeroBalances: boolean().notNull().default(false),
+    footer: text(),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+    deletedAt: timestamp(),
+  },
+  (t) => [
+    index("idx_report_definitions_business_type")
+      .on(t.businessId, t.type)
+      .where(sql`${t.deletedAt} IS NULL`),
+  ],
+);
+
+// =====================================================================
 // 23. AUDIT_LOGS
 // =====================================================================
 export const auditLogs = pgTable(
@@ -2066,5 +2107,7 @@ export type NewTaxCode = typeof taxCodes.$inferInsert;
 export type CustomFieldDefinition = typeof customFieldDefinitions.$inferSelect;
 export type NewCustomFieldDefinition = typeof customFieldDefinitions.$inferInsert;
 export type CustomFieldValue = typeof customFieldValues.$inferSelect;
+export type ReportDefinition = typeof reportDefinitions.$inferSelect;
+export type NewReportDefinition = typeof reportDefinitions.$inferInsert;
 export type NewCustomFieldValue = typeof customFieldValues.$inferInsert;
 

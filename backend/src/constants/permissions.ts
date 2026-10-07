@@ -149,6 +149,10 @@ export const Permission = {
     TAX_CODE_WRITE: "tax_code:write",
     TAX_CODE_DELETE: "tax_code:delete",
 
+    // Reports (laporan keuangan — hanya baca jurnal, tidak posting)
+    REPORT_READ: "report:read",
+    REPORT_WRITE: "report:write",
+
     // Custom Fields (field tambahan bebas per entity, generik)
     CUSTOM_FIELD_READ: "custom_field:read",
     CUSTOM_FIELD_WRITE: "custom_field:write",
@@ -193,6 +197,7 @@ const READ_ONLY: PermissionValue[] = [
     Permission.DIVISION_READ,
     Permission.TAX_CODE_READ,
     Permission.CUSTOM_FIELD_READ,
+    Permission.REPORT_READ,
     Permission.HISTORY_READ,
 ];
 
@@ -251,6 +256,7 @@ export const ROLE_PERMISSIONS: Record<BusinessRole, readonly PermissionValue[]> 
       Permission.TAX_CODE_DELETE,
       Permission.CUSTOM_FIELD_WRITE,
       Permission.CUSTOM_FIELD_DELETE,
+      Permission.REPORT_WRITE,
     ],
     viewer: READ_ONLY,
   };
