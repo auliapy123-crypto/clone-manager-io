@@ -18,7 +18,7 @@ const dateString = z
     return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
   }, "Tanggal tidak valid");
 
-export const CreateReportDefinitionSchema = z
+const definitionBase = z
   .object({
     type: ReportTypeSchema,
     title: z.string().trim().min(1, "Title wajib diisi").max(200),
@@ -32,8 +32,10 @@ export const CreateReportDefinitionSchema = z
     showAccountCodes: z.boolean().optional().default(false),
     excludeZeroBalances: z.boolean().optional().default(false),
     footer: z.string().trim().max(2000).optional().nullable(),
-  })
-  .superRefine((val, ctx) => {
+  });
+
+export const CreateReportDefinitionSchema =
+  definitionBase.superRefine((val, ctx) => {
     if (val.type === "trial_balance" || val.type === "profit_and_loss") {
       if (!val.dateFrom || !val.dateTo) {
         ctx.addIssue({
@@ -59,15 +61,18 @@ export const CreateReportDefinitionSchema = z
   });
 
 export const UpdateReportDefinitionSchema =
-  CreateReportDefinitionSchema.partial().superRefine((val, ctx) => {
-    if (val.type === "trial_balance" || val.type === "profit_and_loss") {
-      if (val.dateFrom && val.dateTo && val.dateFrom > val.dateTo) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["dateFrom"],
-          message: "From tidak boleh lebih besar dari To",
-        });
-      }
+  definitionBase.partial().superRefine((val, ctx) => {
+    if (
+      (val.type === "trial_balance" || val.type === "profit_and_loss") &&
+      val.dateFrom &&
+      val.dateTo &&
+      val.dateFrom > val.dateTo
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["dateFrom"],
+        message: "From tidak boleh lebih besar dari To",
+      });
     }
   });
 

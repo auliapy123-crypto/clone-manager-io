@@ -54,10 +54,10 @@ async function aggregateByAccount(
 ): Promise<AccountAggregate[]> {
   const result = await db.execute(sql`
     SELECT a.id AS account_id, a.code, a.name, a.category, a.group_name,
-      COALESCE(SUM(l.debit) FILTER (WHERE e.entry_date <= ${dateTo}), 0) AS debit_to_date,
-      COALESCE(SUM(l.credit) FILTER (WHERE e.entry_date <= ${dateTo}), 0) AS credit_to_date,
-      COALESCE(SUM(l.debit) FILTER (WHERE ${dateFrom} IS NULL OR e.entry_date >= ${dateFrom} AND e.entry_date <= ${dateTo}), 0) AS debit_period,
-      COALESCE(SUM(l.credit) FILTER (WHERE ${dateFrom} IS NULL OR e.entry_date >= ${dateFrom} AND e.entry_date <= ${dateTo}), 0) AS credit_period
+      COALESCE(SUM(l.debit) FILTER (WHERE e.entry_date <= ${dateTo}::date), 0) AS debit_to_date,
+      COALESCE(SUM(l.credit) FILTER (WHERE e.entry_date <= ${dateTo}::date), 0) AS credit_to_date,
+      COALESCE(SUM(l.debit) FILTER (WHERE (${dateFrom}::date IS NULL OR e.entry_date >= ${dateFrom}::date) AND e.entry_date <= ${dateTo}::date), 0) AS debit_period,
+      COALESCE(SUM(l.credit) FILTER (WHERE (${dateFrom}::date IS NULL OR e.entry_date >= ${dateFrom}::date) AND e.entry_date <= ${dateTo}::date), 0) AS credit_period
     FROM journal_entry_lines l
     JOIN journal_entries e ON e.id = l.journal_entry_id
     JOIN chart_of_accounts a ON a.id = l.account_id
@@ -154,18 +154,23 @@ export async function computeTrialBalance(
     else totalCredit += Math.abs(signed);
   }
 
-  if (netProfit !== 0 || !excludeZeroBalances) {
+  // Baris Net profit (loss) = BALANCING FIGURE TB (selisih Total Credit dan
+  // Total Debit semua akun). Untuk from sebelum transaksi pertama nilainya
+  // sama dengan laba periode; kalau ada jurnal pra-`from`, hanya angka ini
+  // yang membuat TB tetap seimbang secara matematis.
+  const balanceGap = totalCredit - totalDebit;
+  if (balanceGap !== 0 || !excludeZeroBalances) {
     rows.push({
       accountId: null,
       code: null,
       name: "Net profit (loss)",
       groupName: null,
-      debit: netProfit < 0 ? Math.abs(netProfit) : null,
-      credit: netProfit >= 0 ? netProfit : null,
+      debit: balanceGap > 0 ? balanceGap : null,
+      credit: balanceGap < 0 ? Math.abs(balanceGap) : null,
       amount: null,
     });
-    if (netProfit >= 0) totalCredit += netProfit;
-    else totalDebit += Math.abs(netProfit);
+    if (balanceGap > 0) totalDebit += balanceGap;
+    else totalCredit += Math.abs(balanceGap);
   }
 
   return {
@@ -315,16 +320,18 @@ export async function computeBalanceSheet(
     if (category === "Asset") totalAssets = sectionTotal;
     if (category === "Liability") totalLiabilities = sectionTotal;
     if (category === "Equity") totalEquityAccounts = sectionTotal;
+    const sectionTotalLabel =
+      category === "Equity" ? "Total equity accounts" : `Total ${label}`;
     rows.push({
       accountId: null,
       code: null,
-      name: `Total ${label}`,
+      name: sectionTotalLabel,
       groupName: null,
       debit: null,
       credit: null,
       amount: sectionTotal,
     });
-    totals.push({ label: `Total ${label}`, value: sectionTotal });
+    totals.push({ label: sectionTotalLabel, value: sectionTotal });
   }
 
   for (const a of accounts) {
@@ -370,6 +377,7 @@ export async function computeBalanceSheet(
     rows,
     totals: [
       ...totals,
+      { label: "Laba berjalan (net profit)", value: netProfitToDate },
       { label: "Retained earnings", value: retainedEarnings },
       { label: "Total Equity", value: totalEquity },
       { label: "Net assets", value: netAssets },
