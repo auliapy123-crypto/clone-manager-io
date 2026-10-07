@@ -112,6 +112,9 @@ export async function computeGeneralLedgerTransactions(
       SELECT COALESCE(r.id::text,'retained-earnings'), COALESCE(r.name,'Retained earnings'),r.code,'Equity',
         ${dateTo}::date, '', 'profit', GREATEST(-p.period,0),GREATEST(p.period,0),
         'Profit (loss) for the period','profit',1 FROM profit p LEFT JOIN retained r ON true
+      WHERE p.period<>0 OR EXISTS (
+        SELECT 1 FROM ledger WHERE account_id=r.id AND entry_date>=${dateFrom}::date
+      )
     ), running AS (
       SELECT m.*, COALESCE(o.opening,0) - CASE WHEN m.account_id=COALESCE(r.id::text,'retained-earnings') THEN p.opening ELSE 0 END AS opening,
         COALESCE(o.opening,0) - CASE WHEN m.account_id=COALESCE(r.id::text,'retained-earnings') THEN p.opening ELSE 0 END

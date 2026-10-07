@@ -340,6 +340,16 @@ environment variable atau `.env` yang sudah di-gitignore.
 
 ### Status fase
 
+- **Reports Tahap 1 + 1b selesai:** definisi di `report_definitions`, hasil
+  live tanpa posting. TB/P&L/BS + General Ledger Summary/Transactions +
+  Aged Receivables. Kolom nullable `account_id`, `sort_by`, `show_invoices`;
+  agregasi/window SQL 1b dalam sen, label transaksi dari kolom jurnal asli.
+  Retained earnings dikenali dari nama COA "Retained earnings"/"Laba Ditahan"
+  (fallback seksi sintetis bila akun belum ada). Aged memakai balanceDue
+  saat ini: tanggal lampau perkiraan. New/Edit, Obscure, Print browser
+  sudah diuji; acuan angka dummy TB 5.550.054,61, net P&L 5.000.017.
+  Spesifikasi final: `Dokumentasi Modul/Report.md` §8.
+
 - **Fase 0 (riset Manager.io), Fase 1 (fondasi), dan Fase 2 (13 modul
   Prioritas 1) SELESAI.** Urutan Fase 2 yang sudah tuntas: Customers,
   Suppliers, Bank and Cash Accounts, Sales Invoices, Purchase Invoices,
@@ -399,10 +409,9 @@ environment variable atau `.env` yang sudah di-gitignore.
   tinggal konversi di sesi berikut; fallback id menutupi halaman
   yang belum dikonversi). Sisa roadmap Fase 4:
   Backup/Export (download data user — BUKAN backup DB, Neon sudah
-  handle itu), Reports Tahap 1 (tabel report_definitions + perhitungan
-  TB/P&L/BS langsung dari journal_entry_lines x chart_of_accounts;
-  hasil TIDAK disimpan, dihitung saat dibuka; Tahap 1b: General Ledger
-  Summary/Transactions; laporan lain menyusul per Report.md), lanjutan
+  handle itu), Reports tahap lanjutan (Tahap 1 + 1b selesai:
+  TB/P&L/BS, General Ledger Summary/Transactions, Aged Receivables;
+  laporan lain menyusul per Report.md), lanjutan
   Custom Fields (entity modul lain, field per baris, kolom list,
   laporan — cukup dari frontend), Emails, lanjutan Localization
   (halaman Fase 2 sisa, pesan error backend
