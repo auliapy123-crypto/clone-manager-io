@@ -18,7 +18,12 @@ export interface ReportRow {
   debit: number | null;
   credit: number | null;
   amount: number | null;
-  kind?: "section" | "account" | "transaction" | "profit" | "customer" | "invoice" | "total";
+  kind?: "section" | "account" | "transaction" | "profit" | "customer" | "supplier" | "invoice" | "total";
+  supplierId?: string;
+  invoices?: number;
+  creditNotes?: number;
+  lateFees?: number;
+  payments?: number;
   opening?: number;
   movement?: number;
   closing?: number;
@@ -137,23 +142,48 @@ export async function computeGeneralLedgerTransactions(
 export async function computeAgedReceivables(
   businessId: string, title: string, asOfDate: string, sortBy: string, showInvoices: boolean,
 ): Promise<ReportResult> {
+  return computeAgeing(businessId, title, asOfDate, sortBy, showInvoices, false);
+}
+
+export async function computeAgedPayables(
+  businessId: string, title: string, asOfDate: string, sortBy: string, showInvoices: boolean,
+): Promise<ReportResult> {
+  return computeAgeing(businessId, title, asOfDate, sortBy, showInvoices, true);
+}
+
+async function computeAgeing(
+  businessId: string, title: string, asOfDate: string, sortBy: string, showInvoices: boolean, payable: boolean,
+): Promise<ReportResult> {
+  // Fixed SQL fragments only; mirror each invoice repository's live allocation calculation.
+  const headers = sql.identifier(payable ? "purchase_invoices" : "sales_invoices");
+  const lines = sql.identifier(payable ? "purchase_invoice_lines" : "sales_invoice_lines");
+  const invoiceKey = sql.identifier(payable ? "purchase_invoice_id" : "sales_invoice_id");
+  const contactKey = payable ? sql`i.supplier_id` : sql`i.customer_id`;
+  const lineAmount = payable ? sql`l.subtotal` : sql`l.line_total`;
+  const allocations = payable ? sql`
+    SELECT l.purchase_invoice_id AS invoice_id,SUM((l.amount*100)::bigint) AS paid
+    FROM payment_lines l JOIN payments p ON p.id=l.payment_id
+    WHERE p.business_id=${businessId} AND p.deleted_at IS NULL GROUP BY l.purchase_invoice_id
+  ` : sql`
+    SELECT sales_invoice_id AS invoice_id,SUM((amount*100)::bigint) AS paid FROM withholding_tax_receipts
+    WHERE business_id=${businessId} AND deleted_at IS NULL GROUP BY sales_invoice_id
+  `;
   const result = await db.execute(sql`
     WITH invoice_totals AS (
-      SELECT l.sales_invoice_id, SUM((l.line_total*100)::bigint) AS amount
-      FROM sales_invoice_lines l JOIN sales_invoices i ON i.id=l.sales_invoice_id
+      SELECT l.${invoiceKey} AS invoice_id, SUM((${lineAmount}*100)::bigint) AS amount
+      FROM ${lines} l JOIN ${headers} i ON i.id=l.${invoiceKey}
       WHERE i.business_id=${businessId} AND i.deleted_at IS NULL AND i.issue_date<=${asOfDate}::date
-      GROUP BY l.sales_invoice_id
+      GROUP BY l.${invoiceKey}
     ), allocations AS (
-      SELECT sales_invoice_id,SUM((amount*100)::bigint) AS paid FROM withholding_tax_receipts
-      WHERE business_id=${businessId} AND deleted_at IS NULL GROUP BY sales_invoice_id
+      ${allocations}
     ), invoices AS (
-      SELECT i.id,i.customer_id,c.name,i.reference,i.issue_date, t.amount-COALESCE(a.paid,0) AS balance,
+      SELECT i.id,${contactKey} AS customer_id,c.name,i.reference,i.issue_date, t.amount-COALESCE(a.paid,0) AS balance,
         CASE WHEN i.due_date IS NULL OR i.due_date>=${asOfDate}::date THEN 0
           WHEN ${asOfDate}::date-i.due_date<=30 THEN 1 WHEN ${asOfDate}::date-i.due_date<=60 THEN 2
           WHEN ${asOfDate}::date-i.due_date<=90 THEN 3 ELSE 4 END AS bucket
-      FROM sales_invoices i JOIN invoice_totals t ON t.sales_invoice_id=i.id
-      JOIN contacts c ON c.id=i.customer_id AND c.business_id=i.business_id
-      LEFT JOIN allocations a ON a.sales_invoice_id=i.id
+      FROM ${headers} i JOIN invoice_totals t ON t.invoice_id=i.id
+      JOIN contacts c ON c.id=${contactKey} AND c.business_id=i.business_id AND c.deleted_at IS NULL
+      LEFT JOIN allocations a ON a.invoice_id=i.id
       WHERE i.business_id=${businessId} AND i.deleted_at IS NULL AND i.issue_date<=${asOfDate}::date
         AND t.amount-COALESCE(a.paid,0)>0
     ), buckets AS (
@@ -178,14 +208,83 @@ export async function computeAgedReceivables(
         LOWER(c.name),c.customer_id,detail_order,rows.date,rows.invoice_id
   `);
   const rows = (result.rows as Record<string, unknown>[]).map((r): ReportRow => ({
-    ...emptyRow(String(r.name)), kind: r.kind as "customer" | "invoice" | "total",
-    customerId: r.customer_id ? String(r.customer_id) : undefined,
+    ...emptyRow(String(r.name)), kind: payable && r.kind === "customer" ? "supplier" : r.kind as "customer" | "invoice" | "total",
+    ...(payable ? { supplierId: r.customer_id ? String(r.customer_id) : undefined }
+      : { customerId: r.customer_id ? String(r.customer_id) : undefined }),
     invoiceId: r.invoice_id ? String(r.invoice_id) : undefined, date: r.date as string | null,
     current: centsToAmount(r.current), days1To30: centsToAmount(r.days1), days31To60: centsToAmount(r.days31),
     days61To90: centsToAmount(r.days61), daysOver90: centsToAmount(r.days90), amount: centsToAmount(r.total),
   }));
-  return { type: "aged_receivables", title, headerDate: `As at ${asOfDate}`, footer: null, rows,
+  return { type: payable ? "aged_payables" : "aged_receivables", title, headerDate: `As at ${asOfDate}`, footer: null, rows,
     totals: [{ label: "Total", value: rows.find(r => r.kind === "total")?.amount ?? 0 }], netProfit: null };
+}
+
+/** Document movements mandated by Report.md §9.3, dated from verified Neon columns.
+ * Opening includes the same document types strictly before From (never live minus only this period).
+ * WTR, debit notes and manual journals are outside this summary's specified columns/formula.
+ */
+export async function computeContactSummary(
+  businessId: string, title: string, dateFrom: string, dateTo: string, supplier: boolean,
+): Promise<ReportResult> {
+  const movements = supplier ? sql`
+    SELECT i.supplier_id AS contact_id,i.issue_date AS date,SUM((l.subtotal*100)::bigint) AS invoices,
+      0::bigint AS credits,0::bigint AS fees,0::bigint AS payments
+    FROM purchase_invoices i JOIN purchase_invoice_lines l ON l.purchase_invoice_id=i.id
+    WHERE i.business_id=${businessId} AND i.deleted_at IS NULL AND i.issue_date<=${dateTo}::date
+    GROUP BY i.id
+    UNION ALL
+    SELECT COALESCE(i.supplier_id,p.contact_id),p.date,0,0,0,(l.amount*100)::bigint
+    FROM payments p JOIN payment_lines l ON l.payment_id=p.id
+    LEFT JOIN purchase_invoices i ON i.id=l.purchase_invoice_id AND i.business_id=p.business_id AND i.deleted_at IS NULL
+    JOIN chart_of_accounts a ON a.id=l.account_id AND a.business_id=p.business_id
+    WHERE p.business_id=${businessId} AND p.deleted_at IS NULL AND p.date<=${dateTo}::date
+      AND (i.id IS NOT NULL OR (l.purchase_invoice_id IS NULL AND a.category='Liability'
+        AND a.is_control_account=true AND a.deleted_at IS NULL))
+  ` : sql`
+    SELECT i.customer_id AS contact_id,i.issue_date AS date,SUM((l.line_total*100)::bigint) AS invoices,
+      0::bigint AS credits,0::bigint AS fees,0::bigint AS payments
+    FROM sales_invoices i JOIN sales_invoice_lines l ON l.sales_invoice_id=i.id
+    WHERE i.business_id=${businessId} AND i.deleted_at IS NULL AND i.issue_date<=${dateTo}::date
+    GROUP BY i.id
+    UNION ALL
+    SELECT n.customer_id,n.issue_date,0,SUM((l.line_total*100)::bigint),0,0
+    FROM credit_notes n JOIN credit_note_lines l ON l.credit_note_id=n.id
+    WHERE n.business_id=${businessId} AND n.deleted_at IS NULL AND n.issue_date<=${dateTo}::date GROUP BY n.id
+    UNION ALL
+    SELECT f.customer_id,f.date,0,0,(f.amount*100)::bigint,0 FROM late_payment_fees f
+    WHERE f.business_id=${businessId} AND f.deleted_at IS NULL AND f.date<=${dateTo}::date
+  `;
+  const result = await db.execute(sql`
+    WITH movements AS (${movements}), contacts_summary AS (
+      SELECT c.id AS contact_id,c.name,
+        COALESCE(SUM(m.invoices-m.credits+m.fees-m.payments) FILTER (WHERE m.date<${dateFrom}::date),0) AS opening,
+        COALESCE(SUM(m.invoices) FILTER (WHERE m.date>=${dateFrom}::date),0) AS invoices,
+        COALESCE(SUM(m.credits) FILTER (WHERE m.date>=${dateFrom}::date),0) AS credits,
+        COALESCE(SUM(m.fees) FILTER (WHERE m.date>=${dateFrom}::date),0) AS fees,
+        COALESCE(SUM(m.payments) FILTER (WHERE m.date>=${dateFrom}::date),0) AS payments,
+        COUNT(*) FILTER (WHERE m.date>=${dateFrom}::date) AS movement_count
+      FROM contacts c JOIN movements m ON m.contact_id=c.id
+      WHERE c.business_id=${businessId} AND c.deleted_at IS NULL
+        AND ${supplier ? sql`c.is_supplier` : sql`c.is_customer`}
+      GROUP BY c.id
+    ), visible AS (
+      SELECT *,opening+invoices-credits+fees-payments AS closing FROM contacts_summary
+      WHERE opening<>0 OR movement_count>0
+    ), rows AS (
+      SELECT contact_id::text,name,opening,invoices,credits,fees,payments,closing,0 AS sort_order FROM visible
+      UNION ALL
+      SELECT NULL,'Total',COALESCE(SUM(opening),0),COALESCE(SUM(invoices),0),COALESCE(SUM(credits),0),
+        COALESCE(SUM(fees),0),COALESCE(SUM(payments),0),COALESCE(SUM(closing),0),1 FROM visible
+    ) SELECT * FROM rows ORDER BY sort_order,LOWER(name),contact_id
+  `);
+  const rows = (result.rows as Record<string, unknown>[]).map((r): ReportRow => ({
+    ...emptyRow(String(r.name)), kind: r.sort_order === 1 ? "total" : supplier ? "supplier" : "customer",
+    ...(supplier ? { supplierId: r.contact_id ? String(r.contact_id) : undefined, payments: centsToAmount(r.payments) }
+      : { customerId: r.contact_id ? String(r.contact_id) : undefined, creditNotes: centsToAmount(r.credits), lateFees: centsToAmount(r.fees) }),
+    opening: centsToAmount(r.opening), invoices: centsToAmount(r.invoices), closing: centsToAmount(r.closing),
+  }));
+  return { type: supplier ? "supplier_summary" : "customer_summary", title, headerDate: `${dateFrom} — ${dateTo}`,
+    footer: null, rows, totals: [{ label: "Closing", value: rows.at(-1)?.closing ?? 0 }], netProfit: null };
 }
 
 export interface ReportTotals {

@@ -1329,6 +1329,9 @@ export const REPORT_TYPES = [
   "general_ledger_summary",
   "general_ledger_transactions",
   "aged_receivables",
+  "aged_payables",
+  "customer_summary",
+  "supplier_summary",
 ] as const;
 export type ReportType = (typeof REPORT_TYPES)[number];
 

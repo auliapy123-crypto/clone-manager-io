@@ -10,6 +10,8 @@ import {
   computeGeneralLedgerSummary,
   computeGeneralLedgerTransactions,
   computeAgedReceivables,
+  computeAgedPayables,
+  computeContactSummary,
 } from "../repositories/ReportQueryRepository.js";
 import {
   createReportDefinition,
@@ -278,6 +280,14 @@ export async function reportRoutesPlugin(fastify: FastifyInstance) {
       if (definition.type === "aged_receivables") {
         return sendData(reply, await computeAgedReceivables(request.params.businessId, definition.title,
           definition.asOfDate!, definition.sortBy ?? "total", definition.showInvoices));
+      }
+      if (definition.type === "aged_payables") {
+        return sendData(reply, await computeAgedPayables(request.params.businessId, definition.title,
+          definition.asOfDate!, definition.sortBy ?? "total", definition.showInvoices));
+      }
+      if (definition.type === "customer_summary" || definition.type === "supplier_summary") {
+        return sendData(reply, await computeContactSummary(request.params.businessId, definition.title,
+          definition.dateFrom!, definition.dateTo!, definition.type === "supplier_summary"));
       }
       if (
         definition.type === "trial_balance" ||
