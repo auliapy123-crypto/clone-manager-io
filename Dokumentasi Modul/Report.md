@@ -136,3 +136,160 @@ Debit/Credit/Balance; aged 5 bucket + Total). Form per tipe HANYA berisi
 field §8.2–§8.3 (tanpa Title, tanpa Accounting method). Route
 `/reports/$type` yang sudah ada dipakai ulang tanpa struktur baru.
 Angka hasil ikut Obscure mode. Print browser, tanpa Clone/PDF.
+## 9. Tahap 1c: Aged Payables, Customer Summary, Supplier Summary
+
+> Sumber: screenshot Manager.io asli (form + hasil ketiganya). Nama jenis
+> mengikuti Manager.io persis: `aged_payables`, `customer_summary`,
+> `supplier_summary` (BUKAN "balance").
+
+### 9.1 Perubahan indeks
+Tiga item menjadi aktif: Aged Payables (grup Suppliers), Customer Summary
+(grup Customers), Supplier Summary (grup Suppliers). Sisanya tetap "Segera".
+
+### 9.2 Kolom & validasi (tanpa kolom tabel baru)
+Ketiga form TIDAK punya Title maupun Accounting method (terverifikasi
+screenshot) — `title` default nama jenis laporan bila kosong;
+`accounting_method` diabaikan. Validasi:
+- `aged_payables`: wajib `as_of_date`; `sort_by` total/name default total;
+  `show_invoices` bool. Cermin persis Aged Receivables sisi supplier
+  (purchase invoices + live balanceDue).
+- `customer_summary` / `supplier_summary`: wajib from+to (from <= to).
+  Field lain diabaikan.
+
+### 9.3 Perhitungan
+- **Aged Payables** per supplier per `as_of_date`: hanya purchase invoice
+  issue_date <= as_of dan balanceDue > 0. Bucket dari due_date: Current
+  (belum tempo/tanpa due), 1–30, 31–60, 61–90, 90+ hari. Total per
+  supplier + baris total. Sort total = terbesar dulu, name = abjad.
+  `show_invoices` true → rincian faktur per supplier. Keterbatasan
+  as-of-masa-lalu sama seperti Aged Receivables (uji pakai hari ini).
+- **Customer Summary** per customer (from..to): Opening (saldo tepat
+  sebelum from), Invoices (Σ invoiceAmount periode), Credit Notes
+  (Σ periode, mengurangi), Late payment fees (Σ periode, menambah),
+  Closing (= Opening + Invoices − CreditNotes + LateFees). Hanya
+  customer ber-opening ≠ 0 atau bermutasi.
+- **Supplier Summary** per supplier (from..to): Opening, Invoices
+  (Σ purchase invoiceAmount periode), Payments (Σ baris payment periode
+  yang teralokasi ke faktur supplier itu; baris tanpa link faktur ikut
+  bila akunnya kontrol AP dan payee-nya supplier tsb.), Closing
+  (= Opening + Invoices − Payments).
+- Relasi tanggal yang dipakai (issue_date CN/fees, payment date, WTR
+  date) WAJIB diverifikasi dari struktur asli; kalau kolomnya tidak ada,
+  Opening dihitung mundur (live − mutasi periode) dan dicatat sebagai
+  penyimpangan + keterbatasan. Jangan mengarang kolom.
+
+### 9.4 Hasil & frontend
+Kolom persis screenshot (Customer: Opening, Invoices, Credit Notes, Late
+payment fees, Closing; Supplier: Opening, Invoices, Payments, Closing;
+masing-masing + baris total). Form per tipe HANYA field §9.2. Route
+`/reports/$type` dipakai ulang. Angka ikut Obscure mode. Print browser,
+tanpa Clone/PDF.
+
+### 9.5 Implementasi dan struktur asli Neon (7 Oktober 2026)
+
+Verifikasi dilakukan lewat `information_schema.columns` sebelum implementasi;
+tidak ada tabel/kolom baru atau DDL.
+
+| Sumber | Relasi dan tanggal yang terverifikasi | Nilai uang |
+|---|---|---|
+| Sales Invoice | `customer_id`, `issue_date` | `SUM(sales_invoice_lines.line_total)` |
+| Credit Note | `customer_id`, `issue_date` | `SUM(credit_note_lines.line_total)` |
+| Late Payment Fee | `customer_id`, `sales_invoice_id`, `date` (BUKAN `issue_date`) | `amount` |
+| Purchase Invoice | `supplier_id`, `issue_date`, `due_date` nullable | `SUM(purchase_invoice_lines.subtotal)` |
+| Payment | `payments.date`, `contact_id`; alokasi di `payment_lines.purchase_invoice_id` | `payment_lines.amount` |
+| Withholding Tax Receipt | `customer_id`, `sales_invoice_id`, `date` | `amount` |
+
+Tidak ada tanggal di baris/alokasi payment; tanggal yang dipakai ialah tanggal
+header payment. Baris teralokasi mengikuti supplier faktur aktif; baris tanpa
+link faktur mengikuti payee header dan hanya masuk bila akunnya kategori
+Liability dengan `is_control_account=true`, milik bisnis yang sama dan aktif.
+Pembayaran akun beban/Expense Claims tidak masuk Supplier Summary.
+
+Opening merupakan agregasi dokumen aktif dengan tanggal **strictly `< from`**;
+mutasi memakai `from <= date <= to`. Dokumen setelah `to` tidak masuk, termasuk
+ke Opening. Semua penjumlahan, bucket, Closing, dan total dihitung dalam sen
+integer di SQL; konversi ke number/nominal hanya pada batas respons API.
+Kontak aktif hanya tampil bila Opening bukan nol atau ada dokumen dalam periode,
+termasuk bila mutasinya saling meniadakan. Tidak diperlukan fallback tanggal.
+
+**Batas cakupan §9.3:** summary mengikuti tipe dokumen/kolom dan rumus yang
+ditetapkan, bukan keseluruhan saldo jurnal AR/AP. WTR (tanggal tersedia), Debit
+Notes, dan jurnal manual tidak menjadi komponen Opening/mutasi summary. Late
+Fees justru masuk Customer Summary walaupun modulnya non-posting. Karena itu
+summary bisa berbeda dari saldo kontak/buku besar jika bisnis memiliki sumber
+tersebut; ini batas cakupan rumus final, bukan fallback kolom hilang. Tidak
+ada WTR/Credit Notes/Late Fees aktif pada baseline dummy sesi ini. Ageing
+tetap memakai **live balanceDue per faktur** (WTR untuk AR, Payment teralokasi
+untuk AP); pembayaran tanpa link faktur tidak mengurangi ageing per faktur.
+As-of historis tetap perkiraan sesuai §8.4/§9.3.
+
+Validasi penuh edit dijalankan setelah payload digabung dengan definisi
+tersimpan, agar edit tanpa `type` juga mengabaikan field tidak relevan.
+Field relevan yang salah, tanggal tidak nyata, rentang terbalik, jenis asing,
+dan sort asing pada ageing ditolak 400. Title kosong memakai nama jenis;
+accounting method diabaikan pada ketiga tipe 1c. RBAC, audit, soft-delete dan
+pagination maksimum 100 memakai infrastruktur yang sama.
+
+### 9.6 Bukti pengujian Tahap 1c (7 Oktober 2026)
+
+Lingkungan: lokal pnpm, backend `http://localhost:4000`, frontend
+`http://localhost:3000`, Docker kosong. Business dummy:
+`d9d9760c-38a1-4849-a646-4206022f03c1`. Password tidak diubah.
+
+| Uji runtime | Hasil nyata |
+|---|---|
+| Aged Payables invoice ZZ overdue | Bucket 1–30 = **100,25**, sama dengan live balanceDue; pembayaran teralokasi **30,10** menurunkan keduanya menjadi **70,15** |
+| Bucket lain | Due hari ini → Current; tanpa due → Current; overdue 31/61/91 hari → bucket 31–60/61–90/90+, masing-masing **1,01** |
+| Aged Payables setelah cleanup | Total kembali **15,00**, seluruhnya Current |
+| Customer Summary Pahrio, 1–7 Oktober | Opening **5.550.016,96** + Invoices **16,32** − CN **0** + Fees **0** = Closing **5.550.033,28**; total identik |
+| Customer ZZ, batas tanggal + CN/Fee | Opening **8,02** (=10,01−2,02+0,03) + Invoices **12,34** − CN **1,23** + Fees **0,45** = Closing **19,58**; invoice **99,99** bertanggal 8 Oktober dikecualikan |
+| Total Customer ketika ZZ aktif | Opening **5.550.024,98** + Invoices **28,66** − CN **1,23** + Fees **0,45** = Closing **5.550.052,86** |
+| Supplier ZZ, 1–7 Oktober | Opening **15,03** (=20,04−5,01) + Invoices **100,25** − Payments **32,12** (=30,10 teralokasi +2,02 tanpa link akun AP) = Closing **83,16**; pembayaran akun Expense **3,03** dikecualikan |
+| Supplier setelah tambahan 5 invoice bucket | ZZ Closing **88,21**; total dengan supplier lama Opening **30,03** + Invoices **105,30** − Payments **32,12** = Closing **103,21** |
+| Edit tanggal ke 2 Oktober di UI | Customer ZZ Opening **20,36**, Invoices **0**, CN **1,23**, Fees **0,45**, Closing tetap **19,58**; Supplier ZZ Opening **120,33**, Invoices **0**, Payments **32,12**, Closing tetap **88,21** |
+| Negatif | Create/partial edit from>to, tanggal 30 Februari, type/sort asing dan pageSize=101 → **400**; viewer create/edit/delete → **403**; bisnis tanpa akses → **403**; ID tidak ada/soft-deleted result → **404**; tanpa 500 |
+| Viewer baca | Ketiga result → **200** |
+| Field diabaikan/default | Title spasi → **Customer Summary**; accountingMethod dinormalisasi accrual; field tak relevan (termasuk nilai salah) pada create/edit tanpa type diabaikan |
+| Audit 3 definisi uji awal | CREATE/DELETE masing-masing **1**; UPDATE Aged **3**, Customer **3**, Supplier **1** |
+| Non-posting | Jumlah journal_entries identik saat create/read/edit Reports: **205** pada pemeriksaan awal; **221** sebelum/sesudah pemeriksaan akhir (selisih merupakan jurnal transaksi uji yang sudah soft-deleted) |
+| Frontend New/Edit | Aged hanya Date/Sort/Show invoices; Summary hanya From/To; tanpa Title/Accounting method; edit tersimpan dan result diperbarui |
+| Obscure | Ketiga hasil: semua sel nominal dan baris total menjadi **••••••**; toggle balik memulihkan angka |
+| Print | Tombol dipicu pada ketiga hasil, memakai window.print dan CSS Reports yang sama. **Pratinjau/hasil cetak native belum terverifikasi**: browser bawaan tidak mengekspos dialog tersebut dan panggilan otomasi mengalami timeout; console aplikasi bersih |
+| Typecheck/tests | Backend dan frontend **bersih**; 3 tes validasi Reports lulus |
+
+Regresi sebelum dan setelah implementasi + cleanup, diverifikasi ulang lewat
+endpoint `result`:
+
+| Laporan | Sebelum | Sesudah |
+|---|---:|---:|
+| TB Total Debit = Total Credit | 5.550.054,61 | 5.550.054,61 |
+| P&L Net Profit | 5.000.017,00 | 5.000.017,00 |
+| BS Net Assets = Total Equity | 5.000.022,01 | 5.000.022,01 |
+| Aged Receivables Total | 5.550.033,28 | 5.550.033,28 |
+
+BS lama masih menghasilkan representasi float `5000022.010000001` pada API;
+nominal dalam sen dan tampilan tetap identik, tanpa ketidakseimbangan.
+
+Cleanup: **30 record aplikasi buatan sesi ini** dihapus via API menggunakan
+ID yang dicatat saat create (24 pada uji utama, 6 pada verifikasi akhir),
+termasuk kedua Late Fees. Query langsung berdasarkan setiap ID membuktikan
+semuanya tidak aktif; hasil 10 definisi terhapus → 404. Query prefix hanya
+dipakai untuk pemeriksaan read-only: **0 ZZ aktif**. Daftar API tanpa filter,
+pagination <=100, juga **0 ZZ** pada Customers/Suppliers/Sales Invoices/Credit
+Notes/Purchase Invoices/Payments/Reports. Jurnal yatim aktif purchase/payment:
+**0**. Tombstone soft-delete dan audit dipertahankan sesuai pola modul.
+PO-2020, RCV 2020, inv-102, INV-TEST-001 dan PRJ-2020 tetap aktif. Skrip
+sementara dan manifest ID dibuang; tidak ikut commit.
+
+File implementasi yang berubah:
+- Backend: `src/db/schema.ts`, `src/schemas/ReportDefinition.ts`,
+  `src/schemas/ReportDefinition.test.ts`, `src/repositories/ReportQueryRepository.ts`,
+  `src/plugins/ReportRoutes.ts`.
+- Frontend: `src/hooks/use-reports.ts`, `src/components/report-form-dialog.tsx`,
+  `src/components/report-stage1b-table.tsx`, tiga route Reports
+  (`reports.index`, `reports.$type`, `reports.$type.$id`),
+  `src/i18n/locales/id.json` dan `en.json`.
+- Dokumentasi: `Dokumentasi Modul/Report.md`.
+
+Commit awal: backend `3ad0258`; frontend `f8ddda9`. Perbaikan detail hasil QA
+dan catatan pengujian disimpan pada commit sesudahnya (lihat git log).
