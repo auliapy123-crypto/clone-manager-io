@@ -399,9 +399,13 @@ environment variable atau `.env` yang sudah di-gitignore.
   tinggal konversi di sesi berikut; fallback id menutupi halaman
   yang belum dikonversi). Sisa roadmap Fase 4:
   Backup/Export (download data user — BUKAN backup DB, Neon sudah
-  handle itu), lanjutan Custom Fields (entity modul lain, field per
-  baris, kolom list, laporan — cukup dari frontend), Emails,
-  Reports, lanjutan Localization (halaman Fase 2, pesan error
+  handle itu), Reports Tahap 1 (tabel report_definitions + perhitungan
+  TB/P&L/BS langsung dari journal_entry_lines x chart_of_accounts;
+  hasil TIDAK disimpan, dihitung saat dibuka; Tahap 1b: General Ledger
+  Summary/Transactions; laporan lain menyusul per Report.md), lanjutan
+  Custom Fields (entity modul lain, field per baris, kolom list,
+  laporan — cukup dari frontend), Emails, lanjutan Localization
+  (halaman Fase 2 sisa, pesan error backend
   backend, format angka/tanggal per locale), Custom themes; lanjutan
   Tax Codes (Purchase Invoices dkk) & Divisions di modul sisa. Fase 5
   (QA), Fase 6 (deployment) menyusul.
