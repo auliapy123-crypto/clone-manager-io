@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Combobox } from "@/components/ui/combobox";
 import { REPORT_TYPE_LABELS, isParameterOnlyReport, isAgedReport, type ReportDefinition, type ReportDefinitionInput, type ReportType,
-  useCreateReportDefinition, useUpdateReportDefinition, useReportAccounts } from "@/hooks/use-reports";
+  useCreateReportDefinition, useUpdateReportDefinition, useReportAccounts, useReportCustomFields } from "@/hooks/use-reports";
 import { getApiErrorMessage } from "@/lib/errors";
 
 interface ReportFormDialogProps {
@@ -20,6 +20,9 @@ export function ReportFormDialog({ businessId, type, definition, canWrite, onClo
   const create = useCreateReportDefinition(businessId, type);
   const update = useUpdateReportDefinition(businessId, type);
   const accounts = useReportAccounts(businessId, type === "general_ledger_transactions");
+  const customGrouping = type === "sales_invoice_totals_by_custom_field";
+  const fields = useReportCustomFields(businessId, customGrouping);
+  const [customFieldId, setCustomFieldId] = useState(definition?.customFieldId ?? "");
   const [title, setTitle] = useState(definition?.title ?? REPORT_TYPE_LABELS[type]);
   const [description, setDescription] = useState(definition?.description ?? "");
   const [dateFrom, setDateFrom] = useState(definition?.dateFrom ?? "");
@@ -42,6 +45,7 @@ export function ReportFormDialog({ businessId, type, definition, canWrite, onClo
     if (!asOf && (!dateFrom || !dateTo)) { setFormError(t("reports.rangeRequired")); return; }
     if (!asOf && dateFrom > dateTo) { setFormError(t("reports.rangeInvalid")); return; }
     if (asOf && !asOfDate) { setFormError(t("reports.dateRequired")); return; }
+    if (customGrouping && !customFieldId) { setFormError(t("reports.customFieldRequired")); return; }
     const input: ReportDefinitionInput = {
       type, ...(asOf ? { asOfDate } : { dateFrom, dateTo }),
       ...(!parameterOnly ? { title: title.trim(), description: description.trim() || null, accountingMethod: "accrual" as const,
@@ -49,6 +53,7 @@ export function ReportFormDialog({ businessId, type, definition, canWrite, onClo
       ...(type === "receipts_payments_summary" ? { showAccountCodes, excludeZeroBalances, footer: footer.trim() || null } : {}),
       ...(type === "general_ledger_transactions" ? { accountId: accountId || null } : {}),
       ...(isAgedReport(type) ? { sortBy, showInvoices } : {}),
+      ...(customGrouping ? { title: title.trim(), customFieldId } : {}),
     };
     try {
       if (isNew) {
@@ -75,6 +80,15 @@ export function ReportFormDialog({ businessId, type, definition, canWrite, onClo
             <label className={fieldClass}>{t("reports.from")} *<Input type="date" value={dateFrom} disabled={!canWrite} onChange={e => setDateFrom(e.target.value)} required /></label>
             <label className={fieldClass}>{t("reports.to")} *<Input type="date" value={dateTo} disabled={!canWrite} onChange={e => setDateTo(e.target.value)} required /></label>
           </>}
+          {customGrouping && <label className={fieldClass}>{t("common.colName")}<Input value={title} disabled={!canWrite} onChange={e => setTitle(e.target.value)} /></label>}
+          {customGrouping && <label className={fieldClass}>{t("reports.customField")} *
+            <select required className="h-9 rounded-md border border-gray-300 px-3" value={customFieldId}
+              disabled={!canWrite || fields.isPending || fields.isError} onChange={e => setCustomFieldId(e.target.value)}>
+              <option value="">{t("reports.selectCustomField")}</option>
+              {(fields.data ?? []).map(field => <option key={field.id} value={field.id}>{field.label}</option>)}
+            </select>
+            {fields.isError && <span role="alert" className="text-red-700">{getApiErrorMessage(fields.error)}</span>}
+          </label>}
           {type === "general_ledger_transactions" && <div className={fieldClass}>
             <span>{t("reports.account")}</span>
             <Combobox value={accountId} onChange={setAccountId} disabled={!canWrite || accounts.isPending || accounts.isError}

@@ -133,7 +133,7 @@ function ReportResultPage() {
         </Card>
       )}
 
-      {data?.footer && <p className="text-sm text-gray-500">{data.footer}</p>}
+      {data?.footer && <p className="text-sm text-gray-500">{reportType === "sales_invoice_totals_by_item" ? t("reports.itemsUnavailableHint") : data.footer}</p>}
       {isAgedReport(reportType) && <p className="text-sm text-gray-500">{t(reportType === "aged_payables" ? "reports.historicalPayablesHint" : "reports.historicalHint")}</p>}
       {definition.isError && <p role="alert" className="text-sm text-red-700">{getApiErrorMessage(definition.error)}</p>}
 

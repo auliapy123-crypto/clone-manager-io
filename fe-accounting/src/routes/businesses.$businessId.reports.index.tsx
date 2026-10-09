@@ -58,8 +58,8 @@ const GROUPS: Array<{
     group: "Sales Invoices",
     items: [
       { type: "sales_invoice_totals_by_customer", label: "Sales Invoice Totals by Customer", enabled: true },
-      { label: "Sales Invoice Totals by Item" },
-      { label: "Sales Invoice Totals by Custom Field" },
+      { type: "sales_invoice_totals_by_item", label: "Sales Invoice Totals by Item", enabled: true },
+      { type: "sales_invoice_totals_by_custom_field", label: "Sales Invoice Totals by Custom Field", enabled: true },
     ],
   },
   {

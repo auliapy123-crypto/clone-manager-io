@@ -10,19 +10,19 @@ export function ReportStage1bTable({ result }: { result: ReportResult }) {
   const name = (row: ReportResult["rows"][number]) => row.kind === "profit" ? t("reports.profit") : row.name;
   const th = "px-4 py-3 text-right font-medium";
   const td = "px-4 py-2 text-right tabular-nums whitespace-nowrap";
-  if (result.type === "sales_invoice_totals_by_customer") {
+  if (result.type.startsWith("sales_invoice_totals_by_")) {
     return <div className="overflow-x-auto rounded-lg border print:overflow-visible">
       <table className="w-full text-left text-sm">
         <thead className="border-b bg-gray-50 text-xs uppercase text-gray-600">
           <tr>
-            <th className="px-4 py-3">{t("common.customer")}</th>
-            <th className={th}>{t("common.total")}</th>
+            <th className="px-4 py-3">{result.type === "sales_invoice_totals_by_custom_field" ? result.groupLabel : t(result.type === "sales_invoice_totals_by_item" ? "reports.item" : "common.customer")}</th>
+            <th className={th}>{result.headerDate}</th>
           </tr>
         </thead>
         <tbody className="divide-y">
           {result.rows.map((row, i) => (
             <tr key={`${row.customerId ?? row.kind}-${i}`} className={row.kind === "total" ? "bg-gray-50 font-semibold border-t" : ""}>
-              <td className="px-4 py-2">{row.kind === "total" ? t("common.total") : row.name}</td>
+              <td className="px-4 py-2">{row.kind === "total" ? t("common.total") : row.label === "no_item" ? t("reports.noItem") : row.label === "empty_custom_field" ? t("reports.emptyCustomField") : row.name}</td>
               <td className={td}>{formatAmount(row.amount ?? 0)}</td>
             </tr>
           ))}

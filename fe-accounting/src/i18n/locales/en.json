@@ -1,5 +1,14 @@
 {
   "reports": {
+    "sales_invoice_totals_by_item": "Sales Invoice Totals by Item",
+    "sales_invoice_totals_by_custom_field": "Sales Invoice Totals by Custom Field",
+    "customField": "Custom Field",
+    "selectCustomField": "Select Custom Field",
+    "customFieldRequired": "Custom Field is required.",
+    "item": "Item",
+    "noItem": "No item",
+    "emptyCustomField": "(Empty)",
+    "itemsUnavailableHint": "The item catalogue and invoice line item links are unavailable. All lines are grouped as No item.",
     "definitionCount": "{{count}} definitions",
     "empty": "No saved reports yet.",
     "general_ledger_summary": "General Ledger Summary",

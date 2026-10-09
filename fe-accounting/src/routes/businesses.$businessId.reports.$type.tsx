@@ -116,7 +116,7 @@ function ReportTypeListPage() {
               <table className="w-full text-left text-sm">
                 <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-6 py-3 font-medium">{t("reports.title")}</th>
+                    <th className="px-6 py-3 font-medium">{t(reportType === "sales_invoice_totals_by_custom_field" ? "common.colName" : "reports.title")}</th>
                     <th className="px-6 py-3 font-medium">{t("reports.period")}</th>
                     <th className="px-6 py-3 font-medium">{t("common.colActions")}</th>
                   </tr>
@@ -130,7 +130,7 @@ function ReportTypeListPage() {
                           params={{ businessId, type: reportType, id: definition.id }}
                           className="text-blue-700 hover:underline"
                         >
-                          {definition.title}
+                        {definition.title}
                         </Link>
                         {definition.description && (
                           <p className="text-xs text-gray-500">{definition.description}</p>

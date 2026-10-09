@@ -1,5 +1,14 @@
 {
   "reports": {
+    "sales_invoice_totals_by_item": "Total Faktur Penjualan per Item",
+    "sales_invoice_totals_by_custom_field": "Total Faktur Penjualan per Custom Field",
+    "customField": "Custom Field",
+    "selectCustomField": "Pilih Custom Field",
+    "customFieldRequired": "Custom Field wajib dipilih.",
+    "item": "Item",
+    "noItem": "Tanpa item",
+    "emptyCustomField": "(Kosong)",
+    "itemsUnavailableHint": "Katalog item dan relasi item pada baris faktur belum tersedia. Semua baris dikelompokkan sebagai Tanpa item.",
     "aged_payables": "Umur Utang",
     "historicalPayablesHint": "Umur utang memakai saldo faktur saat ini; tanggal lampau bersifat perkiraan.",
     "customer_summary": "Ringkasan Pelanggan",

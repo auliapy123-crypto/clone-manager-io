@@ -4,6 +4,7 @@ import type { PaginationInfo } from "@/hooks/use-members";
 import { ApiError, type ApiErrorBody } from "@/lib/errors";
 import { queryClient } from "@/lib/query-client";
 import type { Account } from "@/hooks/use-accounts";
+import type { CustomFieldDefinition } from "@/hooks/use-custom-fields";
 
 export const REPORT_TYPE_VALUES = [
   "trial_balance",
@@ -16,6 +17,8 @@ export const REPORT_TYPE_VALUES = [
   "customer_summary",
   "supplier_summary",
   "sales_invoice_totals_by_customer",
+  "sales_invoice_totals_by_item",
+  "sales_invoice_totals_by_custom_field",
   "billable_time_summary",
   "receipts_payments_summary",
 ] as const;
@@ -32,12 +35,15 @@ export const REPORT_TYPE_LABELS: Record<ReportType, string> = {
   customer_summary: "Customer Summary",
   supplier_summary: "Supplier Summary",
   sales_invoice_totals_by_customer: "Sales Invoice Totals by Customer",
+  sales_invoice_totals_by_item: "Sales Invoice Totals by Item",
+  sales_invoice_totals_by_custom_field: "Sales Invoice Totals by Custom Field",
   billable_time_summary: "Billable Time Summary",
   receipts_payments_summary: "Receipts & Payments Summary",
 };
 export const isAgedReport = (type: string) => type === "aged_receivables" || type === "aged_payables";
 export const isContactSummary = (type: string) => type === "customer_summary" || type === "supplier_summary";
 export const isStage1dReport = (type: string) =>
+  type === "sales_invoice_totals_by_item" || type === "sales_invoice_totals_by_custom_field" ||
   type === "sales_invoice_totals_by_customer" ||
   type === "billable_time_summary" ||
   type === "receipts_payments_summary";
@@ -54,6 +60,7 @@ export interface ReportDefinition {
   dateTo: string | null;
   asOfDate: string | null;
   accountId: string | null;
+  customFieldId: string | null;
   sortBy: "total" | "name" | null;
   showInvoices: boolean;
   accountingMethod: string;
@@ -73,6 +80,7 @@ export interface ReportDefinitionInput {
   asOfDate?: string | null;
   accountingMethod?: "accrual";
   accountId?: string | null;
+  customFieldId?: string | null;
   sortBy?: "total" | "name";
   showInvoices?: boolean;
   showAccountCodes?: boolean;
@@ -110,6 +118,7 @@ export interface ReportRow {
 }
 
 export interface ReportResult {
+  groupLabel?: string;
   type: string;
   title: string;
   headerDate: string;
@@ -237,6 +246,23 @@ export function useReportAccounts(businessId: string, enabled: boolean) {
         if (error) throw new ApiError(error);
         accounts.push(...data.data);
         if (page >= data.pagination.totalPages) return accounts;
+      }
+    },
+  });
+}
+
+export function useReportCustomFields(businessId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["report-custom-fields", businessId], enabled,
+    queryFn: async () => {
+      const fields: CustomFieldDefinition[] = [];
+      for (let page = 1; ; page++) {
+        const { data, error } = await apiClient.get<{ data: CustomFieldDefinition[]; pagination: PaginationInfo }, ApiErrorBody>({
+          url: `/businesses/${businessId}/custom-field-definitions`, query: { entityType: "sales_invoice", page, pageSize: 100 },
+        });
+        if (error) throw new ApiError(error);
+        fields.push(...data.data);
+        if (page >= data.pagination.totalPages) return fields;
       }
     },
   });
