@@ -27,8 +27,6 @@ const GROUPS: Array<{
   {
     group: "Cash & cash equivalents",
     items: [
-      { label: "Bank Reconciliation Statement" },
-      { label: "Cash Summary" },
       { type: "receipts_payments_summary", label: "Receipts & Payments Summary", enabled: true },
     ],
   },
@@ -44,7 +42,7 @@ const GROUPS: Array<{
     group: "Customers",
     items: [
       { type: "customer_summary", label: "Customer Summary", enabled: true },
-      { label: "Customer Balance Detail" },
+      { label: "Customer Statements" },
       { type: "aged_receivables", label: "Aged Receivables", enabled: true },
     ],
   },
@@ -52,7 +50,7 @@ const GROUPS: Array<{
     group: "Suppliers",
     items: [
       { type: "supplier_summary", label: "Supplier Summary", enabled: true },
-      { label: "Supplier Balance Detail" },
+      { label: "Supplier Statements" },
       { type: "aged_payables", label: "Aged Payables", enabled: true },
     ],
   },
@@ -60,8 +58,8 @@ const GROUPS: Array<{
     group: "Sales Invoices",
     items: [
       { type: "sales_invoice_totals_by_customer", label: "Sales Invoice Totals by Customer", enabled: true },
-      { label: "Sales Invoice Tax Summary" },
-      { label: "Sales Invoice Items" },
+      { label: "Sales Invoice Totals by Item" },
+      { label: "Sales Invoice Totals by Custom Field" },
     ],
   },
   {
