@@ -33,7 +33,6 @@ const GROUPS: Array<{
     items: [
       { type: "general_ledger_summary", label: "General Ledger Summary", enabled: true },
       { type: "general_ledger_transactions", label: "General Ledger Transactions", enabled: true },
-      { label: "Journal" },
       { label: "Tax Transactions" },
     ],
   },
