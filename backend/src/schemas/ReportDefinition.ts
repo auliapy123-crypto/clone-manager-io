@@ -13,6 +13,8 @@ export const REPORT_TYPE_VALUES = [
   "customer_summary",
   "supplier_summary",
   "sales_invoice_totals_by_customer",
+  "sales_invoice_totals_by_item",
+  "sales_invoice_totals_by_custom_field",
   "billable_time_summary",
   "receipts_payments_summary",
 ] as const;
@@ -25,12 +27,15 @@ export const REPORT_NAMES = {
   general_ledger_transactions: "General Ledger Transactions", aged_receivables: "Aged Receivables",
   aged_payables: "Aged Payables", customer_summary: "Customer Summary", supplier_summary: "Supplier Summary",
   sales_invoice_totals_by_customer: "Sales Invoice Totals by Customer",
+  sales_invoice_totals_by_item: "Sales Invoice Totals by Item",
+  sales_invoice_totals_by_custom_field: "Sales Invoice Totals by Custom Field",
   billable_time_summary: "Billable Time Summary",
   receipts_payments_summary: "Receipts & Payments Summary",
 } as const;
 export const isContactSummary = (type: string) => type === "customer_summary" || type === "supplier_summary";
 export const isAgedReport = (type: string) => type === "aged_receivables" || type === "aged_payables";
 export const isStage1dReport = (type: string) =>
+  type === "sales_invoice_totals_by_item" || type === "sales_invoice_totals_by_custom_field" ||
   type === "sales_invoice_totals_by_customer" ||
   type === "billable_time_summary" ||
   type === "receipts_payments_summary";
@@ -56,6 +61,7 @@ const definitionBase = z
     asOfDate: dateString.optional().nullable(),
     accountingMethod: z.string().optional(),
     accountId: z.string().uuid().optional().nullable(),
+    customFieldId: z.string().uuid().optional().nullable(),
     sortBy: z.enum(["total", "name"]).optional().nullable(),
     showInvoices: z.boolean().optional().nullable(),
     showAccountCodes: z.boolean().optional(),
@@ -75,6 +81,8 @@ function ignoreStage1cFields(input: unknown) {
   let kept = ["type", "title", "dateFrom", "dateTo"];
   if (typeStr === "aged_payables") {
     kept = ["type", "title", "asOfDate", "sortBy", "showInvoices"];
+  } else if (typeStr === "sales_invoice_totals_by_custom_field") {
+    kept.push("customFieldId");
   } else if (typeStr === "receipts_payments_summary") {
     kept = ["type", "title", "dateFrom", "dateTo", "showAccountCodes", "excludeZeroBalances", "footer"];
   }
@@ -83,6 +91,9 @@ function ignoreStage1cFields(input: unknown) {
 
 export const CreateReportDefinitionSchema = z.preprocess(ignoreStage1cFields,
   definitionBase.superRefine((val, ctx) => {
+    if (val.type === "sales_invoice_totals_by_custom_field" && !val.customFieldId) {
+      ctx.addIssue({ code: "custom", path: ["customFieldId"], message: "Custom Field wajib dipilih" });
+    }
     if (!isParameterOnlyReport(val.type)) {
       if (!val.title) ctx.addIssue({ code: "custom", path: ["title"], message: "Title wajib diisi" });
       if (val.accountingMethod !== "accrual") ctx.addIssue({ code: "custom", path: ["accountingMethod"], message: "Hanya accrual didukung" });
@@ -117,9 +128,10 @@ export const CreateReportDefinitionSchema = z.preprocess(ignoreStage1cFields,
     dateTo: isAsOfReport(val.type) ? null : val.dateTo ?? null,
     asOfDate: isAsOfReport(val.type) ? val.asOfDate ?? null : null,
     accountId: val.type === "general_ledger_transactions" ? val.accountId ?? null : null,
+    customFieldId: val.type === "sales_invoice_totals_by_custom_field" ? val.customFieldId ?? null : null,
     sortBy: isAgedReport(val.type) ? val.sortBy ?? "total" : null,
     showInvoices: isAgedReport(val.type) ? val.showInvoices ?? false : false,
-    ...(val.type === "aged_payables" || isContactSummary(val.type) || val.type === "sales_invoice_totals_by_customer" || val.type === "billable_time_summary"
+    ...(val.type === "aged_payables" || isContactSummary(val.type) || val.type.startsWith("sales_invoice_totals_by_") || val.type === "billable_time_summary"
       ? { description: null, showAccountCodes: false, excludeZeroBalances: false, footer: null }
       : val.type === "receipts_payments_summary"
         ? { description: null, showAccountCodes: val.showAccountCodes ?? false, excludeZeroBalances: val.excludeZeroBalances ?? false, footer: val.footer ?? null }
@@ -154,6 +166,7 @@ export const ReportDefinitionResponseSchema = z.object({
   dateTo: z.string().nullable(),
   asOfDate: z.string().nullable(),
   accountId: z.string().nullable(),
+  customFieldId: z.string().nullable(),
   sortBy: z.string().nullable(),
   showInvoices: z.boolean(),
   accountingMethod: z.string(),
@@ -204,4 +217,5 @@ export const ReportResultSchema = z.object({
     z.object({ label: z.string(), value: z.number() }),
   ),
   netProfit: z.number().nullable(),
+  groupLabel: z.string().optional(),
 });

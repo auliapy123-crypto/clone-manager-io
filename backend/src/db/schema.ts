@@ -1333,6 +1333,8 @@ export const REPORT_TYPES = [
   "customer_summary",
   "supplier_summary",
   "sales_invoice_totals_by_customer",
+  "sales_invoice_totals_by_item",
+  "sales_invoice_totals_by_custom_field",
   "billable_time_summary",
   "receipts_payments_summary",
 ] as const;

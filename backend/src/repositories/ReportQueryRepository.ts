@@ -293,6 +293,7 @@ export interface ReportTotals {
 }
 
 export interface ReportResult {
+  groupLabel?: string;
   type: string;
   title: string;
   headerDate: string;
@@ -691,12 +692,63 @@ export async function computeSalesInvoiceTotalsByCustomer(
   return {
     type: "sales_invoice_totals_by_customer",
     title,
-    headerDate: `${dateFrom} — ${dateTo}`,
+    headerDate: dateTo,
     footer: null,
     rows,
     totals: [{ label: "Total", value: totalVal }],
     netProfit: null,
   };
+}
+
+/** No item FK or item catalogue exists in the verified database: all lines are free-form. */
+export async function computeSalesInvoiceTotalsByItem(
+  businessId: string, title: string, dateFrom: string, dateTo: string,
+): Promise<ReportResult> {
+  const result = await db.execute(sql`
+    SELECT COALESCE(SUM((l.line_total*100)::bigint),0) AS cents,COUNT(*) AS line_count
+    FROM sales_invoices i JOIN sales_invoice_lines l ON l.sales_invoice_id=i.id
+    WHERE i.business_id=${businessId} AND i.deleted_at IS NULL
+      AND i.issue_date BETWEEN ${dateFrom}::date AND ${dateTo}::date
+  `);
+  const r = result.rows[0] as Record<string, unknown>;
+  const amount = centsToAmount(r.cents);
+  const rows: ReportRow[] = Number(r.line_count) ? [{ ...emptyRow("Tanpa item"), kind: "summary", label: "no_item", amount }] : [];
+  rows.push({ ...emptyRow("Total"), kind: "total", amount });
+  return { type: "sales_invoice_totals_by_item", title, headerDate: dateTo,
+    footer: "Item catalogue and invoice item links are unavailable; all invoice lines are grouped as No item.",
+    rows, totals: [{ label: "Total", value: amount }], netProfit: null };
+}
+
+export async function computeSalesInvoiceTotalsByCustomField(
+  businessId: string, title: string, dateFrom: string, dateTo: string,
+  customFieldId: string, fieldType: string, groupLabel: string,
+): Promise<ReportResult> {
+  const result = await db.execute(sql`
+    WITH invoices AS (
+      SELECT i.id,SUM((l.line_total*100)::bigint) AS cents
+      FROM sales_invoices i JOIN sales_invoice_lines l ON l.sales_invoice_id=i.id
+      WHERE i.business_id=${businessId} AND i.deleted_at IS NULL
+        AND i.issue_date BETWEEN ${dateFrom}::date AND ${dateTo}::date GROUP BY i.id
+    ), grouped AS (
+      SELECT CASE ${fieldType} WHEN 'number' THEN v.value_number::text WHEN 'date' THEN v.value_date::text
+        WHEN 'boolean' THEN v.value_boolean::text ELSE NULLIF(TRIM(v.value_text),'') END AS value,
+        SUM(i.cents) AS cents
+      FROM invoices i LEFT JOIN custom_field_values v ON v.record_id=i.id
+        AND v.definition_id=${customFieldId} AND v.business_id=${businessId} AND v.entity_type='sales_invoice'
+      GROUP BY 1
+    ), rows AS (
+      SELECT value,cents,0 AS sort_order FROM grouped
+      UNION ALL SELECT NULL,COALESCE(SUM(cents),0),1 FROM grouped
+    ) SELECT * FROM rows ORDER BY sort_order,value NULLS FIRST
+  `);
+  const rows = (result.rows as Record<string, unknown>[]).map((r): ReportRow => ({
+    ...emptyRow(r.sort_order === 1 ? "Total" : r.value === null ? "(Kosong)" : String(r.value)),
+    kind: r.sort_order === 1 ? "total" : "summary",
+    label: r.sort_order !== 1 && r.value === null ? "empty_custom_field" : undefined,
+    amount: centsToAmount(r.cents),
+  }));
+  return { type: "sales_invoice_totals_by_custom_field", title, headerDate: dateTo, groupLabel,
+    footer: null, rows, totals: [{ label: "Total", value: rows.at(-1)?.amount ?? 0 }], netProfit: null };
 }
 
 export async function computeBillableTimeSummary(
@@ -899,4 +951,3 @@ export async function computeReceiptsPaymentsSummary(
     netProfit: null,
   };
 }
-

@@ -13,6 +13,8 @@ import {
   computeAgedPayables,
   computeContactSummary,
   computeSalesInvoiceTotalsByCustomer,
+  computeSalesInvoiceTotalsByItem,
+  computeSalesInvoiceTotalsByCustomField,
   computeBillableTimeSummary,
   computeReceiptsPaymentsSummary,
 } from "../repositories/ReportQueryRepository.js";
@@ -23,6 +25,7 @@ import {
   listReportDefinitions,
   updateReportDefinition,
   validateReportAccount,
+  validateReportCustomField,
 } from "../repositories/ReportDefinitionRepository.js";
 import { BusinessIdParamsSchema } from "../schemas/Business.js";
 import {
@@ -295,6 +298,15 @@ export async function reportRoutesPlugin(fastify: FastifyInstance) {
       if (definition.type === "sales_invoice_totals_by_customer") {
         return sendData(reply, await computeSalesInvoiceTotalsByCustomer(request.params.businessId, definition.title,
           definition.dateFrom!, definition.dateTo!));
+      }
+      if (definition.type === "sales_invoice_totals_by_item") {
+        return sendData(reply, await computeSalesInvoiceTotalsByItem(request.params.businessId, definition.title,
+          definition.dateFrom!, definition.dateTo!));
+      }
+      if (definition.type === "sales_invoice_totals_by_custom_field") {
+        const field = await validateReportCustomField(request.params.businessId, validation.data.customFieldId);
+        return sendData(reply, await computeSalesInvoiceTotalsByCustomField(request.params.businessId, definition.title,
+          definition.dateFrom!, definition.dateTo!, validation.data.customFieldId!, field!.fieldType, field!.label));
       }
       if (definition.type === "billable_time_summary") {
         return sendData(reply, await computeBillableTimeSummary(request.params.businessId, definition.title,

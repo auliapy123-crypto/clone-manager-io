@@ -7,6 +7,7 @@ import db from "../db/index.js";
 import {
   reportDefinitions,
   chartOfAccounts,
+  customFieldDefinitions,
   type ReportType,
 } from "../db/schema.js";
 import { CreateReportDefinitionSchema, REPORT_NAMES } from "../schemas/ReportDefinition.js";
@@ -25,6 +26,7 @@ export interface ReportDefinitionRecord {
   dateTo: string | null;
   asOfDate: string | null;
   accountId: string | null;
+  customFieldId: string | null;
   sortBy: string | null;
   showInvoices: boolean;
   accountingMethod: string;
@@ -36,12 +38,17 @@ export interface ReportDefinitionRecord {
 }
 
 function toRecord(row: typeof reportDefinitions.$inferSelect): ReportDefinitionRecord {
+  let customFieldId: string | null = null;
+  if (row.type === "sales_invoice_totals_by_custom_field") {
+    try { customFieldId = JSON.parse(row.description ?? "{}").customFieldId ?? null; } catch { /* result validation rejects invalid stored parameters */ }
+  }
   return {
     id: row.id,
     businessId: row.businessId,
     type: row.type,
     title: row.title,
-    description: row.description ?? null,
+    description: row.type === "sales_invoice_totals_by_custom_field" ? null : row.description ?? null,
+    customFieldId,
     // kolom date di Drizzle mode string -> sudah "YYYY-MM-DD"
     dateFrom: row.dateFrom ?? null,
     dateTo: row.dateTo ?? null,
@@ -106,13 +113,14 @@ export async function createReportDefinition(
   input: CreateReportDefinitionInput,
 ): Promise<ReportDefinitionRecord> {
   const title = (input.title || REPORT_NAMES[input.type as keyof typeof REPORT_NAMES] || input.type).trim();
+  await validateReportCustomField(businessId, input.customFieldId);
   const [created] = await db
     .insert(reportDefinitions)
     .values({
       businessId,
       type: input.type,
       title,
-      description: input.description ?? null,
+      description: input.customFieldId ? JSON.stringify({ customFieldId: input.customFieldId }) : input.description ?? null,
       // Field tanggal yang tidak relevan untuk tipe DIABAIKAN (Report.md §3).
       dateFrom:
         input.dateFrom,
@@ -143,7 +151,11 @@ export async function updateReportDefinition(
   const parsed = CreateReportDefinitionSchema.safeParse({ ...existing, ...input });
   if (!parsed.success) throw Object.assign(new Error(parsed.error.issues[0].message), { statusCode: 400 });
   await validateReportAccount(businessId, parsed.data.accountId);
-  const updateValues = { ...parsed.data, updatedAt: new Date() };
+  await validateReportCustomField(businessId, parsed.data.customFieldId);
+  const { customFieldId, ...parameters } = parsed.data;
+  const updateValues = { ...parameters,
+    description: customFieldId ? JSON.stringify({ customFieldId }) : parameters.description,
+    updatedAt: new Date() };
 
   await db
     .update(reportDefinitions)
@@ -163,6 +175,16 @@ export async function validateReportAccount(businessId: string, accountId: strin
   const [account] = await db.select({ id: chartOfAccounts.id }).from(chartOfAccounts)
     .where(and(eq(chartOfAccounts.id, accountId), eq(chartOfAccounts.businessId, businessId), isNull(chartOfAccounts.deletedAt))).limit(1);
   if (!account) throw Object.assign(new Error("Akun tidak ditemukan dalam bisnis ini."), { statusCode: 400 });
+}
+
+export async function validateReportCustomField(businessId: string, id: string | null | undefined) {
+  if (!id) return null;
+  const [field] = await db.select({ label: customFieldDefinitions.label, fieldType: customFieldDefinitions.fieldType })
+    .from(customFieldDefinitions).where(and(eq(customFieldDefinitions.id, id),
+      eq(customFieldDefinitions.businessId, businessId), eq(customFieldDefinitions.entityType, "sales_invoice"),
+      isNull(customFieldDefinitions.deletedAt))).limit(1);
+  if (!field) throw Object.assign(new Error("Custom Field faktur penjualan tidak ditemukan dalam bisnis ini."), { statusCode: 400 });
+  return field;
 }
 
 export async function deleteReportDefinition(
