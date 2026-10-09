@@ -10,6 +10,90 @@ export function ReportStage1bTable({ result }: { result: ReportResult }) {
   const name = (row: ReportResult["rows"][number]) => row.kind === "profit" ? t("reports.profit") : row.name;
   const th = "px-4 py-3 text-right font-medium";
   const td = "px-4 py-2 text-right tabular-nums whitespace-nowrap";
+  if (result.type === "sales_invoice_totals_by_customer") {
+    return <div className="overflow-x-auto rounded-lg border print:overflow-visible">
+      <table className="w-full text-left text-sm">
+        <thead className="border-b bg-gray-50 text-xs uppercase text-gray-600">
+          <tr>
+            <th className="px-4 py-3">{t("common.customer")}</th>
+            <th className={th}>{t("common.total")}</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y">
+          {result.rows.map((row, i) => (
+            <tr key={`${row.customerId ?? row.kind}-${i}`} className={row.kind === "total" ? "bg-gray-50 font-semibold border-t" : ""}>
+              <td className="px-4 py-2">{row.kind === "total" ? t("common.total") : row.name}</td>
+              <td className={td}>{formatAmount(row.amount ?? 0)}</td>
+            </tr>
+          ))}
+          {result.rows.length === 0 && <tr><td colSpan={2} className="p-4 text-gray-500">{t("reports.noTransactions")}</td></tr>}
+        </tbody>
+      </table>
+    </div>;
+  }
+
+  if (result.type === "billable_time_summary") {
+    return <div className="overflow-x-auto rounded-lg border print:overflow-visible">
+      <table className="w-full text-left text-sm">
+        <thead className="border-b bg-gray-50 text-xs uppercase text-gray-600">
+          <tr>
+            <th className="px-4 py-3">{t("common.customer")}</th>
+            <th className={th}>{t("reports.opening")}</th>
+            <th className={th}>{t("reports.newBillableTime")}</th>
+            <th className={th}>{t("reports.invoiced")}</th>
+            <th className={th}>{t("reports.writtenOff")}</th>
+            <th className={th}>{t("reports.closing")}</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y">
+          {result.rows.map((row, i) => (
+            <tr key={`${row.customerId ?? row.kind}-${i}`} className={row.kind === "total" ? "bg-gray-50 font-semibold border-t" : ""}>
+              <td className="px-4 py-2">{row.kind === "total" ? t("common.total") : row.name}</td>
+              <td className={td}>{formatAmount(row.opening ?? 0)}</td>
+              <td className={td}>{formatAmount(row.movement ?? 0)}</td>
+              <td className={td}>{formatAmount(row.invoices ?? 0)}</td>
+              <td className={td}>{formatAmount(0)}</td>
+              <td className={td}>{formatAmount(row.closing ?? 0)}</td>
+            </tr>
+          ))}
+          {result.rows.length === 0 && <tr><td colSpan={6} className="p-4 text-gray-500">{t("reports.noTransactions")}</td></tr>}
+        </tbody>
+      </table>
+    </div>;
+  }
+
+  if (result.type === "receipts_payments_summary") {
+    return <div className="overflow-x-auto rounded-lg border print:overflow-visible">
+      <table className="w-full text-left text-sm">
+        <thead className="border-b bg-gray-50 text-xs uppercase text-gray-600">
+          <tr>
+            <th className="px-4 py-3">{t("reports.account")}</th>
+            <th className={th}>{t("common.total")}</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y">
+          {result.rows.map((row, i) => {
+            const isSection = row.kind === "section";
+            const isTotal = row.kind === "total";
+            const isSummary = row.kind === "summary";
+            return (
+              <tr
+                key={`${row.accountId ?? row.kind}-${i}`}
+                className={isSection ? "bg-gray-100 font-semibold" : isTotal || isSummary ? "bg-gray-50 font-semibold border-t" : ""}
+              >
+                <td className={`px-4 py-2 ${isSection ? "uppercase text-xs" : !isTotal && !isSummary ? "pl-8" : ""}`}>
+                  {row.name}
+                </td>
+                <td className={td}>{row.amount !== null && row.amount !== undefined ? formatAmount(row.amount) : ""}</td>
+              </tr>
+            );
+          })}
+          {result.rows.length === 0 && <tr><td colSpan={2} className="p-4 text-gray-500">{t("reports.noTransactions")}</td></tr>}
+        </tbody>
+      </table>
+    </div>;
+  }
+
   const summary = result.type === "general_ledger_summary";
   const transactions = result.type === "general_ledger_transactions";
   const contactSummary = isContactSummary(result.type);

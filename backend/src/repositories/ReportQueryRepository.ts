@@ -18,7 +18,7 @@ export interface ReportRow {
   debit: number | null;
   credit: number | null;
   amount: number | null;
-  kind?: "section" | "account" | "transaction" | "profit" | "customer" | "supplier" | "invoice" | "total";
+  kind?: "section" | "account" | "transaction" | "profit" | "customer" | "supplier" | "invoice" | "total" | "receipt" | "payment" | "summary";
   supplierId?: string;
   invoices?: number;
   creditNotes?: number;
@@ -652,3 +652,251 @@ export async function computeBalanceSheet(
     netProfit: netProfitToDate,
   };
 }
+
+export async function computeSalesInvoiceTotalsByCustomer(
+  businessId: string,
+  title: string,
+  dateFrom: string,
+  dateTo: string,
+): Promise<ReportResult> {
+  const result = await db.execute(sql`
+    WITH customer_invoices AS (
+      SELECT c.id AS customer_id, c.name,
+        COALESCE(SUM((l.line_total * 100)::bigint), 0) AS total_cents
+      FROM contacts c
+      JOIN sales_invoices i ON i.customer_id = c.id
+      JOIN sales_invoice_lines l ON l.sales_invoice_id = i.id
+      WHERE i.business_id = ${businessId}
+        AND i.deleted_at IS NULL
+        AND i.issue_date >= ${dateFrom}::date
+        AND i.issue_date <= ${dateTo}::date
+        AND c.business_id = ${businessId}
+        AND c.deleted_at IS NULL
+      GROUP BY c.id, c.name
+    ),
+    rows AS (
+      SELECT customer_id::text, name, total_cents, 0 AS sort_order FROM customer_invoices
+      UNION ALL
+      SELECT NULL, 'Total', COALESCE(SUM(total_cents), 0), 1 FROM customer_invoices
+    )
+    SELECT * FROM rows ORDER BY sort_order, LOWER(name), customer_id
+  `);
+  const rows = (result.rows as Record<string, unknown>[]).map((r): ReportRow => ({
+    ...emptyRow(String(r.name)),
+    kind: r.sort_order === 1 ? "total" : "customer",
+    customerId: r.customer_id ? String(r.customer_id) : undefined,
+    amount: centsToAmount(r.total_cents),
+  }));
+  const totalVal = rows.find((r) => r.kind === "total")?.amount ?? 0;
+  return {
+    type: "sales_invoice_totals_by_customer",
+    title,
+    headerDate: `${dateFrom} — ${dateTo}`,
+    footer: null,
+    rows,
+    totals: [{ label: "Total", value: totalVal }],
+    netProfit: null,
+  };
+}
+
+export async function computeBillableTimeSummary(
+  businessId: string,
+  title: string,
+  dateFrom: string,
+  dateTo: string,
+): Promise<ReportResult> {
+  const result = await db.execute(sql`
+    WITH entries AS (
+      SELECT customer_id, date,
+        (ROUND(hourly_rate * (time_spent_minutes / 60.0) * 100))::bigint AS amount_cents
+      FROM billable_time_entries
+      WHERE business_id = ${businessId}
+        AND deleted_at IS NULL
+        AND date <= ${dateTo}::date
+    ),
+    by_customer AS (
+      SELECT c.id AS customer_id, c.name,
+        COALESCE(SUM(e.amount_cents) FILTER (WHERE e.date < ${dateFrom}::date), 0) AS opening,
+        COALESCE(SUM(e.amount_cents) FILTER (WHERE e.date >= ${dateFrom}::date), 0) AS new_billable,
+        COUNT(*) FILTER (WHERE e.date >= ${dateFrom}::date) AS new_count
+      FROM contacts c
+      JOIN entries e ON e.customer_id = c.id
+      WHERE c.business_id = ${businessId} AND c.deleted_at IS NULL
+      GROUP BY c.id, c.name
+      HAVING COALESCE(SUM(e.amount_cents) FILTER (WHERE e.date < ${dateFrom}::date), 0) <> 0
+          OR COUNT(*) FILTER (WHERE e.date >= ${dateFrom}::date) > 0
+    ),
+    rows AS (
+      SELECT customer_id::text, name, opening, new_billable, 0::bigint AS invoiced, 0::bigint AS written_off,
+        opening + new_billable AS closing, 0 AS sort_order
+      FROM by_customer
+      UNION ALL
+      SELECT NULL, 'Total', COALESCE(SUM(opening), 0), COALESCE(SUM(new_billable), 0), 0::bigint, 0::bigint,
+        COALESCE(SUM(opening + new_billable), 0), 1
+      FROM by_customer
+    )
+    SELECT * FROM rows ORDER BY sort_order, LOWER(name), customer_id
+  `);
+  const rows = (result.rows as Record<string, unknown>[]).map((r): ReportRow => ({
+    ...emptyRow(String(r.name)),
+    kind: r.sort_order === 1 ? "total" : "customer",
+    customerId: r.customer_id ? String(r.customer_id) : undefined,
+    opening: centsToAmount(r.opening),
+    movement: centsToAmount(r.new_billable),
+    invoices: 0,
+    closing: centsToAmount(r.closing),
+    amount: centsToAmount(r.closing),
+  }));
+  const totalVal = rows.find((r) => r.kind === "total")?.closing ?? 0;
+  return {
+    type: "billable_time_summary",
+    title,
+    headerDate: `${dateFrom} — ${dateTo}`,
+    footer: null,
+    rows,
+    totals: [{ label: "Closing", value: totalVal }],
+    netProfit: null,
+  };
+}
+
+export async function computeReceiptsPaymentsSummary(
+  businessId: string,
+  title: string,
+  dateFrom: string,
+  dateTo: string,
+  showAccountCodes: boolean,
+  excludeZeroBalances: boolean,
+  footer: string | null,
+): Promise<ReportResult> {
+  const [receiptsRes, paymentsRes, cashBalancesRes] = await Promise.all([
+    db.execute(sql`
+      SELECT a.id AS account_id, a.code, a.name, a.group_name,
+        COALESCE(SUM((l.amount * 100)::bigint), 0) AS amount_cents
+      FROM receipt_lines l
+      JOIN receipts r ON r.id = l.receipt_id
+      JOIN chart_of_accounts a ON a.id = l.account_id
+      WHERE r.business_id = ${businessId} AND r.deleted_at IS NULL
+        AND r.date >= ${dateFrom}::date AND r.date <= ${dateTo}::date
+        AND a.business_id = ${businessId} AND a.deleted_at IS NULL
+      GROUP BY a.id, a.code, a.name, a.group_name
+      ORDER BY a.code NULLS LAST, a.name
+    `),
+    db.execute(sql`
+      SELECT a.id AS account_id, a.code, a.name, a.group_name,
+        COALESCE(SUM((l.amount * 100)::bigint), 0) AS amount_cents
+      FROM payment_lines l
+      JOIN payments p ON p.id = l.payment_id
+      JOIN chart_of_accounts a ON a.id = l.account_id
+      WHERE p.business_id = ${businessId} AND p.deleted_at IS NULL
+        AND p.date >= ${dateFrom}::date AND p.date <= ${dateTo}::date
+        AND a.business_id = ${businessId} AND a.deleted_at IS NULL
+      GROUP BY a.id, a.code, a.name, a.group_name
+      ORDER BY a.code NULLS LAST, a.name
+    `),
+    db.execute(sql`
+      WITH bank_coas AS (
+        SELECT account_id FROM bank_accounts
+        WHERE business_id = ${businessId} AND deleted_at IS NULL
+      )
+      SELECT
+        COALESCE(SUM((l.debit - l.credit) * 100) FILTER (WHERE e.entry_date < ${dateFrom}::date), 0)::bigint AS opening_cash,
+        COALESCE(SUM((l.debit - l.credit) * 100) FILTER (WHERE e.entry_date <= ${dateTo}::date), 0)::bigint AS ending_cash
+      FROM journal_entry_lines l
+      JOIN journal_entries e ON e.id = l.journal_entry_id
+      JOIN bank_coas b ON b.account_id = l.account_id
+      WHERE e.business_id = ${businessId} AND e.deleted_at IS NULL
+    `),
+  ]);
+
+  const rows: ReportRow[] = [];
+
+  rows.push({ ...emptyRow("Receipts"), kind: "section" });
+
+  let totalReceiptsCents = 0n;
+  for (const r of receiptsRes.rows as Record<string, unknown>[]) {
+    const amountCents = BigInt(String(r.amount_cents ?? 0));
+    if (excludeZeroBalances && amountCents === 0n) continue;
+    totalReceiptsCents += amountCents;
+    const codeStr = r.code ? String(r.code) : null;
+    const nameStr = String(r.name);
+    const displayName = showAccountCodes && codeStr ? `${codeStr} - ${nameStr}` : nameStr;
+    rows.push({
+      ...emptyRow(displayName),
+      accountId: String(r.account_id),
+      code: codeStr,
+      groupName: r.group_name ? String(r.group_name) : null,
+      amount: centsToAmount(amountCents),
+      kind: "receipt",
+    });
+  }
+
+  rows.push({
+    ...emptyRow("Total Receipts"),
+    amount: centsToAmount(totalReceiptsCents),
+    kind: "total",
+  });
+
+  rows.push({ ...emptyRow("Less: Payments"), kind: "section" });
+
+  let totalPaymentsCents = 0n;
+  for (const r of paymentsRes.rows as Record<string, unknown>[]) {
+    const amountCents = BigInt(String(r.amount_cents ?? 0));
+    if (excludeZeroBalances && amountCents === 0n) continue;
+    totalPaymentsCents += amountCents;
+    const codeStr = r.code ? String(r.code) : null;
+    const nameStr = String(r.name);
+    const displayName = showAccountCodes && codeStr ? `${codeStr} - ${nameStr}` : nameStr;
+    rows.push({
+      ...emptyRow(displayName),
+      accountId: String(r.account_id),
+      code: codeStr,
+      groupName: r.group_name ? String(r.group_name) : null,
+      amount: centsToAmount(amountCents),
+      kind: "payment",
+    });
+  }
+
+  rows.push({
+    ...emptyRow("Total Payments"),
+    amount: centsToAmount(totalPaymentsCents),
+    kind: "total",
+  });
+
+  const netIncreaseCents = totalReceiptsCents - totalPaymentsCents;
+  const cashRow = cashBalancesRes.rows[0] as Record<string, unknown> | undefined;
+  const openingCashCents = BigInt(String(cashRow?.opening_cash ?? 0));
+  const endingCashCents = BigInt(String(cashRow?.ending_cash ?? 0));
+  const adjustmentsCents = endingCashCents - (openingCashCents + netIncreaseCents);
+
+  rows.push({
+    ...emptyRow("Net increase (decrease) in cash"),
+    amount: centsToAmount(netIncreaseCents),
+    kind: "summary",
+  });
+  rows.push({
+    ...emptyRow("Cash at beginning of period"),
+    amount: centsToAmount(openingCashCents),
+    kind: "summary",
+  });
+  rows.push({
+    ...emptyRow("Adjustments"),
+    amount: centsToAmount(adjustmentsCents),
+    kind: "summary",
+  });
+  rows.push({
+    ...emptyRow("Cash at end of period"),
+    amount: centsToAmount(endingCashCents),
+    kind: "total",
+  });
+
+  return {
+    type: "receipts_payments_summary",
+    title,
+    headerDate: `${dateFrom} — ${dateTo}`,
+    footer,
+    rows,
+    totals: [{ label: "Cash at end of period", value: centsToAmount(endingCashCents) }],
+    netProfit: null,
+  };
+}
+

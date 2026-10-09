@@ -15,6 +15,9 @@ export const REPORT_TYPE_VALUES = [
   "aged_payables",
   "customer_summary",
   "supplier_summary",
+  "sales_invoice_totals_by_customer",
+  "billable_time_summary",
+  "receipts_payments_summary",
 ] as const;
 export type ReportType = (typeof REPORT_TYPE_VALUES)[number];
 
@@ -28,10 +31,18 @@ export const REPORT_TYPE_LABELS: Record<ReportType, string> = {
   aged_payables: "Aged Payables",
   customer_summary: "Customer Summary",
   supplier_summary: "Supplier Summary",
+  sales_invoice_totals_by_customer: "Sales Invoice Totals by Customer",
+  billable_time_summary: "Billable Time Summary",
+  receipts_payments_summary: "Receipts & Payments Summary",
 };
 export const isAgedReport = (type: string) => type === "aged_receivables" || type === "aged_payables";
 export const isContactSummary = (type: string) => type === "customer_summary" || type === "supplier_summary";
-export const isParameterOnlyReport = (type: ReportType) => type.startsWith("general_ledger_") || isAgedReport(type) || isContactSummary(type);
+export const isStage1dReport = (type: string) =>
+  type === "sales_invoice_totals_by_customer" ||
+  type === "billable_time_summary" ||
+  type === "receipts_payments_summary";
+export const isParameterOnlyReport = (type: ReportType) =>
+  type.startsWith("general_ledger_") || isAgedReport(type) || isContactSummary(type) || isStage1dReport(type);
 
 export interface ReportDefinition {
   id: string;
@@ -77,7 +88,7 @@ export interface ReportRow {
   debit: number | null;
   credit: number | null;
   amount: number | null;
-  kind?: "section" | "account" | "transaction" | "profit" | "customer" | "supplier" | "invoice" | "total";
+  kind?: "section" | "account" | "transaction" | "profit" | "customer" | "supplier" | "invoice" | "total" | "receipt" | "payment" | "summary";
   supplierId?: string;
   invoices?: number;
   creditNotes?: number;

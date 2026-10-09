@@ -46,6 +46,7 @@ export function ReportFormDialog({ businessId, type, definition, canWrite, onClo
       type, ...(asOf ? { asOfDate } : { dateFrom, dateTo }),
       ...(!parameterOnly ? { title: title.trim(), description: description.trim() || null, accountingMethod: "accrual" as const,
         showAccountCodes, excludeZeroBalances, footer: footer.trim() || null } : {}),
+      ...(type === "receipts_payments_summary" ? { showAccountCodes, excludeZeroBalances, footer: footer.trim() || null } : {}),
       ...(type === "general_ledger_transactions" ? { accountId: accountId || null } : {}),
       ...(isAgedReport(type) ? { sortBy, showInvoices } : {}),
     };
@@ -89,8 +90,8 @@ export function ReportFormDialog({ businessId, type, definition, canWrite, onClo
             </label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showInvoices} disabled={!canWrite} onChange={e => setShowInvoices(e.target.checked)} />{t("reports.showInvoices")}</label>
           </>}
-          {!parameterOnly && <>
-            <label className={fieldClass}>{t("reports.accountingMethod")}<select disabled className="h-9 rounded-md border border-gray-300 bg-gray-100 px-3"><option>{t("reports.accrual")}</option></select></label>
+          {!parameterOnly && <label className={fieldClass}>{t("reports.accountingMethod")}<select disabled className="h-9 rounded-md border border-gray-300 bg-gray-100 px-3"><option>{t("reports.accrual")}</option></select></label>}
+          {(!parameterOnly || type === "receipts_payments_summary") && <>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showAccountCodes} disabled={!canWrite} onChange={e => setShowAccountCodes(e.target.checked)} />{t("reports.showAccountCodes")}</label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={excludeZeroBalances} disabled={!canWrite} onChange={e => setExcludeZeroBalances(e.target.checked)} />{t("reports.excludeZeroBalances")}</label>
             {type !== "trial_balance" && <label className={fieldClass}>{t("reports.footer")}<textarea className="min-h-14 rounded-md border border-gray-300 p-2" value={footer} disabled={!canWrite} onChange={e => setFooter(e.target.value)} /></label>}

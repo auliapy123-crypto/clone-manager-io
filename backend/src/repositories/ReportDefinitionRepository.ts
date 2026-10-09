@@ -9,7 +9,7 @@ import {
   chartOfAccounts,
   type ReportType,
 } from "../db/schema.js";
-import { CreateReportDefinitionSchema } from "../schemas/ReportDefinition.js";
+import { CreateReportDefinitionSchema, REPORT_NAMES } from "../schemas/ReportDefinition.js";
 import type {
   CreateReportDefinitionInput,
   UpdateReportDefinitionInput,
@@ -105,13 +105,13 @@ export async function createReportDefinition(
   businessId: string,
   input: CreateReportDefinitionInput,
 ): Promise<ReportDefinitionRecord> {
-  await validateReportAccount(businessId, input.accountId);
+  const title = (input.title || REPORT_NAMES[input.type as keyof typeof REPORT_NAMES] || input.type).trim();
   const [created] = await db
     .insert(reportDefinitions)
     .values({
       businessId,
       type: input.type,
-      title: input.title.trim(),
+      title,
       description: input.description ?? null,
       // Field tanggal yang tidak relevan untuk tipe DIABAIKAN (Report.md §3).
       dateFrom:

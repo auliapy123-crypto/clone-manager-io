@@ -12,6 +12,9 @@ import {
   computeAgedReceivables,
   computeAgedPayables,
   computeContactSummary,
+  computeSalesInvoiceTotalsByCustomer,
+  computeBillableTimeSummary,
+  computeReceiptsPaymentsSummary,
 } from "../repositories/ReportQueryRepository.js";
 import {
   createReportDefinition,
@@ -288,6 +291,18 @@ export async function reportRoutesPlugin(fastify: FastifyInstance) {
       if (definition.type === "customer_summary" || definition.type === "supplier_summary") {
         return sendData(reply, await computeContactSummary(request.params.businessId, definition.title,
           definition.dateFrom!, definition.dateTo!, definition.type === "supplier_summary"));
+      }
+      if (definition.type === "sales_invoice_totals_by_customer") {
+        return sendData(reply, await computeSalesInvoiceTotalsByCustomer(request.params.businessId, definition.title,
+          definition.dateFrom!, definition.dateTo!));
+      }
+      if (definition.type === "billable_time_summary") {
+        return sendData(reply, await computeBillableTimeSummary(request.params.businessId, definition.title,
+          definition.dateFrom!, definition.dateTo!));
+      }
+      if (definition.type === "receipts_payments_summary") {
+        return sendData(reply, await computeReceiptsPaymentsSummary(request.params.businessId, definition.title,
+          definition.dateFrom!, definition.dateTo!, definition.showAccountCodes, definition.excludeZeroBalances, definition.footer));
       }
       if (
         definition.type === "trial_balance" ||

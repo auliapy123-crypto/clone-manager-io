@@ -12,6 +12,9 @@ export const REPORT_TYPE_VALUES = [
   "aged_payables",
   "customer_summary",
   "supplier_summary",
+  "sales_invoice_totals_by_customer",
+  "billable_time_summary",
+  "receipts_payments_summary",
 ] as const;
 
 export const ReportTypeSchema = z.enum(REPORT_TYPE_VALUES);
@@ -21,10 +24,18 @@ export const REPORT_NAMES = {
   balance_sheet: "Balance Sheet", general_ledger_summary: "General Ledger Summary",
   general_ledger_transactions: "General Ledger Transactions", aged_receivables: "Aged Receivables",
   aged_payables: "Aged Payables", customer_summary: "Customer Summary", supplier_summary: "Supplier Summary",
+  sales_invoice_totals_by_customer: "Sales Invoice Totals by Customer",
+  billable_time_summary: "Billable Time Summary",
+  receipts_payments_summary: "Receipts & Payments Summary",
 } as const;
 export const isContactSummary = (type: string) => type === "customer_summary" || type === "supplier_summary";
 export const isAgedReport = (type: string) => type === "aged_receivables" || type === "aged_payables";
-export const isParameterOnlyReport = (type: string) => type.startsWith("general_ledger_") || isAgedReport(type) || isContactSummary(type);
+export const isStage1dReport = (type: string) =>
+  type === "sales_invoice_totals_by_customer" ||
+  type === "billable_time_summary" ||
+  type === "receipts_payments_summary";
+export const isParameterOnlyReport = (type: string) =>
+  type.startsWith("general_ledger_") || isAgedReport(type) || isContactSummary(type) || isStage1dReport(type);
 export const isAsOfReport = (type: string) => type === "balance_sheet" || isAgedReport(type);
 
 const dateString = z
@@ -55,10 +66,18 @@ const definitionBase = z
 function ignoreStage1cFields(input: unknown) {
   if (!input || typeof input !== "object") return input;
   const value = input as Record<string, unknown>;
-  if (value.type !== "aged_payables" && !isContactSummary(String(value.type))) return input;
-  const kept = value.type === "aged_payables"
-    ? ["type", "title", "asOfDate", "sortBy", "showInvoices"]
-    : ["type", "title", "dateFrom", "dateTo"];
+  const typeStr = String(value.type);
+  if (
+    typeStr !== "aged_payables" &&
+    !isContactSummary(typeStr) &&
+    !isStage1dReport(typeStr)
+  ) return input;
+  let kept = ["type", "title", "dateFrom", "dateTo"];
+  if (typeStr === "aged_payables") {
+    kept = ["type", "title", "asOfDate", "sortBy", "showInvoices"];
+  } else if (typeStr === "receipts_payments_summary") {
+    kept = ["type", "title", "dateFrom", "dateTo", "showAccountCodes", "excludeZeroBalances", "footer"];
+  }
   return Object.fromEntries(Object.entries(value).filter(([key]) => kept.includes(key)));
 }
 
@@ -100,7 +119,11 @@ export const CreateReportDefinitionSchema = z.preprocess(ignoreStage1cFields,
     accountId: val.type === "general_ledger_transactions" ? val.accountId ?? null : null,
     sortBy: isAgedReport(val.type) ? val.sortBy ?? "total" : null,
     showInvoices: isAgedReport(val.type) ? val.showInvoices ?? false : false,
-    ...(val.type === "aged_payables" || isContactSummary(val.type) ? { description: null, showAccountCodes: false, excludeZeroBalances: false, footer: null } : {}),
+    ...(val.type === "aged_payables" || isContactSummary(val.type) || val.type === "sales_invoice_totals_by_customer" || val.type === "billable_time_summary"
+      ? { description: null, showAccountCodes: false, excludeZeroBalances: false, footer: null }
+      : val.type === "receipts_payments_summary"
+        ? { description: null, showAccountCodes: val.showAccountCodes ?? false, excludeZeroBalances: val.excludeZeroBalances ?? false, footer: val.footer ?? null }
+        : {}),
   })));
 
 // A partial edit can omit type. Validate all parameters against the stored type
@@ -150,7 +173,7 @@ export const ReportRowSchema = z.object({
   debit: z.number().nullable(),
   credit: z.number().nullable(),
   amount: z.number().nullable(),
-  kind: z.enum(["section", "account", "transaction", "profit", "customer", "supplier", "invoice", "total"]).optional(),
+  kind: z.enum(["section", "account", "transaction", "profit", "customer", "supplier", "invoice", "total", "receipt", "payment", "summary"]).optional(),
   supplierId: z.string().optional(),
   invoices: z.number().optional(),
   creditNotes: z.number().optional(),

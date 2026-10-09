@@ -26,7 +26,11 @@ const GROUPS: Array<{
   },
   {
     group: "Cash & cash equivalents",
-    items: [{ label: "Bank Reconciliation Statement" }, { label: "Cash Summary" }],
+    items: [
+      { label: "Bank Reconciliation Statement" },
+      { label: "Cash Summary" },
+      { type: "receipts_payments_summary", label: "Receipts & Payments Summary", enabled: true },
+    ],
   },
   {
     group: "General Ledger",
@@ -54,7 +58,11 @@ const GROUPS: Array<{
   },
   {
     group: "Sales Invoices",
-    items: [{ label: "Sales Invoice Tax Summary" }, { label: "Sales Invoice Items" }],
+    items: [
+      { type: "sales_invoice_totals_by_customer", label: "Sales Invoice Totals by Customer", enabled: true },
+      { label: "Sales Invoice Tax Summary" },
+      { label: "Sales Invoice Items" },
+    ],
   },
   {
     group: "Fixed Assets & Intangible Assets",
@@ -62,7 +70,10 @@ const GROUPS: Array<{
   },
   {
     group: "Billable Time & Custom Reports",
-    items: [{ label: "Billable Time Summary" }, { label: "Custom Reports" }],
+    items: [
+      { type: "billable_time_summary", label: "Billable Time Summary", enabled: true },
+      { label: "Custom Reports" },
+    ],
   },
 ];
 

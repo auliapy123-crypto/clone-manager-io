@@ -293,3 +293,44 @@ File implementasi yang berubah:
 
 Commit awal: backend `3ad0258`; frontend `f8ddda9`. Perbaikan detail hasil QA
 dan catatan pengujian disimpan pada commit sesudahnya (lihat git log).
+## 10. Tahap 1d: Sales Invoice Totals by Customer, Billable Time Summary, Receipts & Payments Summary
+
+> Sumber: screenshot Manager.io asli (form + hasil ketiganya).
+
+### 10.1 Perubahan indeks
+Tiga item menjadi aktif: Sales Invoice Totals by Customer (grup Sales
+Invoices), Billable Time Summary (grup Billable Time), Receipts &
+Payments Summary (grup Cash & cash equivalents). Sisanya tetap "Segera".
+
+### 10.2 Kolom & validasi (tanpa kolom tabel baru)
+Ketiga form TIDAK punya Title maupun Accounting method — `title`
+default nama jenis laporan bila kosong; `accounting_method` diabaikan.
+- `sales_invoice_totals_by_customer`: wajib from+to (from <= to).
+- `billable_time_summary`: wajib from+to.
+- `receipts_payments_summary`: wajib from+to; `footer`,
+  `show_account_codes`, `exclude_zero_balances` ikut pola Tahap 1.
+
+### 10.3 Perhitungan
+- **Totals by Customer**: per customer Σ invoiceAmount faktur aktif
+  issue_date from..to + baris total. Header kolom = tanggal To
+  (mengikuti Manager.io; field Column name ditunda).
+- **Billable Time Summary** per customer: Opening (kumulatif sebelum
+  from), New Billable Time (mutasi periode), Invoiced, Written-off,
+  Closing (= Opening + New − Invoiced − Written-off) + baris total.
+  CATATAN JUJUR: modul Billable Time kita berstatus statis
+  ("Uninvoiced" hardcoded, tanpa link ke faktur) — kolom Invoiced dan
+  Written-off SELALU 0 sampai modulnya punya status/relasi beneran.
+  Itu keterbatasan yang dicatat, bukan bug laporan.
+- **Receipts & Payments Summary**: seksi Receipts = Σ baris receipt
+  per akun periode itu + Total; seksi Less: Payments = Σ baris payment
+  per akun + Total; Net increase = Total Receipts − Total Payments;
+  Cash at beginning (= saldo akun bank/kas sebelum from); Adjustments
+  (= mutasi jurnal MANUAL atas akun bank/kas periode itu); Cash at end
+  (= Beginning + Net + Adjustments). Identitas End ini WAJIB diuji —
+  kalau di data uji tidak cocok, agent wajib melaporkan komposisi
+  aktualnya, JANGAN memaksa rumus.
+
+### 10.4 Hasil & frontend
+Layout kolom mengikuti screenshot. Form per tipe HANYA field §10.2.
+Route `/reports/$type` dipakai ulang. Angka ikut Obscure mode. Print
+browser, tanpa Clone/PDF.

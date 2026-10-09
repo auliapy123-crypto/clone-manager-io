@@ -1332,6 +1332,9 @@ export const REPORT_TYPES = [
   "aged_payables",
   "customer_summary",
   "supplier_summary",
+  "sales_invoice_totals_by_customer",
+  "billable_time_summary",
+  "receipts_payments_summary",
 ] as const;
 export type ReportType = (typeof REPORT_TYPES)[number];
 
