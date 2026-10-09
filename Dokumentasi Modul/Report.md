@@ -313,7 +313,7 @@ default nama jenis laporan bila kosong; `accounting_method` diabaikan.
 ### 10.3 Perhitungan
 - **Totals by Customer**: per customer Σ invoiceAmount faktur aktif
   issue_date from..to + baris total. Header kolom = tanggal To
-  (mengikuti Manager.io; field Column name ditunda).
+  (diselaraskan pada Tahap 2a).
 - **Billable Time Summary** per customer: Opening (kumulatif sebelum
   from), New Billable Time (mutasi periode), Invoiced, Written-off,
   Closing (= Opening + New − Invoiced − Written-off) + baris total.
@@ -325,12 +325,144 @@ default nama jenis laporan bila kosong; `accounting_method` diabaikan.
   per akun periode itu + Total; seksi Less: Payments = Σ baris payment
   per akun + Total; Net increase = Total Receipts − Total Payments;
   Cash at beginning (= saldo akun bank/kas sebelum from); Adjustments
-  (= mutasi jurnal MANUAL atas akun bank/kas periode itu); Cash at end
-  (= Beginning + Net + Adjustments). Identitas End ini WAJIB diuji —
-  kalau di data uji tidak cocok, agent wajib melaporkan komposisi
-  aktualnya, JANGAN memaksa rumus.
+  (= SISA: Ending − Beginning − Net, BUKAN dari jurnal manual —
+  penyimpangan sadar dari spek awal; identitas End benar secara
+  konstruksi, jadi tes identitas tidak membuktikan komposisi);
+  Cash at end (= saldo akun bank/kas ≤ to).
 
 ### 10.4 Hasil & frontend
 Layout kolom mengikuti screenshot. Form per tipe HANYA field §10.2.
 Route `/reports/$type` dipakai ulang. Angka ikut Obscure mode. Print
 browser, tanpa Clone/PDF.
+- Catatan presisi uang: porsi Billable Time dihitung float
+  (rate × menit/60 × 100 lalu ROUND di SQL) — lolos exact di uji,
+  tapi berisiko drift 1 sen; follow-up: rumus integer-first.
+
+## 11. Tahap 2a: Sales Invoice Totals by Item & by Custom Field
+
+> Sumber: screenshot Manager.io asli (form + hasil + daftar definisi).
+> Hasil uji KOSONG (test biz tanpa item/nilai custom) — bentuk baris
+> [INFERENSI] mengikuti Totals by Customer; wajib dibuktikan via E2E.
+
+### 11.1 Perubahan indeks
+Dua item grup Sales Invoices menjadi aktif. Header kolom hasil = tanggal
+To (bukti screenshot; sekalian revisi header Totals by Customer yang
+tampil rentang → samakan ke tanggal To).
+
+### 11.2 Kolom & validasi (tanpa kolom tabel baru)
+- `sales_invoice_totals_by_item`: wajib from+to (from <= to). Tanpa Title/
+  Accounting method (pola Tahap 1d).
+- `sales_invoice_totals_by_custom_field`: wajib from+to + `custom_field`
+  (dropdown definisi custom field modul sales invoice; kosong → 400).
+  `title` diisi Name (daftar definisi Manager.io berkolom Name,
+  bukan Description).
+
+### 11.3 Perhitungan
+- **Totals by Item**: per item Σ line_total baris faktur aktif
+  issue_date from..to + baris total. Baris tanpa item (deskripsi bebas)
+  → kelompok "Tanpa item" [fallback].
+- **Totals by Custom Field**: per NILAI custom field terpilih Σ
+  invoiceAmount faktur aktif periode itu + baris total. Faktur tanpa
+  nilai → kelompok "(Kosong)". PRASYARAT JUJUR: butuh nilai custom field
+  tersimpan per faktur — kalau Fase 1 Custom Fields ternyata hanya
+  definisi tanpa nilai, LAPORKAN dan bangun fallback (satu baris total +
+  catatan), JANGAN mengarang nilai.
+
+### 11.4 Struktur asli dan keputusan implementasi (9 Oktober 2026)
+
+Neon diperiksa melalui `information_schema` sebelum perubahan kode:
+- `sales_invoice_lines` memiliki `sales_invoice_id`, `account_id`,
+  `description`, `quantity`, `unit_price`, `subtotal`, `tax_rate_percent`,
+  `tax_amount`, `line_total`, `sort_order`, `tax_code_id`; **tidak memiliki
+  kolom/relasi item**. Tidak ada tabel bernama items/inventory atau tabel
+  yang mengandung nama tersebut. `account_id` adalah akun COA, bukan item;
+  deskripsi bebas juga tidak diperlakukan sebagai identitas item.
+- Maka by Item memakai fallback **Tanpa item** untuk seluruh baris aktif.
+  Jika periode tidak mempunyai baris faktur, hasil hanya Total 0. Catatan
+  keterbatasan tampil di hasil/API. E2E pengelompokan beberapa item nyata
+  belum bisa dilakukan; tidak ada item atau relasi yang dikarang.
+- Nilai custom field **tersedia**: `custom_field_values.business_id`,
+  `entity_type`, `record_id`, `definition_id`, `value_text`, `value_number`,
+  `value_date`, `value_boolean`. `record_id` menunjuk ID faktur; definisi
+  yang dipilih harus `entity_type='sales_invoice'`, satu bisnis, belum
+  soft-deleted. Definisi inactive tetap boleh dilaporkan untuk data historis.
+  Index unik asli `(definition_id,record_id)` diverifikasi; join tidak
+  menggandakan total faktur.
+- `report_definitions` **tidak mempunyai kolom custom_field**. Agar memenuhi
+  batas tanpa DDL, ID pilihan disimpan sebagai JSON
+  `{"customFieldId":"<uuid>"}` di kolom `description` yang sudah ada,
+  khusus tipe by Custom Field. Ini parameter definisi, bukan hasil laporan.
+  Request/response mengikuti camelCase proyek: **`customFieldId`**; field
+  `description` respons untuk tipe ini null, ID parameter diproyeksikan dari
+  JSON. Form/list menampilkan **Name/Nama** yang disimpan di `title`.
+  Name kosong memakai nama jenis laporan. Field tanpa relevansi diabaikan.
+  Penyimpanan JSON ini merupakan penyesuaian terhadap tidak tersedianya
+  kolom parameter, bukan penambahan tabel/kolom.
+- Agregasi uang memakai `SUM((line_total*100)::bigint)` dalam SQL, bukan float
+  JS. By Custom Field menjumlahkan tiap faktur terlebih dahulu lalu
+  mengelompokkan berdasarkan nilai typed milik field terpilih. Text/select
+  kosong atau tidak ada nilai masuk **(Kosong)**; number 0 dan boolean false
+  tetap nilai valid. Semua query memfilter business, tanggal inklusif,
+  invoice aktif; join values juga memfilter entity/business/definition.
+- Endpoint result/RBAC/audit/pagination/soft-delete dipakai ulang. Semua
+  tiga laporan sales totals mempunyai header nominal **tanggal To**, termasuk
+  bonus fix by Customer. Tidak ada posting jurnal dari Reports.
+
+### 11.5 Pengujian Tahap 2a (9 Oktober 2026)
+
+Lokal pnpm pada port 3000/4000; Docker kosong. Business dummy sama dengan
+§9.6. Dua faktur ZZ buatan sesi ini (baris bebas, karena item belum tersedia):
+- A, 8 Oktober: `2 × 10,01 + pajak 25% (5,01) + 3,03 = 28,06`.
+- B, 9 Oktober: `7,07 + 2 × 4,04 = 15,15`.
+- Gabungan: **43,21**. Total header faktur lama API sempat menghasilkan
+  representasi float `28.060000000000002`; pemeriksaan dilakukan dalam sen
+  (2806). Query Reports mengembalikan **28,06** sesuai sen integer.
+
+| Uji runtime | Hasil |
+|---|---|
+| By Item, 8–9 Oktober | Tanpa item **43,21**, Total **43,21**; deskripsi sama/berbeda tetap kelompok bebas, tidak dijadikan item palsu |
+| By Custom Field text, 2000–9 Oktober | (Kosong) **5.550.033,28** dari faktur lama; Alpha **28,06**; Beta **15,15**; Total **5.550.076,49** |
+| Nilai kosong, periode 8–9 Oktober | Hapus nilai Beta dari faktur ZZ B → (Kosong) **15,15**, Alpha **28,06**, Total **43,21**; nilai kemudian dikembalikan |
+| Semua tipe lain | number `0.00`/`2.50`, boolean `false`/`true`, date `2026-10-08`/`2026-10-09`, select `One`/`Two`: masing-masing **28,06**/**15,15**, Total **43,21**; tidak dianggap kosong |
+| Rentang tanpa transaksi | Kedua tipe hanya Total **0** (2099-01-01–2099-01-02) |
+| Header To | API by Customer `headerDate=2026-10-09`; kolom nominal ketiga tipe memakai tanggal To |
+| Negatif | from>to create/partial edit, custom field hilang/kosong/null/UUID tidak ada/definisi Customer, pageSize101/type asing → **400**; bisnis tanpa akses → **403**; viewer create/edit/delete → **403**; viewer kedua result → **200**; soft-deleted report result → **404**; tanpa 500 |
+| Name/default | Create Name spasi → **Sales Invoice Totals by Custom Field**; edit Name dan pilihan field tersimpan; list menggunakan Nama/Name |
+| UI by Item | New/Edit hanya From/To; edit From 8→9 Oktober memindahkan total **43,21→15,15** |
+| UI by Custom Field | From/To, Name, dropdown Custom Field saja; pilihan hanya definisi sales_invoice (definisi Customer uji tidak tampil); edit field ke number mengubah label/grup menjadi `0.00`/`2.50` dengan Total **43,21** |
+| Obscure | Semua nominal/baris total pada kedua hasil menjadi **••••••**, toggle balik memulihkan angka. Nilai field merupakan label grup, bukan nominal faktur |
+| Print | Tombol dipicu pada kedua hasil, memanggil window.print melalui pola lama. **Pratinjau/hasil cetak native belum terverifikasi**, karena browser bawaan tidak mengekspos dialog dan klik mengalami timeout; console aplikasi bersih |
+| Non-posting | Jumlah journal_entries tidak berubah saat create/read definisi Reports (**221** pada awal, **223** ketika dua jurnal invoice ZZ sudah ada); tidak ada jurnal Reports |
+| Audit | By Item: CREATE **1**, UPDATE **2**, DELETE **1**. By Custom Field: CREATE **1**, UPDATE **7**, DELETE **1** |
+| Pemeriksaan kode | Typecheck backend/frontend **0/0**; **4** tes validasi Reports lulus |
+
+Regresi sebelum dan setelah cleanup, dihitung pada tanggal 9 Oktober:
+
+| Laporan | Sebelum | Sesudah |
+|---|---:|---:|
+| TB Debit = Credit | 5.550.054,61 | 5.550.054,61 |
+| P&L Net Profit | 5.000.017,00 | 5.000.017,00 |
+| BS Net Assets | 5.000.022,01 | 5.000.022,01 |
+| Aged AR | 5.550.033,28 | 5.550.033,28 |
+| Aged AP | 15,00 | 15,00 |
+
+Cleanup hanya berdasarkan ID yang dicatat saat create: **13 record aplikasi**
+(6 definisi custom field, 4 definisi report, 2 faktur, 1 kontak). Semua header
+dihapus melalui API; nilai opsional uji dilepas lewat API terlebih dahulu.
+Custom field wajib pre-existing "Diskon Special" hanya diisi pada faktur ZZ,
+bukan mengubah definisinya. Sisa row nilai milik faktur ZZ yang sudah dihapus
+dibersihkan dengan **ID row yang dikembalikan upsert dan dicatat**, bukan
+filter/prefix/list. Tidak ada hard-delete header transaksi. Query langsung
+dan API tanpa filter (pageSize<=100) menunjukkan **0 ZZ aktif**; semua nilai
+dan jurnal aktif terkait dua ID faktur uji **0**. Audit dan tombstone header
+dipertahankan. Tidak ada item yang dibuat. PO-2020, RCV 2020, inv-102,
+INV-TEST-001 dan PRJ-2020 tetap aktif. Password tidak diubah.
+
+File perubahan: backend `src/db/schema.ts` (enum saja),
+`src/schemas/ReportDefinition.ts`, `src/schemas/ReportDefinition.test.ts`,
+`src/repositories/ReportDefinitionRepository.ts`,
+`src/repositories/ReportQueryRepository.ts`, `src/plugins/ReportRoutes.ts`;
+frontend `src/hooks/use-reports.ts`, `src/components/report-form-dialog.tsx`,
+`src/components/report-stage1b-table.tsx`, tiga route Reports (`reports.index`,
+`reports.$type`, `reports.$type.$id`), `src/i18n/locales/id.json`/`en.json`;
+serta dokumen ini. Skrip/manifest sementara dihapus sebelum commit.
