@@ -40,7 +40,7 @@ export interface ReportRow {
 }
 
 // SQL sums/window functions operate on integer cents. Convert only at the API boundary.
-function centsToAmount(value: unknown): number {
+export function centsToAmount(value: unknown): number {
   const cents = Number(value);
   if (!Number.isSafeInteger(cents)) throw new Error("Report amount exceeds safe integer cents");
   return cents / 100;
@@ -151,6 +151,24 @@ export async function computeAgedPayables(
   return computeAgeing(businessId, title, asOfDate, sortBy, showInvoices, true);
 }
 
+/**
+ * SATU-SATUNYA definisi saldo faktur yang masih terutang (live allocation):
+ * - Piutang (receivable): invoiceAmount − Σ withholding_tax_receipts aktif.
+ * - Utang (payable):      invoiceAmount − Σ payment_lines milik payment aktif.
+ * Dipakai bersama oleh Aged Receivables/Payables DAN Statements (Report §12)
+ * supaya tidak ada dua rumus saldo yang bisa berbeda.
+ */
+export function invoiceAllocationsSql(businessId: string, payable: boolean) {
+  return payable ? sql`
+    SELECT l.purchase_invoice_id AS invoice_id,SUM((l.amount*100)::bigint) AS paid
+    FROM payment_lines l JOIN payments p ON p.id=l.payment_id
+    WHERE p.business_id=${businessId} AND p.deleted_at IS NULL GROUP BY l.purchase_invoice_id
+  ` : sql`
+    SELECT sales_invoice_id AS invoice_id,SUM((amount*100)::bigint) AS paid FROM withholding_tax_receipts
+    WHERE business_id=${businessId} AND deleted_at IS NULL GROUP BY sales_invoice_id
+  `;
+}
+
 async function computeAgeing(
   businessId: string, title: string, asOfDate: string, sortBy: string, showInvoices: boolean, payable: boolean,
 ): Promise<ReportResult> {
@@ -160,14 +178,7 @@ async function computeAgeing(
   const invoiceKey = sql.identifier(payable ? "purchase_invoice_id" : "sales_invoice_id");
   const contactKey = payable ? sql`i.supplier_id` : sql`i.customer_id`;
   const lineAmount = payable ? sql`l.subtotal` : sql`l.line_total`;
-  const allocations = payable ? sql`
-    SELECT l.purchase_invoice_id AS invoice_id,SUM((l.amount*100)::bigint) AS paid
-    FROM payment_lines l JOIN payments p ON p.id=l.payment_id
-    WHERE p.business_id=${businessId} AND p.deleted_at IS NULL GROUP BY l.purchase_invoice_id
-  ` : sql`
-    SELECT sales_invoice_id AS invoice_id,SUM((amount*100)::bigint) AS paid FROM withholding_tax_receipts
-    WHERE business_id=${businessId} AND deleted_at IS NULL GROUP BY sales_invoice_id
-  `;
+  const allocations = invoiceAllocationsSql(businessId, payable);
   const result = await db.execute(sql`
     WITH invoice_totals AS (
       SELECT l.${invoiceKey} AS invoice_id, SUM((${lineAmount}*100)::bigint) AS amount

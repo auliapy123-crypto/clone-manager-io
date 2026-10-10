@@ -50,6 +50,130 @@ export const isStage1dReport = (type: string) =>
 export const isParameterOnlyReport = (type: ReportType) =>
   type.startsWith("general_ledger_") || isAgedReport(type) || isContactSummary(type) || isStage1dReport(type);
 
+/**
+ * Statements (§12 / Tahap 2b) — keluarga BERBEDA dari `REPORT_TYPE_VALUES`:
+ * parameter-only, TANPA definisi tersimpan (tanpa New/Edit, tanpa Title,
+ * tanpa baris `report_definitions`). Sengaja dipisah supaya tipe ini tidak
+ * pernah ikut ke endpoint definisi laporan.
+ */
+export const STATEMENT_TYPE_VALUES = [
+  "customer_statements_unpaid",
+  "customer_statements_transactions",
+  "supplier_statements_unpaid",
+  "supplier_statements_transactions",
+] as const;
+export type StatementType = (typeof STATEMENT_TYPE_VALUES)[number];
+
+/** Nama persis §12.1 (satu item abu-abu dipecah jadi dua entri aktif). */
+export const STATEMENT_TYPE_LABELS: Record<StatementType, string> = {
+  customer_statements_unpaid: "Customer Statements (Unpaid Invoices)",
+  customer_statements_transactions: "Customer Statements (Transactions)",
+  supplier_statements_unpaid: "Supplier Statements (Unpaid Invoices)",
+  supplier_statements_transactions: "Supplier Statements (Transactions)",
+};
+
+export const isStatementReport = (type: string): type is StatementType =>
+  (STATEMENT_TYPE_VALUES as readonly string[]).includes(type);
+export const isUnpaidStatement = (type: string) => type.endsWith("_unpaid");
+
+export interface StatementContactRow {
+  contactId: string;
+  name: string;
+  transactionCount: number;
+  amount: number;
+}
+
+export interface StatementDetailRow {
+  kind: "invoice" | "transaction";
+  date: string;
+  invoiceId?: string;
+  orderNumber?: string | null;
+  reference?: string;
+  invoiceTotal?: number;
+  overdueDays?: number;
+  balanceDue?: number;
+  description?: string;
+  sourceModule?: string;
+  debit?: number;
+  credit?: number;
+  runningBalance?: number;
+}
+
+export interface StatementBuckets {
+  current: number;
+  days1To30: number;
+  days31To60: number;
+  days61To90: number;
+  daysOver90: number;
+  total: number;
+}
+
+export interface StatementContact {
+  id: string;
+  name: string;
+  email: string | null;
+  billingAddress: string | null;
+}
+
+export interface StatementListResponse {
+  data: StatementContactRow[];
+  pagination: PaginationInfo;
+  headerDate: string;
+  totals: { label: string; value: number }[];
+}
+
+export interface StatementDetailResult {
+  type: string;
+  headerDate: string;
+  contact: StatementContact;
+  rows: StatementDetailRow[];
+  buckets: StatementBuckets | null;
+  totals: { label: string; value: number }[];
+}
+
+export interface StatementParams {
+  asOfDate?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export function useStatementList(
+  businessId: string,
+  type: StatementType,
+  params: StatementParams & { page?: number; pageSize?: number; q?: string },
+) {
+  return useQuery({
+    queryKey: ["statements", businessId, type, params],
+    queryFn: async () => {
+      const { data, error } = await apiClient.get<StatementListResponse, ApiErrorBody>({
+        url: `/businesses/${businessId}/statements/${type}`,
+        query: { ...params },
+      });
+      if (error) throw new ApiError(error);
+      return data;
+    },
+  });
+}
+
+export function useStatementDetail(
+  businessId: string,
+  type: StatementType,
+  contactId: string,
+  params: StatementParams,
+) {
+  return useQuery({
+    queryKey: ["statement", businessId, type, contactId, params],
+    queryFn: async () => {
+      const { data, error } = await apiClient.get<{ data: StatementDetailResult }, ApiErrorBody>({
+        url: `/businesses/${businessId}/statements/${type}/${contactId}`,
+        query: { ...params },
+      });
+      if (error) throw new ApiError(error);
+      return data.data;
+    },
+  });
+}
+
 export interface ReportDefinition {
   id: string;
   businessId: string;

@@ -68,6 +68,7 @@ import salesOrderRoutesPlugin from "./plugins/SalesOrderRoutes.js";
 import salesQuoteRoutesPlugin from "./plugins/SalesQuoteRoutes.js";
 import supplierRoutesPlugin from "./plugins/SupplierRoutes.js";
 import reportRoutesPlugin from "./plugins/ReportRoutes.js";
+import statementRoutesPlugin from "./plugins/StatementRoutes.js";
 import taxCodeRoutesPlugin from "./plugins/TaxCodeRoutes.js";
 import userRoutesPlugin from "./plugins/UserRoutes.js";
 
@@ -396,6 +397,7 @@ export async function buildApp() {
   await app.register(taxCodeRoutesPlugin);
   await app.register(customFieldRoutesPlugin);
   await app.register(reportRoutesPlugin);
+  await app.register(statementRoutesPlugin);
   await app.register(historyRoutesPlugin);
 
   return app;

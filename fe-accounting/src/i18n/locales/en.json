@@ -72,7 +72,21 @@
     "historicalHint": "Historical ageing uses current invoice balances; past dates are approximate.",
     "calculating": "Calculating report...",
     "noTransactions": "No transactions in this period.",
-    "asAt": "As at {{date}}"
+    "asAt": "As at {{date}}",
+    "customer_statements_unpaid": "Customer Statements (Unpaid Invoices)",
+    "customer_statements_transactions": "Customer Statements (Transactions)",
+    "supplier_statements_unpaid": "Supplier Statements (Unpaid Invoices)",
+    "supplier_statements_transactions": "Supplier Statements (Transactions)",
+    "setDate": "Set Date",
+    "setPeriod": "Set Period",
+    "transactions": "Transactions",
+    "orderNumber": "Order number",
+    "invoiceRef": "Invoice ref",
+    "invoiceTotal": "Invoice total",
+    "overdue": "Overdue (days)",
+    "balanceDue": "Balance due",
+    "aging": "Ageing",
+    "backToIndex": "← Back to reports index"
   },
   "common": {
     "categoryAsset": "Assets",

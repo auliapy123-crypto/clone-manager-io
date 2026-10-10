@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTranslation } from "react-i18next";
-import { isParameterOnlyReport, type ReportType } from "@/hooks/use-reports";
+import { isParameterOnlyReport, isStatementReport, type ReportType } from "@/hooks/use-reports";
 
 export const Route = createFileRoute("/businesses/$businessId/reports/")({
   component: ReportsIndexPage,
@@ -42,7 +42,9 @@ const GROUPS: Array<{
     group: "Customers",
     items: [
       { type: "customer_summary", label: "Customer Summary", enabled: true },
-      { label: "Customer Statements" },
+      // §12.1: satu item abu-abu "Customer Statements" dipecah jadi DUA entri.
+      { type: "customer_statements_unpaid", label: "Customer Statements (Unpaid Invoices)", enabled: true },
+      { type: "customer_statements_transactions", label: "Customer Statements (Transactions)", enabled: true },
       { type: "aged_receivables", label: "Aged Receivables", enabled: true },
     ],
   },
@@ -50,7 +52,8 @@ const GROUPS: Array<{
     group: "Suppliers",
     items: [
       { type: "supplier_summary", label: "Supplier Summary", enabled: true },
-      { label: "Supplier Statements" },
+      { type: "supplier_statements_unpaid", label: "Supplier Statements (Unpaid Invoices)", enabled: true },
+      { type: "supplier_statements_transactions", label: "Supplier Statements (Transactions)", enabled: true },
       { type: "aged_payables", label: "Aged Payables", enabled: true },
     ],
   },
@@ -96,7 +99,9 @@ function ReportsIndexPage() {
                     params={{ businessId, type: item.type }}
                     className="text-sm font-medium text-blue-700 hover:underline"
                   >
-                    {isParameterOnlyReport(item.type as ReportType) ? t(`reports.${item.type}`) : item.label}
+                    {isStatementReport(item.type) || isParameterOnlyReport(item.type as ReportType)
+                      ? t(`reports.${item.type}`)
+                      : item.label}
                   </Link>
                 ) : (
                   <span key={item.label} className="text-sm text-gray-400">

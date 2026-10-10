@@ -7,15 +7,26 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { ReportFormDialog } from "@/components/report-form-dialog";
+import {
+  STATEMENT_EPOCH,
+  StatementListTable,
+  StatementParamsDialog,
+  todayIso,
+} from "@/components/statement-views";
 import { useBusinesses } from "@/hooks/use-businesses";
 import {
   REPORT_TYPE_LABELS,
   REPORT_TYPE_VALUES,
   type ReportType,
+  type StatementParams,
+  type StatementType,
   useDeleteReportDefinition,
   useReportDefinitions,
+  useStatementList,
   isParameterOnlyReport,
   isAgedReport,
+  isStatementReport,
+  isUnpaidStatement,
   type ReportDefinition,
 } from "@/hooks/use-reports";
 import { getApiErrorMessage } from "@/lib/errors";
@@ -24,9 +35,16 @@ export const Route = createFileRoute("/businesses/$businessId/reports/$type")({
   validateSearch: z.object({
     page: z.number().optional(),
     q: z.string().optional(),
+    // Parameter statement (§12.2) — TIDAK disimpan sebagai definisi.
+    asOf: z.string().optional(),
+    from: z.string().optional(),
+    to: z.string().optional(),
   }),
   beforeLoad: ({ params }) => {
-    if (!REPORT_TYPE_VALUES.includes(params.type as ReportType)) {
+    if (
+      !REPORT_TYPE_VALUES.includes(params.type as ReportType) &&
+      !isStatementReport(params.type)
+    ) {
       throw new Error("Jenis laporan tidak dikenal");
     }
   },
@@ -35,7 +53,124 @@ export const Route = createFileRoute("/businesses/$businessId/reports/$type")({
 
 function ReportTypePage() {
   const isList = useRouterState({ select: state => state.matches.at(-1)?.routeId === Route.id });
-  return isList ? <ReportTypeListPage /> : <Outlet />;
+  const { type } = Route.useParams();
+  if (!isList) return <Outlet />;
+  return isStatementReport(type) ? <StatementListPage type={type} /> : <ReportTypeListPage />;
+}
+
+/** Daftar kontak statement: parameter-only, tanpa definisi tersimpan. */
+function StatementListPage({ type }: { type: StatementType }) {
+  const { t } = useTranslation();
+  const { businessId } = Route.useParams();
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const unpaid = isUnpaidStatement(type);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const page = search.page ?? 1;
+  const q = search.q ?? "";
+  const params: StatementParams = unpaid
+    ? { asOfDate: search.asOf ?? todayIso() }
+    : { dateFrom: search.from ?? STATEMENT_EPOCH, dateTo: search.to ?? todayIso() };
+
+  const [searchText, setSearchText] = useState(q);
+  const { data, isPending, isError, error } = useStatementList(businessId, type, {
+    ...params,
+    page,
+    pageSize: 20,
+    q: q || undefined,
+  });
+
+  useEffect(() => {
+    if (searchText === q) return;
+    const timeout = setTimeout(
+      () => void navigate({ search: { ...search, page: 1, q: searchText.trim() } }),
+      300,
+    );
+    return () => clearTimeout(timeout);
+  }, [searchText, q, navigate, search]);
+
+  const applyParams = (next: StatementParams) => {
+    setDialogOpen(false);
+    void navigate({
+      search: unpaid
+        ? { ...search, page: 1, asOf: next.asOfDate }
+        : { ...search, page: 1, from: next.dateFrom, to: next.dateTo },
+    });
+  };
+
+  const view = (contactId: string) => {
+    void navigate({
+      to: "/businesses/$businessId/reports/$type/$id",
+      params: { businessId, type, id: contactId },
+      search: unpaid
+        ? { asOf: params.asOfDate }
+        : { from: params.dateFrom, to: params.dateTo },
+    });
+  };
+
+  return (
+    <div className="report-print-area flex flex-col gap-4 p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-semibold text-gray-900">{t(`reports.${type}`)}</h1>
+          <p className="text-sm text-gray-500">
+            {unpaid
+              ? t("reports.asAt", { date: data?.headerDate ?? params.asOfDate })
+              : data?.headerDate ?? `${params.dateFrom} — ${params.dateTo}`}
+          </p>
+        </div>
+        <div className="flex gap-2 print:hidden">
+          <Button variant="outline" onClick={() => window.print()}>
+            {t("reports.print")}
+          </Button>
+          <Button onClick={() => setDialogOpen(true)}>
+            {unpaid ? t("reports.setDate") : t("reports.setPeriod")}
+          </Button>
+        </div>
+      </div>
+
+      <Input
+        className="max-w-xs print:hidden"
+        placeholder={t("common.search")}
+        value={searchText}
+        onChange={(event) => setSearchText(event.target.value)}
+      />
+
+      {isPending ? (
+        <p className="p-6 text-sm text-gray-500">{t("reports.calculating")}</p>
+      ) : isError ? (
+        <p role="alert" className="p-6 text-sm text-red-700">{getApiErrorMessage(error)}</p>
+      ) : (
+        data && <StatementListTable result={data} type={type} params={params} onView={view} />
+      )}
+
+      {data && (
+        <Pagination
+          page={page}
+          totalPages={data.pagination.totalPages}
+          onPageChange={(p) => void navigate({ search: { ...search, page: p } })}
+        />
+      )}
+
+      <Link
+        to="/businesses/$businessId/reports"
+        params={{ businessId }}
+        className="text-sm text-blue-700 hover:underline print:hidden"
+      >
+        {t("reports.backToIndex")}
+      </Link>
+
+      {dialogOpen && (
+        <StatementParamsDialog
+          type={type}
+          initial={params}
+          onSubmit={applyParams}
+          onClose={() => setDialogOpen(false)}
+        />
+      )}
+    </div>
+  );
 }
 
 function ReportTypeListPage() {

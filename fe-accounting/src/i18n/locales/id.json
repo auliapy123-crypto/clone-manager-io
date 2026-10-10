@@ -72,7 +72,21 @@
     "historicalHint": "Umur piutang memakai saldo faktur saat ini; tanggal lampau bersifat perkiraan.",
     "calculating": "Menghitung laporan...",
     "noTransactions": "Tidak ada transaksi pada periode ini.",
-    "asAt": "Per {{date}}"
+    "asAt": "Per {{date}}",
+    "customer_statements_unpaid": "Pernyataan Pelanggan (Faktur Belum Lunas)",
+    "customer_statements_transactions": "Pernyataan Pelanggan (Transaksi)",
+    "supplier_statements_unpaid": "Pernyataan Pemasok (Faktur Belum Lunas)",
+    "supplier_statements_transactions": "Pernyataan Pemasok (Transaksi)",
+    "setDate": "Atur Tanggal",
+    "setPeriod": "Atur Periode",
+    "transactions": "Transaksi",
+    "orderNumber": "Nomor pesanan",
+    "invoiceRef": "Ref. faktur",
+    "invoiceTotal": "Total faktur",
+    "overdue": "Terlambat (hari)",
+    "balanceDue": "Sisa tagihan",
+    "aging": "Umur piutang/utang",
+    "backToIndex": "← Kembali ke indeks laporan"
   },
   "common": {
     "categoryAsset": "Aset",
